@@ -14,10 +14,10 @@ async def on_ready():
     myLoop.start()
 
 @tree.command(name="join", description="ボイスチャンネルに参加します")
-async def jannkenn(interaction: discord.Interaction, text: str):
+async def join(interaction: discord.Interaction, text: str):
     await interaction.response.send_message("?")
 @tasks.loop(seconds=20)  # repeat after every 10 seconds
-async def myLoop2():
+async def myLoop():
   # work
   await client.change_presence(activity=discord.Game(
     name="☕猫の喫茶店でメイドとして勤務中 / https://discord.gg/aEEt8FgYBb"))
