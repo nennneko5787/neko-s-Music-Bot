@@ -6,6 +6,7 @@ from keep_alive import keep_alive
 import asyncio
 
 client = discord.Client(intents=discord.Intents.default())
+tree = discord.app_commands.CommandTree(client) #←ココ
 
 @client.event
 async def on_ready():
