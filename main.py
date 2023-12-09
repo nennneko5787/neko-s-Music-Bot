@@ -21,7 +21,7 @@ async def join(interaction: discord.Interaction, text: str):
 async def myLoop():
   # work
   await client.change_presence(activity=discord.Game(
-    name="☕猫の喫茶店でメイドとして勤務中 / https://discord.gg/aEEt8FgYBb"))
+    name="umu"))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
