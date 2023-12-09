@@ -7,10 +7,11 @@ import asyncio
 
 client = discord.Client(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
+print('もうなんだよ')
 
 @client.event
 async def on_ready():
-    print('ログインしました')
+    print('a')
     await tree.sync()  #スラッシュコマンドを同期
     myLoop.start()
 
@@ -23,7 +24,7 @@ async def myLoop():
   await client.change_presence(activity=discord.Game(
     name="umu"))
 
-TOKEN = "MTE4MTU0MDkxNDczMzI3MzEwOA.GZKw92.Rw5KIU9GGXHlHk4XlYVIssAOIaiSR-I3isLVqg"
+TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
 keep_alive()
 client.run(TOKEN)
