@@ -1,2 +1,3 @@
 discord.py[voice]
 Flask
+yt-dlp
