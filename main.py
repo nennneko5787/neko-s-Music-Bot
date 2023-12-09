@@ -32,11 +32,6 @@ async def leave(interaction: discord.Interaction):
 		return
 	await voice_client.disconnect()
 	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」にから切断しました。")
-	
-final_filename = None
-def yt_dlp_monitor(self, d):
-    final_filename  = d.get('info_dict').get('_filename')
-    # You could also just assign `d` here to access it and see all the data or even `print(d)` as it updates frequently
 
 @tree.command(name="play", description="音楽を再生します")
 async def play(interaction: discord.Interaction, url:str):
@@ -45,6 +40,7 @@ async def play(interaction: discord.Interaction, url:str):
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	ydl_opts = {
+		"outtmpl": "test.mp3"
 		"format": "mp3/bestaudio/best",
 		"postprocessors": [
 			{
@@ -52,11 +48,10 @@ async def play(interaction: discord.Interaction, url:str):
 				"preferredcodec": "mp3",
 			}
 		],
-		"progress_hooks": [yt_dlp_monitor]
 	}
 	with YoutubeDL(ydl_opts) as ydl:
 		ydl.download([url])
-	await voice_client.play(discord.FFmpegPCMAudio(final_filename))
+	await voice_client.play(discord.FFmpegPCMAudio("test.mp3"))
 	await interaction.response.send_message("再生中")
 
 
