@@ -10,18 +10,34 @@ tree = discord.app_commands.CommandTree(client) #←ココ
 
 @client.event
 async def on_ready():
-    print('ログインしました')
-    await tree.sync()  #スラッシュコマンドを同期
-    myLoop.start()
+	print('ログインしました')
+	await tree.sync()  #スラッシュコマンドを同期
+	myLoop.start()
 
-@tree.command(name="join", description="ボイスチャンネルに参加します")
-async def join(interaction: discord.Interaction, text: str):
-    await interaction.response.send_message("?")
+@tree.command(name="join", description="neko's Music Botをボイスチャンネルに接続します")
+async def join(interaction: discord.Interaction):
+	if interaction.user.voice is None:
+		await interaction.response.send_message("あなたはボイスチャンネルに接続していません。",ephemeral=True)
+		return
+	# ボイスチャンネルに接続する
+	await interaction.user.voice.channel.connect()
+	await interaction.response.send_message(f"ボイスチャンネル「{interaction.user.voice.channel.name}」に接続しました。")
+
+@tree.command(name="leave", description="neko's Music Botをボイスチャンネルから切断します")
+async def join(interaction: discord.Interaction):
+	voice_client = interaction.guild.voice_client
+	if voice_client is None:
+		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		return
+	await voice_client.disconnect()
+	await interaction.response.send_message(f"ボイスチャンネル「{voice_client.channel.name}」にから切断しました。")
+
+	
 @tasks.loop(seconds=20)  # repeat after every 10 seconds
 async def myLoop():
-  # work
-  await client.change_presence(activity=discord.Game(
-    name="☕猫の喫茶店でメイドとして勤務中 / https://discord.gg/aEEt8FgYBb"))
+	# work
+	await client.change_presence(activity=discord.Game(
+	name="☕猫の喫茶店でメイドとして勤務中 / https://discord.gg/aEEt8FgYBb"))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
