@@ -40,7 +40,7 @@ async def play(interaction: discord.Interaction, url:str):
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	ydl_opts = {
-		"outtmpl": "test.mp3"
+		"outtmpl": "test.mp3",
 		"format": "mp3/bestaudio/best",
 		"postprocessors": [
 			{
