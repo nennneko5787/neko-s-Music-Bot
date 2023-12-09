@@ -23,7 +23,7 @@ async def myLoop():
   await client.change_presence(activity=discord.Game(
     name="umu"))
 
-TOKEN = os.getenv("DISCORD_TOKEN")
+TOKEN = "MTE4MTU0MDkxNDczMzI3MzEwOA.GZKw92.Rw5KIU9GGXHlHk4XlYVIssAOIaiSR-I3isLVqg"
 # Web サーバの立ち上げ
 keep_alive()
 client.run(TOKEN)
