@@ -61,7 +61,7 @@ async def play(interaction: discord.Interaction, url:str):
 
 
 @tree.command(name="stop", description="音楽を停止します")
-async def play(interaction: discord.Interaction, url:str):
+async def stop(interaction: discord.Interaction, url:str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
@@ -71,7 +71,7 @@ async def play(interaction: discord.Interaction, url:str):
 
 
 @tree.command(name="pause", description="音楽を一時停止します")
-async def play(interaction: discord.Interaction, url:str):
+async def pause(interaction: discord.Interaction, url:str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
@@ -81,7 +81,7 @@ async def play(interaction: discord.Interaction, url:str):
 
 
 @tree.command(name="resume", description="一時停止した音楽を再開します")
-async def play(interaction: discord.Interaction, url:str):
+async def resume(interaction: discord.Interaction, url:str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
@@ -94,7 +94,7 @@ async def play(interaction: discord.Interaction, url:str):
 async def myLoop():
 	# work
 	await client.change_presence(activity=discord.Game(
-		name="起動中"))
+		name="起動中."))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
