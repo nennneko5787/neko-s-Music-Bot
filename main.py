@@ -11,7 +11,6 @@ tree = discord.app_commands.CommandTree(client) #←ココ
 @client.event
 async def on_ready():
 	print('ログインしました')
-	await tree.sync()  #スラッシュコマンドを同期
 	myLoop.start()
 
 @tree.command(name="join", description="neko's Music Botをボイスチャンネルに接続します")
@@ -37,7 +36,8 @@ async def join(interaction: discord.Interaction):
 async def myLoop():
 	# work
 	await client.change_presence(activity=discord.Game(
-	name="☕猫の喫茶店でメイドとして勤務中 / https://discord.gg/aEEt8FgYBb"))
+		name="☕猫の喫茶店でメイドとして勤務中 / https://discord.gg/aEEt8FgYBb"))
+	await tree.sync()  #スラッシュコマンドを同期
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
