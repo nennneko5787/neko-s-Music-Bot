@@ -33,13 +33,7 @@ async def leave(interaction: discord.Interaction):
 	await voice_client.disconnect()
 	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」にから切断しました。")
 
-@tree.command(name="play", description="音楽を再生します")
-async def play(interaction: discord.Interaction, url:str):
-	await interaction.response.defer()
-	voice_client = interaction.guild.voice_client
-	if voice_client is None:
-		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
-		return
+async def ytdl(url: array):
 	ydl_opts = {
 		"outtmpl": "test",
 		"format": "mp3/bestaudio/best",
@@ -51,8 +45,17 @@ async def play(interaction: discord.Interaction, url:str):
 		],
 	}
 	with YoutubeDL(ydl_opts) as ydl:
-		ydl.download([url])
-	await voice_client.play(discord.FFmpegPCMAudio("test.mp3"))
+		ydl.download(url)
+
+@tree.command(name="play", description="音楽を再生します")
+async def play(interaction: discord.Interaction, url:str):
+	await interaction.response.defer()
+	voice_client = interaction.guild.voice_client
+	if voice_client is None:
+		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		return
+	await ytdl([url])
+	voice_client.play(discord.FFmpegPCMAudio("test.mp3"))
 	await interaction.followup.send("再生中")
 
 
@@ -62,7 +65,7 @@ async def stop(interaction: discord.Interaction, url:str):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	await voice_client.stop()
+	voice_client.stop()
 	await interaction.response.send_message("停止しました")
 
 
@@ -72,7 +75,7 @@ async def pause(interaction: discord.Interaction, url:str):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	await voice_client.pause()
+	voice_client.pause()
 	await interaction.response.send_message("停止しました")
 
 
@@ -82,7 +85,7 @@ async def resume(interaction: discord.Interaction, url:str):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	await voice_client.resume()
+	voice_client.resume()
 	await interaction.response.send_message("再開しました")
 
 
