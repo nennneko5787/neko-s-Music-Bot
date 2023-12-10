@@ -17,5 +17,8 @@ RUN apt install ffmpeg
 # -- ---- -- #
 
 RUN apt-get install -y vim less
-RUN pip install --upgrade pip
-RUN pip install --upgrade setuptools
+WORKDIR /bot
+COPY requirements.txt /bot/
+RUN pip install -r requirements.txt
+COPY . /bot
+CMD python main.py
