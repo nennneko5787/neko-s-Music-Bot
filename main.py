@@ -33,7 +33,7 @@ async def leave(interaction: discord.Interaction):
 	await voice_client.disconnect()
 	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」にから切断しました。")
 
-async def ytdl(url: list[str]):
+def ytdl(url: list[str]):
 	ydl_opts = {
 		"outtmpl": "test",
 		"format": "mp3/bestaudio/best",
@@ -54,7 +54,10 @@ async def play(interaction: discord.Interaction, url:str):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	await ytdl([url])
+	loop = asyncio.get_event_loop()
+	result = loop.run_until_complete(
+	    ytdl([url])
+	)
 	voice_client.play(discord.FFmpegPCMAudio("test.mp3"))
 	await interaction.followup.send("再生中")
 
