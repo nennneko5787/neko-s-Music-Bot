@@ -33,7 +33,7 @@ async def leave(interaction: discord.Interaction):
 	await voice_client.disconnect()
 	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」にから切断しました。")
 
-async def ytdl(url: array):
+async def ytdl(url: list[str]):
 	ydl_opts = {
 		"outtmpl": "test",
 		"format": "mp3/bestaudio/best",
