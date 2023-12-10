@@ -6,6 +6,7 @@ from keep_alive import keep_alive
 import asyncio
 from yt_dlp import YoutubeDL
 from niconico import NicoNico
+import ffmpeg
 
 nicoclient = NicoNico()
 client = discord.Client(intents=discord.Intents.default())
@@ -52,7 +53,13 @@ def ytdl(url: list[str], svid: int):
 
 def ncdl(url: str, svid: int):
 	with client.video.get_video(url) as video:
-	    video.download(f"{video.video.id}.mp4")
+		video.download(f"{video.video.id}.mp4")
+		# 入力 
+		stream = ffmpeg.input(f"{video.video.id}.mp4") 
+		# 出力 
+		stream = ffmpeg.output(stream, f"{svid}.mp3") 
+		# 実行
+		ffmpeg.run(stream)
 
 
 @tree.command(name="play", description="音楽を再生します")
@@ -73,7 +80,7 @@ async def play(interaction: discord.Interaction, url:str, platform: str):
 		await loop.run_in_executor(None, ytdl, [url],interaction.guild.id)
 	elif platform == "Niconico":
 		await loop.run_in_executor(None, ncdl, [url],interaction.guild.id)
-	voice_client.play(discord.FFmpegPCMAudio("test.mp3"))
+	voice_client.play(discord.FFmpegPCMAudio(f"{interaction.guild.id}.mp3"))
 	await interaction.followup.send("再生中")
 
 
@@ -84,6 +91,7 @@ async def stop(interaction: discord.Interaction, url:str):
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	voice_client.stop()
+	os.remove(f"{interaction.guild.id}.mp3")
 	await interaction.response.send_message("停止しました")
 
 
