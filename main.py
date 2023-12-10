@@ -35,6 +35,7 @@ async def leave(interaction: discord.Interaction):
 
 @tree.command(name="play", description="音楽を再生します")
 async def play(interaction: discord.Interaction, url:str):
+	await interaction.response.defer()
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
@@ -52,7 +53,7 @@ async def play(interaction: discord.Interaction, url:str):
 	with YoutubeDL(ydl_opts) as ydl:
 		ydl.download([url])
 	await voice_client.play(discord.FFmpegPCMAudio("test.mp3"))
-	await interaction.response.send_message("再生中")
+	await interaction.followup.send("再生中")
 
 
 @tree.command(name="stop", description="音楽を停止します")
