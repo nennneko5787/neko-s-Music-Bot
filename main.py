@@ -36,7 +36,7 @@ async def leave(interaction: discord.Interaction):
 	await voice_client.disconnect()
 	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」にから切断しました。")
 
-def ytdl(url: list[str], svid: int):
+def ytdl(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
 		"format": "mp3/bestaudio/best",
@@ -48,7 +48,7 @@ def ytdl(url: list[str], svid: int):
 		],
 	}
 	with YoutubeDL(ydl_opts) as ydl:
-		ydl.download(url)
+		ydl.download([url])
 
 
 def ncdl(url: str, svid: int):
@@ -79,9 +79,9 @@ async def play(interaction: discord.Interaction, url:str, platform: str):
 		os.remove(f"{interaction.guild.id}.mp3")
 	loop = asyncio.get_event_loop()
 	if platform == "Youtube":
-		await loop.run_in_executor(None, ytdl, [url],interaction.guild.id)
+		await loop.run_in_executor(None, ytdl, url,interaction.guild.id)
 	elif platform == "Niconico":
-		await loop.run_in_executor(None, ncdl, [url],interaction.guild.id)
+		await loop.run_in_executor(None, ncdl, url,interaction.guild.id)
 	voice_client.play(discord.FFmpegPCMAudio(f"{interaction.guild.id}.mp3"))
 	await interaction.followup.send("再生中")
 
