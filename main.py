@@ -87,7 +87,7 @@ async def play(interaction: discord.Interaction, url:str, platform: str):
 
 
 @tree.command(name="stop", description="音楽を停止します")
-async def stop(interaction: discord.Interaction, url:str):
+async def stop(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
@@ -98,7 +98,7 @@ async def stop(interaction: discord.Interaction, url:str):
 
 
 @tree.command(name="pause", description="音楽を一時停止します")
-async def pause(interaction: discord.Interaction, url:str):
+async def pause(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
@@ -108,7 +108,7 @@ async def pause(interaction: discord.Interaction, url:str):
 
 
 @tree.command(name="resume", description="一時停止した音楽を再開します")
-async def resume(interaction: discord.Interaction, url:str):
+async def resume(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
