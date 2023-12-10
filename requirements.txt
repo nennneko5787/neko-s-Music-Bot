@@ -3,4 +3,3 @@ Flask
 yt-dlp
 niconico.py
 ffmpeg-python
-spotdl
