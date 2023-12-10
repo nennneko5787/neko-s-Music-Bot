@@ -52,7 +52,7 @@ def ytdl(url: list[str], svid: int):
 
 
 def ncdl(url: str, svid: int):
-	with client.video.get_video(url) as video:
+	with nicoclient.video.get_video(url) as video:
 		video.download(f"{video.video.id}.mp4")
 		# 入力 
 		stream = ffmpeg.input(f"{video.video.id}.mp4") 
@@ -75,6 +75,8 @@ async def play(interaction: discord.Interaction, url:str, platform: str):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
+	if(os.path.isfile(f"{interaction.guild.id}.mp3")):
+		os.remove(f"{interaction.guild.id}.mp3")
 	loop = asyncio.get_event_loop()
 	if platform == "Youtube":
 		await loop.run_in_executor(None, ytdl, [url],interaction.guild.id)
