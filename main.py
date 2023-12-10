@@ -54,12 +54,14 @@ def ytdl(url: str, svid: int):
 def ncdl(url: str, svid: int):
 	with nicoclient.video.get_video(url) as video:
 		video.download(f"{video.video.id}.mp4")
+		print("dl com")
 		# 入力 
 		stream = ffmpeg.input(f"{video.video.id}.mp4") 
 		# 出力 
 		stream = ffmpeg.output(stream, f"{svid}.mp3") 
 		# 実行
 		ffmpeg.run(stream)
+		print("ok")
 
 
 @tree.command(name="play", description="音楽を再生します")
