@@ -64,7 +64,7 @@ def ncdl(url: str, svid: int):
 
 @tree.command(name="play", description="音楽を再生します")
 @discord.app_commands.choices(
-    text=[
+    platform=[
         discord.app_commands.Choice(name="Youtube",value="Youtube"),
         discord.app_commands.Choice(name="Niconico",value="Niconico")
     ]
