@@ -127,7 +127,7 @@ async def stop(interaction: discord.Interaction):
 	del queue_dict[interaction.guild.id]
 	isPlaying_dict[interaction.guild.id] = False
 	voice_client.stop()
-	await interaction.response.send_message("一曲スキップしました")
+	await interaction.response.send_message("停止しました")
 
 
 @tree.command(name="skip", description="曲を一曲スキップします")
@@ -139,7 +139,7 @@ async def skip(interaction: discord.Interaction):
 	voice_client.stop()
 	queue = queue_dict[interaction.guild.id]
 	await playbgm(voice_client,queue)
-	await interaction.response.send_message("停止しました")
+	await interaction.response.send_message("一曲スキップしました")
 
 
 @tree.command(name="pause", description="音楽を一時停止します")
