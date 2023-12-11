@@ -81,6 +81,7 @@ async def playbgm(voice_client,queue):
 	url = uuaaru[0]
 	platform = uuaaru[0]
 	loop = asyncio.get_event_loop()
+	title = ""
 	await voice_client.channel.send(f"ダウンロード中: **{url}**")
 	if platform == "Youtube":
 		title = loop.run_in_executor(None, ytdl, url,voice_client.guild.id)
