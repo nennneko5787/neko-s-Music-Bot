@@ -79,7 +79,7 @@ async def playbgm(voice_client,queue):
 	source = queue.popleft()
 	uuaaru = source.split()
 	url = uuaaru[0]
-	platform = uuaaru[0]
+	platform = uuaaru[1]
 	loop = asyncio.get_event_loop()
 	title = ""
 	await voice_client.channel.send(f"ダウンロード中: **{url}**")
