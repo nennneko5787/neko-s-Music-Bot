@@ -72,12 +72,16 @@ def ncdl(url: str, svid: int):
 
 async def playbgm(voice_client,queue):
 	if not queue or voice_client.is_playing():
+		await voice_client.channel.send(f"キューに入っている曲はありません")
 		return
+	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
+		os.remove(f"{voice_client.guild.id}.mp3")
 	source = queue.popleft()
 	uuaaru = source.split()
 	url = uuaaru[0]
 	platform = uuaaru[0]
 	loop = asyncio.get_event_loop()
+	await voice_client.channel.send(f"ダウンロード中: **{url}**")
 	if platform == "Youtube":
 		title = loop.run_in_executor(None, ytdl, url,voice_client.guild.id)
 	elif platform == "Niconico":
@@ -98,8 +102,6 @@ async def play(interaction: discord.Interaction, url:str, platform: str):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	if(os.path.isfile(f"{interaction.guild.id}.mp3")):
-		os.remove(f"{interaction.guild.id}.mp3")
 	queue = queue_dict[interaction.guild.id]
 	queue.append(f"{url}\n{platform}")
 	await interaction.response.send_message("曲をキューに挿入しました。")
@@ -115,7 +117,18 @@ async def stop(interaction: discord.Interaction):
 		return
 	del queue_dict[interaction.guild.id]
 	voice_client.stop()
-	os.remove(f"{interaction.guild.id}.mp3")
+	await interaction.response.send_message("一曲スキップしました")
+
+
+@tree.command(name="skip", description="曲を一曲スキップします")
+async def skip(interaction: discord.Interaction):
+	voice_client = interaction.guild.voice_client
+	if voice_client is None:
+		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		return
+	voice_client.stop()
+	queue = queue_dict[interaction.guild.id]
+	await playbgm(voice_client,queue)
 	await interaction.response.send_message("停止しました")
 
 
