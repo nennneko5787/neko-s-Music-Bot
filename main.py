@@ -7,7 +7,9 @@ import asyncio
 from yt_dlp import YoutubeDL
 from niconico import NicoNico
 import ffmpeg
+from collections import defaultdict, deque
 
+queue_dict = defaultdict(deque)
 nicoclient = NicoNico()
 client = discord.Client(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
@@ -49,6 +51,9 @@ def ytdl(url: str, svid: int):
 	}
 	with YoutubeDL(ydl_opts) as ydl:
 		ydl.download([url])
+		info_dict = ydl.extract_info(url, download=False)
+		video_title = info_dict.get('title', None)
+		return video_title
 
 
 def ncdl(url: str, svid: int):
@@ -62,31 +67,45 @@ def ncdl(url: str, svid: int):
 		# 実行
 		ffmpeg.run(stream)
 		print("ok")
+		return video.video.title
+
+
+async def playbgm(voice_client,queue):
+	if not queue or voice_client.is_playing():
+		return
+	source = queue.popleft()
+	uuaaru = source.split()
+	url = uuaaru[0]
+	platform = uuaaru[0]
+	loop = asyncio.get_event_loop()
+	if platform == "Youtube":
+		title = loop.run_in_executor(None, ytdl, url,voice_client.guild.id)
+	elif platform == "Niconico":
+		title = loop.run_in_executor(None, ncdl, url,voice_client.guild.id)
+	voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:play(voice_client, queue))
+	await voice_client.channel.send(f"再生: **{title}**")
 
 
 @tree.command(name="play", description="音楽を再生します")
 @discord.app_commands.choices(
-    platform=[
-        discord.app_commands.Choice(name="Youtube",value="Youtube"),
-        discord.app_commands.Choice(name="Niconico",value="Niconico")
-    ]
+	platform=[
+		discord.app_commands.Choice(name="Youtube",value="Youtube"),
+		discord.app_commands.Choice(name="Niconico",value="Niconico")
+	]
 )
 async def play(interaction: discord.Interaction, url:str, platform: str):
-	await interaction.response.defer()
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	if(os.path.isfile(f"{interaction.guild.id}.mp3")):
 		os.remove(f"{interaction.guild.id}.mp3")
-	loop = asyncio.get_event_loop()
-	if platform == "Youtube":
-		await loop.run_in_executor(None, ytdl, url,interaction.guild.id)
-	elif platform == "Niconico":
-		await loop.run_in_executor(None, ncdl, url,interaction.guild.id)
-	voice_client.play(discord.FFmpegPCMAudio(f"{interaction.guild.id}.mp3"))
-	await interaction.followup.send("再生中")
-
+	queue = queue_dict[interaction.guild.id]
+	queue.append(f"{url}\n{platform}")
+	await interaction.response.send_message("曲をキューに挿入しました。")
+	if not voice_client.is_playing():
+		await interaction.channel.send("曲の再生を開始します。")
+		await playbgm(voice_client,queue)
 
 @tree.command(name="stop", description="音楽を停止します")
 async def stop(interaction: discord.Interaction):
@@ -94,6 +113,7 @@ async def stop(interaction: discord.Interaction):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
+	del queue_dict[interaction.guild.id]
 	voice_client.stop()
 	os.remove(f"{interaction.guild.id}.mp3")
 	await interaction.response.send_message("停止しました")
@@ -123,7 +143,7 @@ async def resume(interaction: discord.Interaction):
 async def myLoop():
 	# work
 	await client.change_presence(activity=discord.Game(
-		name="起動中."))
+		name=f"{len(client.guilds)}"))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
