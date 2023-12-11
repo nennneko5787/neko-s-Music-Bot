@@ -10,6 +10,8 @@ import ffmpeg
 from collections import defaultdict, deque
 
 queue_dict = defaultdict(deque)
+isPlaying_dict = defaultdict(bool)
+
 nicoclient = NicoNico()
 client = discord.Client(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
@@ -99,19 +101,20 @@ async def playbgm(voice_client,queue):
 	]
 )
 async def play(interaction: discord.Interaction, url:str, platform: str):
-	await interaction.response.defer()
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
-		await interaction.followup.send("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	queue = queue_dict[interaction.guild.id]
 	queue.append(f"{url}\n{platform}")
-	await interaction.followup.send("曲をキューに挿入しました。")
-	if not voice_client.is_playing():
+	await interaction.response.send_message("曲をキューに挿入しました。")
+	if not isPlaying_dict[interaction.guild.id]:
 		await interaction.channel.send("曲の再生を開始します。")
 		try:
+			isPlaying_dict[interaction.guild.id] = True
 			await playbgm(voice_client,queue)
 		except:
+			isPlaying_dict[interaction.guild.id] = False
 			del queue_dict[interaction.guild.id]
 
 @tree.command(name="stop", description="音楽を停止します")
@@ -121,6 +124,7 @@ async def stop(interaction: discord.Interaction):
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	del queue_dict[interaction.guild.id]
+	isPlaying_dict[interaction.guild.id] = False
 	voice_client.stop()
 	await interaction.response.send_message("一曲スキップしました")
 
