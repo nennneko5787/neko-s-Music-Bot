@@ -75,6 +75,7 @@ def ncdl(url: str, svid: int):
 async def playbgm(voice_client,queue):
 	if not queue or voice_client.is_playing():
 		await voice_client.channel.send(f"キューに入っている曲はありません")
+		isPlaying_dict[interaction.guild.id] = False
 		return
 	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
 		os.remove(f"{voice_client.guild.id}.mp3")
@@ -108,7 +109,7 @@ async def play(interaction: discord.Interaction, url:str, platform: str):
 	queue = queue_dict[interaction.guild.id]
 	queue.append(f"{url}\n{platform}")
 	await interaction.response.send_message("曲をキューに挿入しました。")
-	if not isPlaying_dict[interaction.guild.id]:
+	if isPlaying_dict[interaction.guild.id] != True:
 		await interaction.channel.send("曲の再生を開始します。")
 		try:
 			isPlaying_dict[interaction.guild.id] = True
