@@ -84,9 +84,9 @@ async def playbgm(voice_client,queue):
 	title = ""
 	await voice_client.channel.send(f"ダウンロード中: **{url}**")
 	if platform == "Youtube":
-		title = loop.run_in_executor(None, ytdl, url,voice_client.guild.id)
+		title = await loop.run_in_executor(None, ytdl, url,voice_client.guild.id)
 	elif platform == "Niconico":
-		title = loop.run_in_executor(None, ncdl, url,voice_client.guild.id)
+		title = await loop.run_in_executor(None, ncdl, url,voice_client.guild.id)
 	voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:play(voice_client, queue))
 	await voice_client.channel.send(f"再生: **{title}**")
 
