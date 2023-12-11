@@ -73,9 +73,9 @@ def ncdl(url: str, svid: int):
 
 
 async def playbgm(voice_client,queue):
-	if not queue or voice_client.is_playing():
+	if not queue:
 		await voice_client.channel.send(f"キューに入っている曲はありません")
-		isPlaying_dict[interaction.guild.id] = False
+		isPlaying_dict[voice_client.guild.id] = False
 		return
 	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
 		os.remove(f"{voice_client.guild.id}.mp3")
