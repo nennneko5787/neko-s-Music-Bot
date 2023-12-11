@@ -99,13 +99,14 @@ async def playbgm(voice_client,queue):
 	]
 )
 async def play(interaction: discord.Interaction, url:str, platform: str):
+	await interaction.response.defer()
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
-		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		await interaction.followup.send("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	queue = queue_dict[interaction.guild.id]
 	queue.append(f"{url}\n{platform}")
-	await interaction.response.send_message("曲をキューに挿入しました。")
+	await interaction.followup.send("曲をキューに挿入しました。")
 	if not voice_client.is_playing():
 		await interaction.channel.send("曲の再生を開始します。")
 		try:
