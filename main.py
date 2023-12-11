@@ -108,7 +108,10 @@ async def play(interaction: discord.Interaction, url:str, platform: str):
 	await interaction.response.send_message("曲をキューに挿入しました。")
 	if not voice_client.is_playing():
 		await interaction.channel.send("曲の再生を開始します。")
-		await playbgm(voice_client,queue)
+		try:
+			await playbgm(voice_client,queue)
+		except:
+			del queue_dict[interaction.guild.id]
 
 @tree.command(name="stop", description="音楽を停止します")
 async def stop(interaction: discord.Interaction):
