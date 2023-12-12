@@ -83,7 +83,7 @@ async def playbgm(voice_client,queue):
 	loop = asyncio.get_event_loop()
 	logging.info("ダウンロードを開始")
 	await voice_client.channel.send(f"ダウンロード中: **{url}**")
-	title = loop.run_in_executor(None, videodownloader, url,voice_client.guild.id)
+	title = await loop.run_in_executor(None, videodownloader, url,voice_client.guild.id)
 	logging.info("再生")
 	voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
 	await voice_client.channel.send(f"再生: **{title}**")
