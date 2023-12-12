@@ -11,6 +11,8 @@ from collections import defaultdict, deque
 queue_dict = defaultdict(deque)
 isPlaying_dict = defaultdict(bool)
 
+intents = discord.Intents.default()
+intents.voice_states = True
 client = discord.Client(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
 
@@ -35,9 +37,15 @@ async def leave(interaction: discord.Interaction):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
+	del queue_dict[interaction.guild.id]
+	isPlaying_dict[voice_client.guild.id] = False
 	await voice_client.disconnect()
 	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」にから切断しました。")
 
+@client.event
+async def on_voice_state_update(member, before, after):
+	if member.id == client.user.id:
+		
 def videodownloader(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
@@ -57,8 +65,12 @@ def videodownloader(url: str, svid: int):
 
 
 async def playbgm(voice_client,queue):
-	if not queue:
+	if len(queue) == 0:
 		await voice_client.channel.send(f"キューに入っている曲はありません")
+		isPlaying_dict[voice_client.guild.id] = False
+		return
+	elif voice_client.is_connected() == False:
+		await voice_client.channel.send(f"ボイスチャンネルからの接続が切れていることがわかりました")
 		isPlaying_dict[voice_client.guild.id] = False
 		return
 	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
@@ -75,7 +87,11 @@ async def playbgm(voice_client,queue):
 async def play(interaction: discord.Interaction, url:str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
-		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		if interaction.user.voice is None:
+			await interaction.response.send_message("あなたはボイスチャンネルに接続していません。",ephemeral=True)
+			return
+		await interaction.user.voice.channel.connect()
+		await interaction.channel.send(f"ボイスチャンネル「<#{interaction.user.voice.channel.id}>」に接続しました。")
 		return
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
