@@ -7,6 +7,7 @@ import asyncio
 from yt_dlp import YoutubeDL
 import ffmpeg
 from collections import defaultdict, deque
+import logging
 
 queue_dict = defaultdict(deque)
 isPlaying_dict = defaultdict(bool)
@@ -80,8 +81,10 @@ async def playbgm(voice_client,queue):
 		os.remove(f"{voice_client.guild.id}.mp3")
 	url = queue.popleft()
 	loop = asyncio.get_event_loop()
+	logging.info("ダウンロードを開始")
 	await voice_client.channel.send(f"ダウンロード中: **{url}**")
 	title = loop.run_in_executor(None, videodownloader, url,voice_client.guild.id)
+	logging.info("再生")
 	voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
 	await voice_client.channel.send(f"再生: **{title}**")
 
@@ -91,11 +94,8 @@ async def play(interaction: discord.Interaction, url:str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		if interaction.user.voice is None:
-			await interaction.response.send_message("あなたはボイスチャンネルに接続していません。",ephemeral=True)
-			return
-		await interaction.user.voice.channel.connect()
-		await interaction.channel.send(f"ボイスチャンネル「<#{interaction.user.voice.channel.id}>」に接続しました。")
-		return
+			await interaction.user.voice.channel.connect()
+			await interaction.channel.send(f"ボイスチャンネル「<#{interaction.user.voice.channel.id}>」に接続しました。")
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
 	await interaction.response.send_message("曲をキューに挿入しました。")
