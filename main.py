@@ -45,7 +45,10 @@ async def leave(interaction: discord.Interaction):
 @client.event
 async def on_voice_state_update(member, before, after):
 	if member.id == client.user.id:
-		
+		if after == None:
+			del queue_dict[interaction.guild.id]
+			isPlaying_dict[voice_client.guild.id] = False
+
 def videodownloader(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
