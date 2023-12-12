@@ -149,7 +149,7 @@ async def resume(interaction: discord.Interaction):
 async def myLoop():
 	# work
 	await client.change_presence(activity=discord.Game(
-		name=f"{len(client.guilds)}"))
+		name=f"{len(client.guilds)}サーバーで稼働中"))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
