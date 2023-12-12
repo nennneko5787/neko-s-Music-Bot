@@ -9,7 +9,8 @@ import ffmpeg
 from collections import defaultdict, deque
 
 queue_dict = defaultdict(deque)
-nicoclient = NicoNico()
+isPlaying_dict = defaultdict(bool)
+
 client = discord.Client(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
 
@@ -56,8 +57,9 @@ def videodownloader(url: str, svid: int):
 
 
 async def playbgm(voice_client,queue):
-	if not queue or voice_client.is_playing():
+	if not queue:
 		await voice_client.channel.send(f"キューに入っている曲はありません")
+		isPlaying_dict[voice_client.guild.id] = False
 		return
 	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
 		os.remove(f"{voice_client.guild.id}.mp3")
@@ -78,7 +80,8 @@ async def play(interaction: discord.Interaction, url:str):
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
 	await interaction.response.send_message("曲をキューに挿入しました。")
-	if not voice_client.is_playing():
+	if isPlaying_dict[voice_client.guild.id] != True:
+		isPlaying_dict[voice_client.guild.id] = True
 		await interaction.channel.send("曲の再生を開始します。")
 		await playbgm(voice_client,queue)
 
@@ -89,6 +92,7 @@ async def stop(interaction: discord.Interaction):
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	del queue_dict[interaction.guild.id]
+	isPlaying_dict[voice_client.guild.id] = False
 	voice_client.stop()
 	await interaction.response.send_message("一曲スキップしました")
 
