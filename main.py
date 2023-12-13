@@ -90,7 +90,7 @@ async def playbgm(voice_client,queue):
 	video_title = info_dict.get('title', None)
 	videourl = info_dict.get('url', None)
 	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-	voice_client.play(source, after=lambda e:skipsong(voice_client.guild.id, queue))
+	voice_client.play(source, after=lambda e:await skipsong(voice_client.guild.id, queue))
 	await voice_client.channel.send(f"再生: **{video_title}**")
 
 
@@ -99,6 +99,7 @@ async def skipsong(svid,voice_client):
 		voice_client.stop()
 	queue = queue_dict[svid]
 	await playbgm(voice_client,queue)
+	return
 
 
 @tree.command(name="play", description="音楽を再生します")
