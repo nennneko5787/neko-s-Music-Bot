@@ -8,6 +8,7 @@ from yt_dlp import YoutubeDL
 import ffmpeg
 from collections import defaultdict, deque
 import logging
+import traceback
 
 queue_dict = defaultdict(deque)
 isPlaying_dict = defaultdict(bool)
@@ -43,7 +44,7 @@ async def leave(interaction: discord.Interaction):
 		del queue_dict[interaction.guild.id]
 		isPlaying_dict[voice_client.guild.id] = False
 	await voice_client.disconnect()
-	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」にから切断しました。")
+	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」から切断しました。")
 
 @client.event
 async def on_voice_state_update(member, before, after):
@@ -67,28 +68,39 @@ def videodownloader(url: str, svid: int):
 
 
 async def playbgm(voice_client,queue):
-	if len(queue) == 0 or not queue:
-		await voice_client.channel.send(f"キューに入っている曲はありません")
-		isPlaying_dict[voice_client.guild.id] = False
+	try:
+		if len(queue) == 0 or not queue:
+			await voice_client.channel.send(f"キューに入っている曲はありません")
+			isPlaying_dict[voice_client.guild.id] = False
+			return
+		elif voice_client.is_connected() == False:
+			await voice_client.channel.send(f"ボイスチャンネルからの接続が切れています")
+			isPlaying_dict[voice_client.guild.id] = False
+			return
+		if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
+			os.remove(f"{voice_client.guild.id}.mp3")
+		url = queue.popleft()
+		logging.info("ダウンロードを開始")
+		await voice_client.channel.send(f"再生待機中: **{url}**")
+		info_dict = videodownloader(url,voice_client.guild.id)
+		logging.info("再生")
+		#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
+		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+		video_title = info_dict.get('title', None)
+		videourl = info_dict.get('url', None)
+		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
+		voice_client.play(source, after=lambda e:skipsong(voice_client.guild.id, queue))
+		await voice_client.channel.send(f"再生: **{video_title}**")
+	except:
+		await voice_client.channel.send(f"エラーが発生しました。以下のエラーを https://github.com/nennneko5787/neko-s-Music-Bot/issues/new にてお知らせください。\n```{}```")
 		return
-	elif voice_client.is_connected() == False:
-		await voice_client.channel.send(f"ボイスチャンネルからの接続が切れていることがわかりました")
-		isPlaying_dict[voice_client.guild.id] = False
-		return
-	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
-		os.remove(f"{voice_client.guild.id}.mp3")
-	url = queue.popleft()
-	logging.info("ダウンロードを開始")
-	await voice_client.channel.send(f"ダウンロード中: **{url}**")
-	info_dict = videodownloader(url,voice_client.guild.id)
-	logging.info("再生")
-	#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
-	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
-	video_title = info_dict.get('title', None)
-	videourl = info_dict.get('url', None)
-	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-	voice_client.play(source, after=lambda e:playbgm(voice_client, queue))
-	await voice_client.channel.send(f"再生: **{video_title}**")
+	
+
+async def skipsong(svid,voice_client):
+	if voice_client.is_playing == True:
+		voice_client.stop()
+	queue = queue_dict[svid]
+	await playbgm(voice_client,queue)
 
 
 @tree.command(name="play", description="音楽を再生します")
@@ -103,10 +115,10 @@ async def play(interaction: discord.Interaction, url:str):
 			return
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
-	await interaction.response.send_message("曲をキューに挿入しました。")
+	await interaction.response.send_message(f"曲( {url} )をキューに挿入しました。")
 	if isPlaying_dict[voice_client.guild.id] != True:
 		isPlaying_dict[voice_client.guild.id] = True
-		await interaction.channel.send("曲の再生を開始します。")
+		await interaction.channel.send("再生を開始します。")
 		await playbgm(voice_client,queue)
 
 @tree.command(name="stop", description="音楽を停止します")
@@ -129,10 +141,8 @@ async def skip(interaction: discord.Interaction):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	voice_client.stop()
-	queue = queue_dict[interaction.guild.id]
-	await playbgm(voice_client,queue)
 	await interaction.response.send_message("一曲スキップしました")
+	await skipsong(interaction.guild.id,voice_client)
 
 
 @tree.command(name="pause", description="音楽を一時停止します")
