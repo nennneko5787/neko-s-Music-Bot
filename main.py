@@ -90,15 +90,9 @@ async def playbgm(voice_client,queue):
 	video_title = info_dict.get('title', None)
 	videourl = info_dict.get('url', None)
 	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-	voice_client.play(source, after=lambda e:skipper(voice_client,queue))
-	await voice_client.channel.send(f"再生: **{video_title}**")
-
-
-def skipper(voice_client,queue):
-	voice_client.stop()
-	queue = queue_dict[voice_client.guild.id]
 	loop = asyncio.get_event_loop()
-	loop.run_until_complete(playbgm(voice_client, queue))
+	voice_client.play(source, after=lambda e:loop.create_task(playbgm(voice_client,queue)))
+	await voice_client.channel.send(f"再生: **{video_title}**")
 
 
 @tree.command(name="play", description="音楽を再生します")
