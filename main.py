@@ -8,7 +8,9 @@ from yt_dlp import YoutubeDL
 import ffmpeg
 from collections import defaultdict, deque
 import logging
+import sys
 import traceback
+
 
 queue_dict = defaultdict(deque)
 isPlaying_dict = defaultdict(bool)
@@ -68,33 +70,29 @@ def videodownloader(url: str, svid: int):
 
 
 async def playbgm(voice_client,queue):
-	try:
-		if len(queue) == 0 or not queue:
-			await voice_client.channel.send(f"キューに入っている曲はありません")
-			isPlaying_dict[voice_client.guild.id] = False
-			return
-		elif voice_client.is_connected() == False:
-			await voice_client.channel.send(f"ボイスチャンネルからの接続が切れています")
-			isPlaying_dict[voice_client.guild.id] = False
-			return
-		if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
-			os.remove(f"{voice_client.guild.id}.mp3")
-		url = queue.popleft()
-		logging.info("ダウンロードを開始")
-		await voice_client.channel.send(f"再生待機中: **{url}**")
-		info_dict = videodownloader(url,voice_client.guild.id)
-		logging.info("再生")
-		#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
-		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
-		video_title = info_dict.get('title', None)
-		videourl = info_dict.get('url', None)
-		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-		voice_client.play(source, after=lambda e:skipsong(voice_client.guild.id, queue))
-		await voice_client.channel.send(f"再生: **{video_title}**")
-	except:
-		await voice_client.channel.send(f"エラーが発生しました。以下のエラーを https://github.com/nennneko5787/neko-s-Music-Bot/issues/new にてお知らせください。\n```{}```")
+	if len(queue) == 0 or not queue:
+		await voice_client.channel.send(f"キューに入っている曲はありません")
+		isPlaying_dict[voice_client.guild.id] = False
 		return
-	
+	elif voice_client.is_connected() == False:
+		await voice_client.channel.send(f"ボイスチャンネルからの接続が切れています")
+		isPlaying_dict[voice_client.guild.id] = False
+		return
+	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
+		os.remove(f"{voice_client.guild.id}.mp3")
+	url = queue.popleft()
+	logging.info("ダウンロードを開始")
+	await voice_client.channel.send(f"再生待機中: **{url}**")
+	info_dict = videodownloader(url,voice_client.guild.id)
+	logging.info("再生")
+	#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
+	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+	video_title = info_dict.get('title', None)
+	videourl = info_dict.get('url', None)
+	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
+	voice_client.play(source, after=lambda e:skipsong(voice_client.guild.id, queue))
+	await voice_client.channel.send(f"再生: **{video_title}**")
+
 
 async def skipsong(svid,voice_client):
 	if voice_client.is_playing == True:
