@@ -62,19 +62,11 @@ def videodownloader(url: str, svid: int):
 		"outtmpl": f"{svid}",
 		"format": "bestaudio/best",
 		"noplaylist": True,
-		'postprocessors': [{
-			'key': 'FFmpegExtractAudio',
-			'preferredcodec': 'ogg',}]
 	}
 	with YoutubeDL(ydl_opts) as ydl:
 		#ydl.download([url])
 		info_dict = ydl.extract_info(url, download=False)
-		flag = "nicovideo" in url
-		if flag == True:
-			ydl.download([url])
-			return "nico"
-		else:
-			return info_dict
+		return info_dict
 
 
 async def playbgm(voice_client,queue):
@@ -95,14 +87,11 @@ async def playbgm(voice_client,queue):
 	logging.info("再生")
 	#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
 	loop = asyncio.get_event_loop()
-	if info_dict != "nico":
-		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
-		video_title = info_dict.get('title', None)
-		videourl = info_dict.get('url', None)
-		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-		voice_client.play(source, after=lambda e:loop.create_task(playbgm(voice_client,queue)))
-	else:
-		voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.ogg"), after=lambda e:loop.create_task(playbgm(voice_client,queue)))
+	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+	video_title = info_dict.get('title', None)
+	videourl = info_dict.get('url', None)
+	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
+	voice_client.play(source, after=lambda e:loop.create_task(playbgm(voice_client,queue)))
 	await voice_client.channel.send(f"再生: **{video_title}**")
 
 
