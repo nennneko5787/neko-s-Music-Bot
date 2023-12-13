@@ -67,7 +67,7 @@ def videodownloader(url: str, svid: int):
 
 
 async def playbgm(voice_client,queue):
-	if len(queue) == 0:
+	if len(queue) == 0 or not queue:
 		await voice_client.channel.send(f"キューに入っている曲はありません")
 		isPlaying_dict[voice_client.guild.id] = False
 		return
@@ -95,9 +95,12 @@ async def playbgm(voice_client,queue):
 async def play(interaction: discord.Interaction, url:str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
-		if interaction.user.voice is None:
+		if interaction.user.voice != None:
 			await interaction.user.voice.channel.connect()
 			await interaction.channel.send(f"ボイスチャンネル「<#{interaction.user.voice.channel.id}>」に接続しました。")
+		else:
+			await interaction.response.send_message(f"あなたはボイスチャンネルに接続していません。",ephemeral=True)
+			return
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
 	await interaction.response.send_message("曲をキューに挿入しました。")
