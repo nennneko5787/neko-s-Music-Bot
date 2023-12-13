@@ -81,7 +81,7 @@ async def playbgm(voice_client,queue):
 	#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 	video_title = info_dict.get('title', None)
-	videourl = info_dict['formats']['url']
+	videourl = info_dict.get('url', None)
 	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
 	voice_client.play(source)
 	await voice_client.channel.send(f"再生: **{video_title}**")
