@@ -47,25 +47,19 @@ async def leave(interaction: discord.Interaction):
 async def on_voice_state_update(member, before, after):
 	if member.id == client.user.id:
 		if after == None:
-			del queue_dict[interaction.guild.id]
-			isPlaying_dict[voice_client.guild.id] = False
+			del queue_dict[member.guild.id]
+			isPlaying_dict[member.guild.id] = False
 
 def videodownloader(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
-		"format": "mp3/bestaudio/best",
-		"postprocessors": [
-			{
-				"key": "FFmpegExtractAudio",
-				"preferredcodec": "mp3",
-			}
-		],
+		"format": "bestaudio/best",
+		"noplaylist": True,
 	}
 	with YoutubeDL(ydl_opts) as ydl:
-		ydl.download([url])
+		#ydl.download([url])
 		info_dict = ydl.extract_info(url, download=False)
-		video_title = info_dict.get('title', None)
-		return video_title
+		return info_dict
 
 
 async def playbgm(voice_client,queue):
@@ -80,13 +74,17 @@ async def playbgm(voice_client,queue):
 	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
 		os.remove(f"{voice_client.guild.id}.mp3")
 	url = queue.popleft()
-	loop = asyncio.get_event_loop()
 	logging.info("ダウンロードを開始")
 	await voice_client.channel.send(f"ダウンロード中: **{url}**")
-	title = loop.run_in_executor(None, videodownloader, url,voice_client.guild.id)
+	info_dict = videodownloader(url,voice_client.guild.id)
 	logging.info("再生")
-	voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
-	await voice_client.channel.send(f"再生: **{title}**")
+	#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
+	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+	video_title = info_dict.get('title', None)
+	videourl = info_dict['formats'][0]['url']
+	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
+	voice_client.play(source)
+	await voice_client.channel.send(f"再生: **{video_title}**")
 
 
 @tree.command(name="play", description="音楽を再生します")
