@@ -97,7 +97,8 @@ async def playbgm(voice_client,queue):
 def skipper(voice_client,queue):
 	voice_client.stop()
 	queue = queue_dict[voice_client.guild.id]
-	asyncio.run(playbgm(voice_client, queue))
+	loop = asyncio.get_event_loop()
+	loop.run_until_complete(playbgm(voice_client, queue))
 
 
 @tree.command(name="play", description="音楽を再生します")
