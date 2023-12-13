@@ -90,16 +90,14 @@ async def playbgm(voice_client,queue):
 	video_title = info_dict.get('title', None)
 	videourl = info_dict.get('url', None)
 	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-	voice_client.play(source, after=asyncio.run(skipsong(voice_client.guild.id, queue)))
+	voice_client.play(source, after=lambda e:skipper(voice_client,queue))
 	await voice_client.channel.send(f"再生: **{video_title}**")
 
 
-async def skipsong(svid,voice_client):
-	if voice_client.is_playing == True:
-		voice_client.stop()
-	queue = queue_dict[svid]
-	await playbgm(voice_client,queue)
-	return
+def skipper(voice_client,queue):
+	voice_client.stop()
+	queue = queue_dict[voice_client.guild.id]
+	asyncio.run(playbgm(voice_client, queue))
 
 
 @tree.command(name="play", description="音楽を再生します")
@@ -141,7 +139,9 @@ async def skip(interaction: discord.Interaction):
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
 	await interaction.response.send_message("一曲スキップしました")
-	await skipsong(interaction.guild.id,voice_client)
+	voice_client.stop()
+	queue = queue_dict[interaction.guild.id]
+	await playbgm(voice_client,queue)
 
 
 @tree.command(name="pause", description="音楽を一時停止します")
