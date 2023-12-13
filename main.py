@@ -65,7 +65,6 @@ def videodownloader(url: str, svid: int):
 		'postprocessors': [{
 			'key': 'FFmpegExtractAudio',
 			'preferredcodec': 'ogg',}]
-		}
 	}
 	with YoutubeDL(ydl_opts) as ydl:
 		#ydl.download([url])
