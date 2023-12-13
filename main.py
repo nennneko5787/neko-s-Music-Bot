@@ -38,8 +38,10 @@ async def leave(interaction: discord.Interaction):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	del queue_dict[interaction.guild.id]
-	isPlaying_dict[voice_client.guild.id] = False
+	flag = interaction.guild.id in queue_dict
+	if flag:
+		del queue_dict[interaction.guild.id]
+		isPlaying_dict[voice_client.guild.id] = False
 	await voice_client.disconnect()
 	await interaction.response.send_message(f"ボイスチャンネル「<#{voice_client.channel.id}>」にから切断しました。")
 
@@ -47,8 +49,10 @@ async def leave(interaction: discord.Interaction):
 async def on_voice_state_update(member, before, after):
 	if member.id == client.user.id:
 		if after == None:
-			del queue_dict[member.guild.id]
-			isPlaying_dict[member.guild.id] = False
+			flag = member.guild.id in queue_dict
+			if flag:
+				del queue_dict[member.guild.id]
+				isPlaying_dict[member.guild.id] = False
 
 def videodownloader(url: str, svid: int):
 	ydl_opts = {
@@ -83,7 +87,7 @@ async def playbgm(voice_client,queue):
 	video_title = info_dict.get('title', None)
 	videourl = info_dict.get('url', None)
 	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-	voice_client.play(source)
+	voice_client.play(source, after=lambda e:playbgm(voice_client, queue))
 	await voice_client.channel.send(f"再生: **{video_title}**")
 
 
@@ -108,8 +112,10 @@ async def stop(interaction: discord.Interaction):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	del queue_dict[interaction.guild.id]
-	isPlaying_dict[voice_client.guild.id] = False
+	flag = interaction.guild.id in queue_dict
+	if flag:
+		del queue_dict[interaction.guild.id]
+		isPlaying_dict[voice_client.guild.id] = False
 	voice_client.stop()
 	await interaction.response.send_message("停止しました")
 
