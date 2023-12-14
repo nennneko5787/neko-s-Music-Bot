@@ -89,7 +89,7 @@ async def playbgm(voice_client,queue):
 	loop = asyncio.get_event_loop()
 	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 	video_title = info_dict.get('title', None)
-	videourl = info_dict['requested_formats'][1]['url']
+	videourl = info_dict.get('url', None)
 	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
 	voice_client.play(source, after=lambda e:loop.create_task(playbgm(voice_client,queue)))
 	await voice_client.channel.send(f"再生: **{video_title}**")
