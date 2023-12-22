@@ -93,6 +93,7 @@ async def playbgm(voice_client,queue):
 	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
 	voice_client.play(source, after=lambda e:loop.create_task(playbgm(voice_client,queue)))
 	await voice_client.channel.send(f"再生: **{video_title}**")
+	await voice_client.channel.send(f"DEBUG: **{videourl}**")
 
 
 @tree.command(name="play", description="音楽を再生します")
