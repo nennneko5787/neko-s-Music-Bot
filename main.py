@@ -13,7 +13,7 @@ import traceback
 
 
 queue_dict = defaultdict(deque)
-isPlaying_dict = defaultdict(bool)
+isPlaying_dict = defaultdict(lambda: False)
 
 intents = discord.Intents.default()
 intents.voice_states = True
