@@ -140,7 +140,7 @@ async def stop(interaction: discord.Interaction):
         await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
         return
     flag = interaction.guild.id in queue_dict
-    if flag:
+    if isPlaying_dict[voice_client.guild.id] == True:
         del queue_dict[interaction.guild.id]
         isPlaying_dict[voice_client.guild.id] = False
     voice_client.stop()
