@@ -10,7 +10,9 @@ from collections import defaultdict, deque
 import logging
 import sys
 import traceback
+from concurrent.futures import ProcessPoolExecutor
 
+executor = ProcessPoolExecutor(max_workers=3)
 
 queue_dict = defaultdict(deque)
 isPlaying_dict = defaultdict(lambda: False)
@@ -100,7 +102,7 @@ async def playbgm(voice_client,dqueue:deque=None):
 		await voice_client.channel.send(f"再生: **{video_title}**")
 	else:
 		await voice_client.channel.send(f"※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。")
-		info_dict = await nicodl(url, voice_client.guild.id)
+		info_dict = run_in_executor(None,nicodl,url, voice_client.guild.id))
 		video_title = info_dict.get('title', None)
 		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3")
 		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client)))
