@@ -51,6 +51,12 @@ async def nicodl(url: str, svid: int):
 		"outtmpl": f"{svid}",
 		"format": "mp3/bestaudio/best",
 		"noplaylist": True,
+		"postprocessors": [
+			{
+				"key": "FFmpegExtractAudio",
+				"preferredcodec": "mp3",
+			}
+		],
 	}
 	with YoutubeDL(ydl_opts) as ydl:
 		ydl.download([url])
