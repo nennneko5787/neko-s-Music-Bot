@@ -61,8 +61,11 @@ async def nicodl(url: str, svid: int):
 			'url': info_dict.get('url', None)
 		}
 
-async def playbgm(voice_client):
-	queue = queue_dict[voice_client.guild.id]
+async def playbgm(voice_client,dqueue:deque=None):
+	if queue != None:
+		queue = queue_dict[voice_client.guild.id]
+	else:
+		queue = dqueue
 	if len(queue) == 0 or not queue:
 		await voice_client.channel.send(f"キューに入っている曲はありません")
 		isPlaying_dict[voice_client.guild.id] = False
@@ -115,7 +118,7 @@ async def play(interaction: discord.Interaction, url:str):
 	if isPlaying_dict[interaction.guild.id] != True:
 		isPlaying_dict[interaction.guild.id] = True
 		await interaction.channel.send("再生を開始します。")
-		await playbgm(voice_client)
+		await playbgm(voice_client,queue)
 
 @tree.command(name="stop", description="音楽を停止します")
 async def stop(interaction: discord.Interaction):
