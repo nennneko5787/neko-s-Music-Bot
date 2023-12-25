@@ -112,8 +112,8 @@ async def play(interaction: discord.Interaction, url:str):
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
 	await interaction.channel.send(f"曲( {url} )をキューに挿入しました。")
-	if isPlaying_dict[voice_client.guild.id] != True:
-		isPlaying_dict[voice_client.guild.id] = True
+	if isPlaying_dict[interaction.guild.id] != True:
+		isPlaying_dict[interaction.guild.id] = True
 		await interaction.channel.send("再生を開始します。")
 		await playbgm(voice_client)
 
@@ -123,12 +123,13 @@ async def stop(interaction: discord.Interaction):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	flag = interaction.guild.id in queue_dict
-	if isPlaying_dict[voice_client.guild.id] == True:
+	if isPlaying_dict[interaction.guild.id] == True:
 		del queue_dict[interaction.guild.id]
-		isPlaying_dict[voice_client.guild.id] = False
-	voice_client.stop()
-	await interaction.response.send_message("停止しました")
+		isPlaying_dict[interaction.guild.id] = False
+		voice_client.stop()
+		await interaction.response.send_message("停止しました")
+	else:
+		await interaction.response.send_message("曲が再生されていないようです",ephemeral=True)
 
 @tree.command(name="skip", description="曲を一曲スキップします")
 async def skip(interaction: discord.Interaction):
@@ -136,7 +137,7 @@ async def skip(interaction: discord.Interaction):
 	if voice_client is None:
 		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
 		return
-	await interaction.response.send_message("一曲スキップしました")
+	await interaction.response.send_message("一曲スキップしました。")
 	voice_client.stop()
 	await playbgm(voice_client)
 
