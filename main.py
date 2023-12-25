@@ -101,15 +101,17 @@ async def play(interaction: discord.Interaction, url:str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		if interaction.user.voice != None:
-			isPlaying_dict[voice_client.guild.id] = False
+			isPlaying_dict[interaction.guild.id] = False
 			await interaction.user.voice.channel.connect()
-			await interaction.channel.send(f"ボイスチャンネル「<#{interaction.user.voice.channel.id}>」に接続しました。")
+			await interaction.response.send_message(f"ボイスチャンネル「<#{interaction.user.voice.channel.id}>」に接続しました。")
 		else:
 			await interaction.response.send_message(f"あなたはボイスチャンネルに接続していません。",ephemeral=True)
 			return
+	else:
+		interaction.response.send_message("キューに曲を挿入します。")
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
-	await interaction.response.send_message(f"曲( {url} )をキューに挿入しました。")
+	await interaction.channel.send(f"曲( {url} )をキューに挿入しました。")
 	if isPlaying_dict[voice_client.guild.id] != True:
 		isPlaying_dict[voice_client.guild.id] = True
 		await interaction.channel.send("再生を開始します。")
