@@ -67,6 +67,17 @@ def videodownloader(url: str, svid: int):
 		#ydl.download([url])
 		info_dict = ydl.extract_info(url, download=False)
 		return info_dict
+		
+def nicodl(url: str, svid: int):
+	ydl_opts = {
+		"outtmpl": f"{svid}",
+		"format": "mp3/bestaudio/best",
+		"noplaylist": True,
+	}
+	with YoutubeDL(ydl_opts) as ydl:
+		ydl.download([url])
+		info_dict = ydl.extract_info(url, download=False)
+		return info_dict
 
 
 async def playbgm(voice_client,queue):
@@ -83,16 +94,23 @@ async def playbgm(voice_client,queue):
 	url = queue.popleft()
 	logging.info("ダウンロードを開始")
 	await voice_client.channel.send(f"再生待機中: **{url}**")
-	info_dict = videodownloader(url,voice_client.guild.id)
-	logging.info("再生")
-	#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
 	loop = asyncio.get_event_loop()
-	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
-	video_title = info_dict.get('title', None)
-	videourl = info_dict.get('url', None)
-	source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-	voice_client.play(source, after=lambda e:loop.create_task(playbgm(voice_client,queue)))
-	await voice_client.channel.send(f"再生: **{video_title}**")
+	if url.find("nicovideo.jp") == -1:
+		info_dict = videodownloader(url,voice_client.guild.id)
+		logging.info("再生")
+		#voice_client.play(discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3"), after=lambda e:playbgm(voice_client, queue))
+		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+		video_title = info_dict.get('title', None)
+		videourl = info_dict.get('url', None)
+		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
+		voice_client.play(source, after=lambda e:loop.create_task(playbgm(voice_client,queue)))
+		await voice_client.channel.send(f"再生: **{video_title}**")
+	else:
+		await voice_client.channel.send(f"※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。")
+		info_dict = await loop.run_in_executor(None, nicodl(url,voice_client.guild.id))
+		video_title = info_dict.get('title', None)
+		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3")
+		voice_client.play(source, after=lambda e:loop.create_task(playbgm(voice_client,queue)))
 	# await voice_client.channel.send(f"DEBUG: **{videourl}**")
 
 
