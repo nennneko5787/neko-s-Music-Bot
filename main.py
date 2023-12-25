@@ -62,7 +62,7 @@ async def nicodl(url: str, svid: int):
 		}
 
 async def playbgm(voice_client,dqueue:deque=None):
-	if dqueue != None:
+	if dqueue == None:
 		queue = queue_dict[voice_client.guild.id]
 	else:
 		queue = dqueue
