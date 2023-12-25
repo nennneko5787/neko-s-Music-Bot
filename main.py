@@ -107,6 +107,7 @@ async def play(interaction: discord.Interaction, url:str):
 			isPlaying_dict[interaction.guild.id] = False
 			await interaction.user.voice.channel.connect()
 			await interaction.response.send_message(f"ボイスチャンネル「<#{interaction.user.voice.channel.id}>」に接続しました。")
+			voice_client = interaction.guild.voice_client
 		else:
 			await interaction.response.send_message(f"あなたはボイスチャンネルに接続していません。",ephemeral=True)
 			return
