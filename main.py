@@ -50,9 +50,10 @@ def videodownloader(url: str, svid: int):
 
 async def runncdl(url: str, svid: int):
 	loop = asyncio.get_event_loop()
-	return await loop.run_in_executor(executor, nicodl, url, svid)
+	dic = await loop.run_in_executor(executor, nicodl, url, svid)
+	return dic
 
-async def nicodl(url: str, svid: int):
+def nicodl(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
 		"format": "mp3/bestaudio/best",
