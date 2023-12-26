@@ -48,6 +48,10 @@ def videodownloader(url: str, svid: int):
 		info_dict = ydl.extract_info(url, download=False)
 		return info_dict
 
+async def runncdl(url: str, svid: int):
+	loop = asyncio.get_event_loop()
+	return await loop.run_in_executor(executor, nicodl, url, svid)
+
 async def nicodl(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
@@ -102,7 +106,8 @@ async def playbgm(voice_client,dqueue:deque=None):
 		await voice_client.channel.send(f"再生: **{video_title}**")
 	else:
 		await voice_client.channel.send(f"※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。")
-		info_dict = run_in_executor(None,nicodl,url, voice_client.guild.id))
+		info_dict = loop.run_until_complete(asyncio.gather(*[runncdl(url, voice_client.guild.id)]))
+		# info_dict = await loop.run_in_executor(executor,nicodl,url, voice_client.guild.id)
 		video_title = info_dict.get('title', None)
 		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3")
 		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client)))
