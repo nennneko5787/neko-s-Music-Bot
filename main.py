@@ -115,7 +115,7 @@ async def playbgm(voice_client,dqueue:deque=None):
 		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3")
 		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client)))
 
-@tree.command(name="play", description="音楽を再生します")
+@tree.command(name="play", description="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 async def play(interaction: discord.Interaction, url:str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -127,6 +127,8 @@ async def play(interaction: discord.Interaction, url:str):
 		else:
 			await interaction.response.send_message(f"あなたはボイスチャンネルに接続していません。",ephemeral=True)
 			return
+	elif isPlaying_dict[interaction.guild.id] == True:
+		interaction.response.send_message("キューに曲を挿入します。")
 	else:
 		interaction.response.send_message("キューに曲を挿入します。")
 	queue = queue_dict[interaction.guild.id]
@@ -137,7 +139,7 @@ async def play(interaction: discord.Interaction, url:str):
 		await interaction.channel.send("再生を開始します。")
 		await playbgm(voice_client,queue)
 
-@tree.command(name="stop", description="音楽を停止します")
+@tree.command(name="stop", description="今再生している音楽を停止して、キューを破棄します。")
 async def stop(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -151,7 +153,7 @@ async def stop(interaction: discord.Interaction):
 	else:
 		await interaction.response.send_message("曲が再生されていないようです",ephemeral=True)
 
-@tree.command(name="skip", description="曲を一曲スキップします")
+@tree.command(name="skip", description="今再生している音楽をスキップして、キューに入っている次の音楽を再生します。")
 async def skip(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -161,7 +163,7 @@ async def skip(interaction: discord.Interaction):
 	voice_client.stop()
 	await playbgm(voice_client)
 
-@tree.command(name="pause", description="音楽を一時停止します")
+@tree.command(name="pause", description="一時停止します。")
 async def pause(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -170,7 +172,7 @@ async def pause(interaction: discord.Interaction):
 	voice_client.pause()
 	await interaction.response.send_message("停止しました")
 
-@tree.command(name="resume", description="一時停止した音楽を再開します")
+@tree.command(name="resume", description="一時停止した音楽を再開します。")
 async def resume(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -179,11 +181,22 @@ async def resume(interaction: discord.Interaction):
 	voice_client.resume()
 	await interaction.response.send_message("再開しました")
 
+@tree.command(name="help", description="使用できるコマンドを確認することができます。")
+async def help(interaction: discord.Interaction):
+	embed = discord.Embed(title="neko's Music Bot",description="",color=0xda70d6)
+	embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
+	embed.add_field(name="/pause",value="一時停止します。")
+	embed.add_field(name="/resume",value="一時停止した音楽を再開します。")
+	embed.add_field(name="/skip",value="今再生している音楽をスキップして、キューに入っている次の音楽を再生します。")
+	embed.add_field(name="/stop",value="今再生している音楽を停止して、キューを破棄します。")
+	embed.add_field(name="/help",value="使用できるコマンドを確認することができます。")
+	await interaction.response.send_message("",embed=embed)
+
 @tasks.loop(seconds=20)  # repeat after every 10 seconds
 async def myLoop():
 	# work
 	await client.change_presence(activity=discord.Game(
-		name=f"{len(client.guilds)}サーバーで稼働中"))
+		name=f"/help | {len(client.guilds)}サーバーで稼働中"))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
