@@ -1,1 +1,1 @@
-‚±‚ÌBot‚Ìg‚¢•û: [https://nennneko5787.github.io/neko-s-music-bot/](https://nennneko5787.github.io/neko-s-music-bot/)
+ã“ã®Botã®ä½¿ã„æ–¹: [https://nennneko5787.github.io/neko-s-music-bot/](https://nennneko5787.github.io/neko-s-music-bot/)

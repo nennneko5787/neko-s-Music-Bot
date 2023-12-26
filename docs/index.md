@@ -1,24 +1,24 @@
-# ����Bot�̎g����
+# このBotの使い方
 ## /play **url**: &lt;video&gt;
-### &lt;video&gt;: �Đ����������y��URL
-url�Ŏw�肳�ꂽ���y���Đ����܂��B���łɉ��y���Đ�����Ă���ꍇ�̓L���[�ɑ}�����܂��B
+### &lt;video&gt;: 再生したい音楽のURL
+urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。
 ## /pause
-�ꎞ��~���܂��B
+一時停止します。
 ## /resume
-�ꎞ��~�������y���ĊJ���܂��B
+一時停止した音楽を再開します。
 ## /skip
-���Đ����Ă��鉹�y���X�L�b�v���āA�L���[�ɓ����Ă��鎟�̉��y���Đ����܂��B
+今再生している音楽をスキップして、キューに入っている次の音楽を再生します。
 ## /stop
-���Đ����Ă��鉹�y���~���āA�L���[��j�����܂��B
+今再生している音楽を停止して、キューを破棄します。
 ## /help
-�g�p�ł���R�}���h���m�F���邱�Ƃ��ł��܂��B
+使用できるコマンドを確認することができます。
 
-# �Ή����Ă��铮��T�C�g�ꗗ
+# 対応している動画サイト一覧
 ## Youtube
-���ɖ��Ȃ��Đ����邱�Ƃ��ł���B
-## �j�R�j�R����
-�Đ��܂łɎ��Ԃ�������B  
-�X�ɁA���݊m�F���Ă��Ȃ���**���̃T�[�o�[���Đ����̉��y���~�܂�**�\��������B  
-�C���ł������[�v�����N�G�X�g](https://github.com/nennneko5787/neko-s-Music-Bot/pulls/)�����肢���܂��B
+特に問題なく再生することができる。
+## ニコニコ動画
+再生までに時間がかかる。  
+更に、現在確認していないが**他のサーバーが再生中の音楽が止まる**可能性がある。  
+修正できる方は[プルリクエスト](https://github.com/nennneko5787/neko-s-Music-Bot/pulls/)をお願いします。
 ## TVer
-���ɖ��Ȃ��Đ����邱�Ƃ��ł���B
+特に問題なく再生することができる。
