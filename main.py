@@ -11,6 +11,10 @@ import logging
 import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+import datetime
+
+last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S.%f')
 
 queue_dict = defaultdict(deque)
 isPlaying_dict = defaultdict(lambda: False)
@@ -197,7 +201,7 @@ async def help(interaction: discord.Interaction):
 async def myLoop():
 	# work
 	await client.change_presence(activity=discord.Game(
-		name=f"/help | {len(client.guilds)}サーバーで稼働中"))
+		name=f"/help | deployed: {last_commit_date} | {len(client.guilds)}サーバーで稼働中"))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ
