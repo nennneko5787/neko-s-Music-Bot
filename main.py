@@ -142,13 +142,6 @@ async def play(interaction: discord.Interaction, url:str):
 		embed.add_field(name="動画URL",value=url)
 		await interaction.response.send_message("",embed=embed)
 		return
-	else:
-		queue = queue_dict[interaction.guild.id]
-		queue.append(url)
-		embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
-		embed.add_field(name="動画URL",value=url)
-		await interaction.response.send_message("",embed=embed)
-		return
 	
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
