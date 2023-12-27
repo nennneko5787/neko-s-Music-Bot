@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 import datetime
 
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
-last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S.%f')
+last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
 
 queue_dict = defaultdict(deque)
 isPlaying_dict = defaultdict(lambda: False)
