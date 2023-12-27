@@ -121,9 +121,16 @@ async def play(interaction: discord.Interaction, url:str):
 			await interaction.response.send_message(f"あなたはボイスチャンネルに接続していません。",ephemeral=True)
 			return
 	elif isPlaying_dict[interaction.guild.id] == True:
-		interaction.response.send_message("キューに曲を挿入します。")
+		queue = queue_dict[interaction.guild.id]
+		queue.append(url)
+		await interaction.response.send_message(f"曲( {url} )をキューに挿入しました。")
+		return
 	else:
-		interaction.response.send_message("キューに曲を挿入します。")
+		queue = queue_dict[interaction.guild.id]
+		queue.append(url)
+		await interaction.response.send_message(f"曲( {url} )をキューに挿入しました。")
+		return
+	
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
 	await interaction.channel.send(f"曲( {url} )をキューに挿入しました。")
@@ -131,6 +138,7 @@ async def play(interaction: discord.Interaction, url:str):
 		isPlaying_dict[interaction.guild.id] = True
 		await interaction.channel.send("再生を開始します。")
 		await playbgm(voice_client,queue)
+		return
 
 @tree.command(name="stop", description="今再生している音楽を停止して、キューを破棄します。")
 async def stop(interaction: discord.Interaction):
