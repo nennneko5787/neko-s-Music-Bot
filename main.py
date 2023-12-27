@@ -82,17 +82,22 @@ async def playbgm(voice_client,dqueue:deque=None):
 		await voice_client.channel.send(f"キューに入っている曲はありません")
 		isPlaying_dict[voice_client.guild.id] = False
 		await voice_client.disconnect()
-		await voice_client.channel.send(f"ボイスチャンネル「<#{voice_client.channel.id}>」から切断しました。")
+		embed = discord.Embed(title="neko's Music Bot",description="ボイスチャンネルから切断しました。",color=discord.Colour.red())
+		embed.add_field(name="切断先チャンネル",value=f"<#{voice_client.channel.id}>")
+		await voice_client.channel.send("",embed=embed)
 		return
 	elif voice_client.is_connected() == False:
-		await voice_client.channel.send(f"ボイスチャンネルからの接続が切れています")
+		embed = discord.Embed(title="neko's Music Bot",description="ボイスチャンネルからの接続が切れています",color=discord.Colour.red())
+		await voice_client.channel.send("",embed=embed)
 		isPlaying_dict[voice_client.guild.id] = False
 		return
 	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
 		os.remove(f"{voice_client.guild.id}.mp3")
 	url = queue.popleft()
 	logging.info("ダウンロードを開始")
-	await voice_client.channel.send(f"再生待機中: **{url}**")
+	embed = discord.Embed(title="neko's Music Bot",description="再生を待機中",color=0xda70d6)
+	embed.add_field(name="url",value=video_title)
+	await voice_client.channel.send("",embed=embed)
 	loop = asyncio.get_event_loop()
 	# 修正後の playbgm 関数の一部
 	if url.find("nicovideo.jp") == -1:
@@ -103,9 +108,12 @@ async def playbgm(voice_client,dqueue:deque=None):
 		videourl = info_dict.get('url', None)
 		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
 		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client)))
-		await voice_client.channel.send(f"再生: **{video_title}**")
+		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
+		embed.add_field(name="url",value=video_title)
+		await voice_client.channel.send("",embed=embed)
 	else:
-		await voice_client.channel.send(f"※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。")
+		embed = discord.Embed(title="neko's Music Bot",description="※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。",color=0xda70d6)
+		await voice_client.channel.send("",embed=embed)
 		info_dict = await nicodl(url, voice_client.guild.id)
 		# info_dict = await loop.run_in_executor(executor,nicodl,url, voice_client.guild.id)
 		video_title = info_dict.get('title', None)
@@ -119,28 +127,38 @@ async def play(interaction: discord.Interaction, url:str):
 		if interaction.user.voice != None:
 			isPlaying_dict[interaction.guild.id] = False
 			await interaction.user.voice.channel.connect()
-			await interaction.response.send_message(f"ボイスチャンネル「<#{interaction.user.voice.channel.id}>」に接続しました。")
+			embed = discord.Embed(title="neko's Music Bot",description="ボイスチャンネルに接続しました。",color=0xda70d6)
+			embed.add_field(name="接続先チャンネル",value=f"<#{interaction.user.voice.channel.id}>")
+			await interaction.response.send_message("",embed=embed)
 			voice_client = interaction.guild.voice_client
 		else:
-			await interaction.response.send_message(f"あなたはボイスチャンネルに接続していません。",ephemeral=True)
+			embed = discord.Embed(title="neko's Music Bot",description="あなたはボイスチャンネルに接続していません。",color=discord.Colour.red())
+			await interaction.response.send_message("",embed=embed,ephemeral=True)
 			return
 	elif isPlaying_dict[interaction.guild.id] == True:
 		queue = queue_dict[interaction.guild.id]
 		queue.append(url)
-		await interaction.response.send_message(f"曲( {url} )をキューに挿入しました。")
+		embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
+		embed.add_field(name="動画URL",value=url)
+		await interaction.response.send_message("",embed=embed)
 		return
 	else:
 		queue = queue_dict[interaction.guild.id]
 		queue.append(url)
-		await interaction.response.send_message(f"曲( {url} )をキューに挿入しました。")
+		embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
+		embed.add_field(name="動画URL",value=url)
+		await interaction.response.send_message("",embed=embed)
 		return
 	
 	queue = queue_dict[interaction.guild.id]
 	queue.append(url)
-	await interaction.channel.send(f"曲( {url} )をキューに挿入しました。")
+	embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
+	embed.add_field(name="動画URL",value=url)
+	await interaction.channel.send("",embed=embed)
 	if isPlaying_dict[interaction.guild.id] != True:
 		isPlaying_dict[interaction.guild.id] = True
-		await interaction.channel.send("再生を開始します。")
+		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
+		await interaction.channel.send("",embed=embed)
 		await playbgm(voice_client,queue)
 		return
 
@@ -148,23 +166,28 @@ async def play(interaction: discord.Interaction, url:str):
 async def stop(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
-		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		embed = discord.Embed(title="neko's Music Bot",description="neko's Music Botはボイスチャンネルに接続していません。",color=discord.Colour.red())
+		await interaction.response.send_message("",embed=embed,ephemeral=True)
 		return
 	if isPlaying_dict[interaction.guild.id] == True:
 		del queue_dict[interaction.guild.id]
 		isPlaying_dict[interaction.guild.id] = False
 		voice_client.stop()
-		await interaction.response.send_message("停止しました")
+		embed = discord.Embed(title="neko's Music Bot",description="停止しました。",color=0xda70d6)
+		await interaction.response.send_message("",embed=embed)
 	else:
-		await interaction.response.send_message("曲が再生されていないようです",ephemeral=True)
+		embed = discord.Embed(title="neko's Music Bot",description="曲が再生されていないようです。",color=0xda70d6)
+		await interaction.response.send_message("",embed=embed)
 
 @tree.command(name="skip", description="今再生している音楽をスキップして、キューに入っている次の音楽を再生します。")
 async def skip(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
-		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		embed = discord.Embed(title="neko's Music Bot",description="neko's Music Botはボイスチャンネルに接続していません。",color=discord.Colour.red())
+		await interaction.response.send_message("",embed=embed,ephemeral=True)
 		return
-	await interaction.response.send_message("一曲スキップしました。")
+	embed = discord.Embed(title="neko's Music Bot",description="一曲スキップしました。",color=0xda70d6)
+	await interaction.response.send_message("",embed=embed)
 	voice_client.stop()
 	await playbgm(voice_client)
 
@@ -172,19 +195,23 @@ async def skip(interaction: discord.Interaction):
 async def pause(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
-		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		embed = discord.Embed(title="neko's Music Bot",description="neko's Music Botはボイスチャンネルに接続していません。",color=discord.Colour.red())
+		await interaction.response.send_message("",embed=embed,ephemeral=True)
 		return
 	voice_client.pause()
-	await interaction.response.send_message("停止しました")
+	embed = discord.Embed(title="neko's Music Bot",description="一時停止しました。",color=0xda70d6)
+	await interaction.response.send_message("",embed=embed)
 
 @tree.command(name="resume", description="一時停止した音楽を再開します。")
 async def resume(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
-		await interaction.response.send_message("neko's Music Botはボイスチャンネルに接続していません。",ephemeral=True)
+		embed = discord.Embed(title="neko's Music Bot",description="neko's Music Botはボイスチャンネルに接続していません。",color=discord.Colour.red())
+		await interaction.response.send_message("",embed=embed,ephemeral=True)
 		return
 	voice_client.resume()
-	await interaction.response.send_message("再開しました")
+	embed = discord.Embed(title="neko's Music Bot",description="再開しました",color=0xda70d6)
+	await interaction.response.send_message("",embed=embed)
 
 @tree.command(name="help", description="使用できるコマンドを確認することができます。")
 async def help(interaction: discord.Interaction):
