@@ -96,7 +96,7 @@ async def playbgm(voice_client,dqueue:deque=None):
 	url = queue.popleft()
 	logging.info("ダウンロードを開始")
 	embed = discord.Embed(title="neko's Music Bot",description="再生を待機中",color=0xda70d6)
-	embed.add_field(name="url",value=video_title)
+	embed.add_field(name="url",value=url)
 	await voice_client.channel.send("",embed=embed)
 	loop = asyncio.get_event_loop()
 	# 修正後の playbgm 関数の一部
