@@ -10,9 +10,7 @@ from collections import defaultdict, deque
 import logging
 import sys
 import traceback
-from concurrent.futures import ProcessPoolExecutor
-
-executor = ProcessPoolExecutor(max_workers=3)
+from concurrent.futures import ThreadPoolExecutor
 
 queue_dict = defaultdict(deque)
 isPlaying_dict = defaultdict(lambda: False)
@@ -37,24 +35,18 @@ async def on_voice_state_update(member, before, after):
 				del queue_dict[member.guild.id]
 				isPlaying_dict[member.guild.id] = False
 
-def videodownloader(url: str, svid: int):
+async def videodownloader(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
 		"format": "bestaudio/best",
 		"noplaylist": True,
 	}
-	with YoutubeDL(ydl_opts) as ydl:
-		#ydl.download([url])
-		info_dict = ydl.extract_info(url, download=False)
-		return info_dict
-
-async def runncdl(url: str, svid: int):
 	loop = asyncio.get_event_loop()
-	dic = await loop.run_in_executor(executor, nicodl, url, svid)
-	print("nicovideo ready!")
-	return dic
-
-def nicodl(url: str, svid: int):
+	ydl = YoutubeDL(ydl_opts)
+	info_dict = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
+	return info_dict
+	
+async def nicodl(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
 		"format": "mp3/bestaudio/best",
@@ -66,15 +58,16 @@ def nicodl(url: str, svid: int):
 			}
 		],
 	}
-	with YoutubeDL(ydl_opts) as ydl:
-		ydl.download([url])
-		info_dict = ydl.extract_info(url, download=False)
-		print("download successful!")
-		# 必要な情報を取り出す処理を追加
-		return {
-			'title': info_dict.get('title', None),
-			'url': info_dict.get('url', None)
-		}
+	loop = asyncio.get_event_loop()
+	ydl = YoutubeDL(ydl_opts)
+	await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.download([url]))
+	info_dict = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
+	print("download successful!")
+	# 必要な情報を取り出す処理を追加
+	return {
+		'title': info_dict.get('title', None),
+		'url': info_dict.get('url', None)
+	}
 
 async def playbgm(voice_client,dqueue:deque=None):
 	if dqueue == None:
@@ -99,7 +92,7 @@ async def playbgm(voice_client,dqueue:deque=None):
 	loop = asyncio.get_event_loop()
 	# 修正後の playbgm 関数の一部
 	if url.find("nicovideo.jp") == -1:
-		info_dict = videodownloader(url, voice_client.guild.id)
+		info_dict = await videodownloader(url, voice_client.guild.id)
 		logging.info("再生")
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 		video_title = info_dict.get('title', None)
@@ -109,7 +102,7 @@ async def playbgm(voice_client,dqueue:deque=None):
 		await voice_client.channel.send(f"再生: **{video_title}**")
 	else:
 		await voice_client.channel.send(f"※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。")
-		info_dict = await runncdl(url, voice_client.guild.id)
+		info_dict = await nicodl(url, voice_client.guild.id)
 		# info_dict = await loop.run_in_executor(executor,nicodl,url, voice_client.guild.id)
 		video_title = info_dict.get('title', None)
 		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3")
