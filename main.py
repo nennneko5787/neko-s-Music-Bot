@@ -164,11 +164,11 @@ async def play(interaction: discord.Interaction, url:str):
 			"format": "bestaudio/best",
 			"noplaylist": False,
 		}
+		await interaction.response.defer()
 		ydl = YoutubeDL(ydl_opts)
 		dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 		flag = "entries" in dic
 		if flag == True:
-			await interaction.response.defer()
 			count = 0
 			for info_dict in dic['entries']:
 				url = info_dict.get('webpage_url', None)
@@ -184,7 +184,7 @@ async def play(interaction: discord.Interaction, url:str):
 				queue.append(url)
 				embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
 				embed.add_field(name="動画URL",value=url)
-				await interaction.response.send_message("",embed=embed)
+				await interaction.followup.send("",embed=embed)
 		return
 	
 	queue = queue_dict[interaction.guild.id]
@@ -194,11 +194,11 @@ async def play(interaction: discord.Interaction, url:str):
 		"format": "bestaudio/best",
 		"noplaylist": False,
 	}
+	await interaction.response.defer()
 	ydl = YoutubeDL(ydl_opts)
 	dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
 	if flag == True:
-		await interaction.response.defer()
 		for info_dict in dic['entries']:
 			url = info_dict.get('webpage_url', None)
 			queue.append(url)
@@ -213,7 +213,7 @@ async def play(interaction: discord.Interaction, url:str):
 			queue.append(url)
 			embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
 			embed.add_field(name="動画URL",value=url)
-			await interaction.response.send_message("",embed=embed)
+			await interaction.followup.send("",embed=embed)
 	if isPlaying_dict[interaction.guild.id] != True:
 		isPlaying_dict[interaction.guild.id] = True
 		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
