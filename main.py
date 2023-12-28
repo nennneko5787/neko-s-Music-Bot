@@ -100,7 +100,19 @@ async def playbgm(voice_client,dqueue:deque=None):
 	await voice_client.channel.send("",embed=embed)
 	loop = asyncio.get_event_loop()
 	# 修正後の playbgm 関数の一部
-	if url.find("nicovideo.jp") == -1:
+	if url.find("ytsearch:") != -1:
+		dic = await videodownloader(url, voice_client.guild.id)
+		logging.info("再生")
+		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+		info_dict = dic['entries'][0]
+		video_title = info_dict.get('title', None)
+		videourl = info_dict.get('url', None)
+		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
+		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client)))
+		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
+		embed.add_field(name="url",value=video_title)
+		await voice_client.channel.send("",embed=embed)
+	elif url.find("nicovideo.jp") == -1:
 		info_dict = await videodownloader(url, voice_client.guild.id)
 		logging.info("再生")
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
