@@ -156,9 +156,10 @@ async def play(interaction: discord.Interaction, url:str):
 		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
 		await interaction.channel.send("",embed=embed)
 		hoge = r.get(f'{interaction.user.id}_volume')
-		volume = hoge.decode()
-		if volume is None:
+		if hoge is None:
 			volume = 0.5
+		else:
+			volume = hoge.decode()
 		await playbgm(voice_client,queue,volume)
 		return
 
