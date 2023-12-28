@@ -194,7 +194,6 @@ async def play(interaction: discord.Interaction, url:str):
 		"format": "bestaudio/best",
 		"noplaylist": False,
 	}
-	await interaction.response.defer()
 	ydl = YoutubeDL(ydl_opts)
 	dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
@@ -207,13 +206,13 @@ async def play(interaction: discord.Interaction, url:str):
 			await interaction.channel.send("",embed=embed)
 			count += 1
 		embed = discord.Embed(title="neko's Music Bot",description=f"{count}個の音楽をキューに挿入しました。",color=0xda70d6)
-		await interaction.followup.send("",embed=embed)
+		await interaction.channel.send("",embed=embed)
 	else:
 			url = dic.get('webpage_url', None)
 			queue.append(url)
 			embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
 			embed.add_field(name="動画URL",value=url)
-			await interaction.followup.send("",embed=embed)
+			await interaction.channel.send("",embed=embed)
 	if isPlaying_dict[interaction.guild.id] != True:
 		isPlaying_dict[interaction.guild.id] = True
 		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
