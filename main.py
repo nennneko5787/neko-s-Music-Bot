@@ -169,9 +169,9 @@ async def play(interaction: discord.Interaction, url:str):
 		for info_dict in dic['entries']:
 			url = info_dict.get('webpage_url', None)
 			queue.append(url)
-		embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
-		embed.add_field(name="動画URL",value=url)
-		await interaction.response.send_message("",embed=embed)
+			embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
+			embed.add_field(name="動画URL",value=url)
+			await interaction.response.send_message("",embed=embed)
 		return
 	
 	queue = queue_dict[interaction.guild.id]
@@ -186,9 +186,9 @@ async def play(interaction: discord.Interaction, url:str):
 	for info_dict in dic['entries']:
 		url = info_dict.get('webpage_url', None)
 		queue.append(url)
-	embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
-	embed.add_field(name="動画URL",value=url)
-	await interaction.channel.send("",embed=embed)
+		embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
+		embed.add_field(name="動画URL",value=url)
+		await interaction.channel.send("",embed=embed)
 	if isPlaying_dict[interaction.guild.id] != True:
 		isPlaying_dict[interaction.guild.id] = True
 		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
