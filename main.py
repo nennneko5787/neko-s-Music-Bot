@@ -12,7 +12,6 @@ import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 import datetime
-import redis
 
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
@@ -24,8 +23,6 @@ intents = discord.Intents.default()
 intents.voice_states = True
 client = discord.Client(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
-
-r = redis.Redis(host='red-cm6e76un7f5s73c96lm0', port=6379, db=0)
 
 @client.event
 async def on_ready():
@@ -76,7 +73,7 @@ async def nicodl(url: str, svid: int):
 		'url': info_dict.get('url', None)
 	}
 
-async def playbgm(voice_client,dqueue:deque=None,volume:float = 0.5):
+async def playbgm(voice_client,dqueue:deque=None):
 	if dqueue == None:
 		queue = queue_dict[voice_client.guild.id]
 	else:
@@ -110,8 +107,7 @@ async def playbgm(voice_client,dqueue:deque=None,volume:float = 0.5):
 		video_title = info_dict.get('title', None)
 		videourl = info_dict.get('url', None)
 		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-		source = discord.PCMVolumeTransformer(source, volume=volume)
-		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,None,volume)))
+		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client)))
 		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
 		embed.add_field(name="url",value=video_title)
 		await voice_client.channel.send("",embed=embed)
@@ -122,8 +118,7 @@ async def playbgm(voice_client,dqueue:deque=None,volume:float = 0.5):
 		# info_dict = await loop.run_in_executor(executor,nicodl,url, voice_client.guild.id)
 		video_title = info_dict.get('title', None)
 		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3")
-		source = discord.PCMVolumeTransformer(source, volume=volume)
-		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,None,volume)))
+		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client)))
 
 @tree.command(name="play", description="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 async def play(interaction: discord.Interaction, url:str):
@@ -157,12 +152,7 @@ async def play(interaction: discord.Interaction, url:str):
 		isPlaying_dict[interaction.guild.id] = True
 		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
 		await interaction.channel.send("",embed=embed)
-		hoge = r.get(f'{interaction.user.id}_volume')
-		if hoge is None:
-			volume = 0.5
-		else:
-			volume = hoge.decode()
-		await playbgm(voice_client,queue,volume)
+		await playbgm(voice_client,queue)
 		return
 
 @tree.command(name="stop", description="今再生している音楽を停止して、キューを破棄します。")
@@ -215,15 +205,6 @@ async def resume(interaction: discord.Interaction):
 	voice_client.resume()
 	embed = discord.Embed(title="neko's Music Bot",description="再開しました",color=0xda70d6)
 	await interaction.response.send_message("",embed=embed)
-
-
-@tree.command(name="volume", description="ユーザーごとに音量を指定します。")
-async def resume(interaction: discord.Interaction, volume: app_commands.Range[float, 0.0, 1.0] = 0.5):
-	r.set(f'{interaction.user.id}_volume', volume)
-	embed = discord.Embed(title="neko's Music Bot",description="ボリュームを{volume}に設定しました。",color=0xda70d6)
-	await interaction.response.send_message("",embed=embed)
-
-
 
 @tree.command(name="help", description="使用できるコマンドを確認することができます。")
 async def help(interaction: discord.Interaction):
