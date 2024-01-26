@@ -169,7 +169,7 @@ async def play(interaction: discord.Interaction, url:str):
 		dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 		flag = "entries" in dic
 		if flag == True:
-			async for info_dict in dic['entries']:
+			for info_dict in dic['entries']:
 				url = info_dict.get('webpage_url', None)
 				queue.append(url)
 				embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
@@ -284,8 +284,7 @@ async def help(interaction: discord.Interaction):
 async def myLoop():
 	# work
 	vccount = 0
-	guilds = [guild async for guild in client.fetch_guilds(limit=150)]
-	async for guild in guilds:
+	for guild in client.guilds:
 		if guild.voice_client != None:
 			vccount += 1
 	await client.change_presence(activity=discord.Game(
