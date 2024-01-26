@@ -169,15 +169,13 @@ async def play(interaction: discord.Interaction, url:str):
 		dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 		flag = "entries" in dic
 		if flag == True:
-			count = 0
 			for info_dict in dic['entries']:
 				url = info_dict.get('webpage_url', None)
 				queue.append(url)
 				embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
 				embed.add_field(name="動画URL",value=url)
 				await interaction.channel.send("",embed=embed)
-				count += 1
-			embed = discord.Embed(title="neko's Music Bot",description=f"{count}個の音楽をキューに挿入しました。",color=0xda70d6)
+			embed = discord.Embed(title="neko's Music Bot",description=f"{len(dic['entries'])}個の音楽をキューに挿入しました。",color=0xda70d6)
 			await interaction.followup.send("",embed=embed)
 		else:
 				url = dic.get('webpage_url', None)
