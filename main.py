@@ -284,7 +284,8 @@ async def help(interaction: discord.Interaction):
 async def myLoop():
 	# work
 	vccount = 0
-	async for guild in client.guilds:
+	guilds = [guild async for guild in client.fetch_guilds(limit=150)]
+	async for guild in guilds:
 		if guild.voice_client != None:
 			vccount += 1
 	await client.change_presence(activity=discord.Game(
