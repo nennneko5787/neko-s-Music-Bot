@@ -74,7 +74,7 @@ async def nicodl(url: str, svid: int):
 		'webpage_url': info_dict.get('webpage_url', None)
 	}
 
-async def playbgm(voice_client,dqueue:deque=None,channel=0):
+async def playbgm(voice_client,channel,dqueue:deque=None):
 	if dqueue == None:
 		queue = queue_dict[voice_client.guild.id]
 	else:
@@ -101,19 +101,7 @@ async def playbgm(voice_client,dqueue:deque=None,channel=0):
 	await channel.send("",embed=embed)
 	loop = asyncio.get_event_loop()
 	# 修正後の playbgm 関数の一部
-	if url.find("ytsearch:") != -1:
-		dic = await videodownloader(url, voice_client.guild.id)
-		logging.info("再生")
-		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
-		info_dict = dic['entries'][0]
-		video_title = info_dict.get('title', None)
-		videourl = info_dict.get('url', None)
-		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client)))
-		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
-		embed.add_field(name="url",value=video_title)
-		await channel.send("",embed=embed)
-	elif url.find("nicovideo.jp") == -1:
+	if url.find("nicovideo.jp") == -1:
 		info_dict = await videodownloader(url, voice_client.guild.id)
 		logging.info("再生")
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -121,7 +109,7 @@ async def playbgm(voice_client,dqueue:deque=None,channel=0):
 		videourl = info_dict.get('url', None)
 		web = info_dict.get('webpage_url', None)
 		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,None,channel)))
+		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,channel)))
 		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
 		embed.add_field(name="title",value=video_title)
 		embed.add_field(name="url",value=web)
@@ -134,7 +122,7 @@ async def playbgm(voice_client,dqueue:deque=None,channel=0):
 		video_title = info_dict.get('title', None)
 		web = info_dict.get('webpage_url', None)
 		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3")
-		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,None,channel)))
+		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,channel)))
 		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
 		embed.add_field(name="title",value=video_title)
 		embed.add_field(name="url",value=web)
@@ -213,7 +201,7 @@ async def play(interaction: discord.Interaction, url:str):
 		isPlaying_dict[interaction.guild.id] = True
 		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
 		await interaction.channel.send("",embed=embed)
-		await playbgm(voice_client,queue,interaction.channel.id)
+		await playbgm(voice_client,interaction.channel,queue)
 		return
 
 @tree.command(name="stop", description="今再生している音楽を停止して、キューを破棄します。")
