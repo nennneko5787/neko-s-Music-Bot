@@ -169,7 +169,7 @@ async def play(interaction: discord.Interaction, url:str):
 		dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 		flag = "entries" in dic
 		if flag == True:
-			for info_dict in dic['entries']:
+			async for info_dict in dic['entries']:
 				url = info_dict.get('webpage_url', None)
 				queue.append(url)
 				embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
