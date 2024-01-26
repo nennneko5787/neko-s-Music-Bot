@@ -283,8 +283,12 @@ async def help(interaction: discord.Interaction):
 @tasks.loop(seconds=20)  # repeat after every 10 seconds
 async def myLoop():
 	# work
+	vccount = 0
+	async for guild in client.guilds:
+		if guild.voice_client != None:
+			vccount += 1
 	await client.change_presence(activity=discord.Game(
-		name=f"/help | deployed: {last_commit_date} | {len(client.guilds)}サーバーで稼働中"))
+		name=f"/help | {len(client.guilds)}サーバーで稼働中 | {vccount}個のボイスチャンネルに接続中 | deployed: {last_commit_date}"))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 # Web サーバの立ち上げ(uptimerobotを噛ませる)
