@@ -74,7 +74,7 @@ async def nicodl(url: str, svid: int):
 		'webpage_url': info_dict.get('webpage_url', None)
 	}
 
-async def playbgm(voice_client,dqueue:deque=None,channel):
+async def playbgm(voice_client,dqueue:deque=None,channel=0):
 	if dqueue == None:
 		queue = queue_dict[voice_client.guild.id]
 	else:
