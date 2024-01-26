@@ -202,8 +202,7 @@ async def play(interaction: discord.Interaction, url:str):
 			embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
 			embed.add_field(name="動画URL",value=url)
 			await interaction.channel.send("",embed=embed)
-			count += 1
-		embed = discord.Embed(title="neko's Music Bot",description=f"{count}個の音楽をキューに挿入しました。",color=0xda70d6)
+		embed = discord.Embed(title="neko's Music Bot",description=f"{len(dic['entries'])}個の音楽をキューに挿入しました。",color=0xda70d6)
 		await interaction.channel.send("",embed=embed)
 	else:
 			url = dic.get('webpage_url', None)
