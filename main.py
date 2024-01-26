@@ -289,6 +289,6 @@ async def myLoop():
 		name=f"/help | deployed: {last_commit_date} | {len(client.guilds)}サーバーで稼働中"))
 
 TOKEN = os.getenv("DISCORD_TOKEN")
-# Web サーバの立ち上げ
+# Web サーバの立ち上げ(uptimerobotを噛ませる)
 keep_alive()
 client.run(TOKEN)
