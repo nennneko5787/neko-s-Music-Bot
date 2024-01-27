@@ -137,7 +137,7 @@ async def play(interaction: discord.Interaction, url:str):
 async def play(interaction: discord.Interaction, search:str):
 	await musicPlayFunction(interaction, f"ytsearch:{search}")
 
-async def musicPlayFunction(interaction: discord.Interaction, string: str):
+async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
 		if interaction.user.voice != None:
