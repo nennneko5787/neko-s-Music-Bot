@@ -184,6 +184,7 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 				await interaction.followup.send("",embed=embed)
 		return
 	
+	await interaction.response.defer()
 	queue = queue_dict[interaction.guild.id]
 	loop = asyncio.get_event_loop()
 	ydl_opts = {
@@ -204,7 +205,7 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 			embed.add_field(name="動画URL",value=url)
 			await interaction.channel.send("",embed=embed)
 		embed = discord.Embed(title="neko's Music Bot",description=f"{len(dic['entries'])}個の音楽をキューに挿入しました。",color=0xda70d6)
-		await interaction.channel.send("",embed=embed)
+		await interaction.followup.send("",embed=embed)
 	else:
 		url = dic.get('webpage_url', None)
 		title = dic.get('title', None)
@@ -212,7 +213,7 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 		embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
 		embed.add_field(name="タイトル",value=title)
 		embed.add_field(name="動画URL",value=url)
-		await interaction.channel.send("",embed=embed)
+		await interaction.followup.send("",embed=embed)
 	if isPlaying_dict[interaction.guild.id] != True:
 		isPlaying_dict[interaction.guild.id] = True
 		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
