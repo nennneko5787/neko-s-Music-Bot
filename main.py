@@ -59,7 +59,7 @@ async def nicodl(url: str, svid: int):
 		"postprocessors": [
 			{
 				"key": "FFmpegExtractAudio",
-				"preferredcodec": "mp3",
+				"preferredcodec": "ogg",
 			}
 		],
 	}
