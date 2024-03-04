@@ -54,7 +54,7 @@ async def videodownloader(url: str, svid: int):
 async def nicodl(url: str, svid: int):
 	ydl_opts = {
 		"outtmpl": f"{svid}",
-		"format": "mp3/bestaudio/best",
+		"format": "ogg/bestaudio/best",
 		"noplaylist": True,
 		"postprocessors": [
 			{
@@ -93,8 +93,8 @@ async def playbgm(voice_client,channel,dqueue:deque=None):
 		await channel.send("",embed=embed)
 		isPlaying_dict[voice_client.guild.id] = False
 		return
-	if(os.path.isfile(f"{voice_client.guild.id}.mp3")):
-		os.remove(f"{voice_client.guild.id}.mp3")
+	if(os.path.isfile(f"{voice_client.guild.id}.ogg")):
+		os.remove(f"{voice_client.guild.id}.ogg")
 	url = queue.popleft()
 	logging.info("ダウンロードを開始")
 	embed = discord.Embed(title="neko's Music Bot",description="再生を待機中",color=0xda70d6)
@@ -122,7 +122,7 @@ async def playbgm(voice_client,channel,dqueue:deque=None):
 		# info_dict = await loop.run_in_executor(executor,nicodl,url, voice_client.guild.id)
 		video_title = info_dict.get('title', None)
 		web = info_dict.get('webpage_url', None)
-		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.mp3")
+		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.ogg")
 		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,channel)))
 		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
 		embed.add_field(name="title",value=video_title)
