@@ -212,13 +212,6 @@ async def handle_queue_entry(url, interaction, responsed):
 		entries_count = len(dic['entries'])
 		for info_dict in dic['entries']:
 			await queue.put(info_dict.get('webpage_url'))
-		await interaction.channel.send(
-			embed=discord.Embed(
-				title="neko's Music Bot",
-				description=f"{entries_count}個の音楽をキューに挿入しました。",
-				color=0xda70d6
-			)
-		)
 	else:
 		await queue.put(dic.get('webpage_url'))
 
