@@ -221,7 +221,7 @@ async def handle_queue_entry(url, interaction, responsed):
 	else:
 		await queue.put(dic.get('webpage_url'))
 
-	await send_music_inserted_message(dic, interaction, responsed)
+	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
 
 async def handle_music_entry(url, interaction, responsed, voice_client):
@@ -242,7 +242,7 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 	else:
 		await queue.put(dic.get('webpage_url'))
 
-	await send_music_inserted_message(dic, interaction, responsed)
+	responsed = await (dic, interaction, responsed)
 
 	if not isPlaying_dict[interaction.guild.id]:
 		isPlaying_dict[interaction.guild.id] = True
@@ -275,10 +275,12 @@ async def send_music_inserted_message(dic, interaction, responsed):
 		value=dic.get('webpage_url')
 	)
 
-	if responsed:
+	if responsed != False:
 		await interaction.followup.send(embed=embed)  # ここでresponsedがTrueの場合はinteraction.followup.send()を呼び出す
+		responsed = True
 	else:
 		await interaction.channel.send(embed=embed)
+	return responsed
 
 
 @tree.command(name="stop", description="今再生している音楽を停止して、キューを破棄します。")
