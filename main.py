@@ -276,7 +276,7 @@ async def send_music_inserted_message(dic, interaction, responsed):
 		value=dic.get('webpage_url')
 	)
 
-	if responsed != False:
+	if responsed == False:
 		await interaction.followup.send(embed=embed)  # ここでresponsedがTrueの場合はinteraction.followup.send()を呼び出す
 		responsed = True
 	else:
