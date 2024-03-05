@@ -6,7 +6,7 @@ from keep_alive import keep_alive
 import asyncio
 from yt_dlp import YoutubeDL
 import ffmpeg
-from collections import defaultdict, deque
+from collections import defaultdict
 import logging
 import sys
 import traceback
@@ -16,7 +16,7 @@ import datetime
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
 
-queue_dict = defaultdict(deque)
+queue_dict = defaultdict(asyncio.Queue)
 isPlaying_dict = defaultdict(lambda: False)
 
 intents = discord.Intents.default()
@@ -75,33 +75,40 @@ async def nicodl(url: str, svid: int):
 		'webpage_url': info_dict.get('webpage_url', None)
 	}
 
-async def playbgm(voice_client,channel,dqueue:deque=None):
-	if dqueue == None:
-		queue = queue_dict[voice_client.guild.id]
-	else:
-		queue = dqueue
-	if len(queue) == 0 or not queue:
-		await channel.send(f"キューに入っている曲はありません")
-		isPlaying_dict[voice_client.guild.id] = False
-		await voice_client.disconnect()
-		embed = discord.Embed(title="neko's Music Bot",description="ボイスチャンネルから切断しました。",color=discord.Colour.red())
-		embed.add_field(name="切断先チャンネル",value=f"<#{voice_client.channel.id}>")
-		await channel.send("",embed=embed)
+async def playbgm(voice_client, channel, dqueue: asyncio.Queue = None):
+	queue = dqueue if dqueue else queue_dict.get(voice_client.guild.id)
+	if not queue or len(queue) == 0:
+		await handle_empty_queue(voice_client, channel)
 		return
-	elif voice_client.is_connected() == False:
-		embed = discord.Embed(title="neko's Music Bot",description="ボイスチャンネルからの接続が切れています",color=discord.Colour.red())
-		await channel.send("",embed=embed)
-		isPlaying_dict[voice_client.guild.id] = False
+	if not voice_client.is_connected():
+		await handle_voice_disconnection(voice_client, channel)
 		return
-	if(os.path.isfile(f"{voice_client.guild.id}.ogg")):
-		os.remove(f"{voice_client.guild.id}.ogg")
-	url = queue.popleft()
+
+	url = await queue.get()
+	await handle_download_and_play(url, voice_client, channel)
+
+async def handle_empty_queue(voice_client, channel):
+	await channel.send("キューに入っている曲はありません")
+	isPlaying_dict[voice_client.guild.id] = False
+	await voice_client.disconnect()
+	embed = discord.Embed(title="neko's Music Bot", description="ボイスチャンネルから切断しました。",
+						  color=discord.Colour.red())
+	embed.add_field(name="切断先チャンネル", value=voice_client.channel.jump_url)
+	await channel.send("", embed=embed)
+
+async def handle_voice_disconnection(voice_client, channel):
+	embed = discord.Embed(title="neko's Music Bot", description="ボイスチャンネルからの接続が切れています",
+						  color=discord.Colour.red())
+	await channel.send("", embed=embed)
+	isPlaying_dict[voice_client.guild.id] = False
+
+async def handle_download_and_play(url, voice_client, channel):
 	logging.info("ダウンロードを開始")
-	embed = discord.Embed(title="neko's Music Bot",description="再生を待機中",color=0xda70d6)
-	embed.add_field(name="url",value=url)
-	await channel.send("",embed=embed)
+	embed = discord.Embed(title="neko's Music Bot", description="再生を待機中", color=0xda70d6)
+	embed.add_field(name="url", value=url)
+	await channel.send("", embed=embed)
 	loop = asyncio.get_event_loop()
-	# 修正後の playbgm 関数の一部
+
 	if url.find("nicovideo.jp") == -1:
 		info_dict = await videodownloader(url, voice_client.guild.id)
 		logging.info("再生")
@@ -110,24 +117,20 @@ async def playbgm(voice_client,channel,dqueue:deque=None):
 		videourl = info_dict.get('url', None)
 		web = info_dict.get('webpage_url', None)
 		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
-		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,channel)))
-		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
-		embed.add_field(name="title",value=video_title)
-		embed.add_field(name="url",value=web)
-		await channel.send("",embed=embed)
 	else:
-		embed = discord.Embed(title="neko's Music Bot",description="※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。",color=0xda70d6)
-		await channel.send("",embed=embed)
+		embed = discord.Embed(title="neko's Music Bot", description="※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。",
+							  color=0xda70d6)
+		await channel.send("", embed=embed)
 		info_dict = await nicodl(url, voice_client.guild.id)
-		# info_dict = await loop.run_in_executor(executor,nicodl,url, voice_client.guild.id)
 		video_title = info_dict.get('title', None)
 		web = info_dict.get('webpage_url', None)
 		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.ogg")
-		voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client,channel)))
-		embed = discord.Embed(title="neko's Music Bot",description="再生中",color=0xda70d6)
-		embed.add_field(name="title",value=video_title)
-		embed.add_field(name="url",value=web)
-		await channel.send("",embed=embed)
+
+	voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client, channel)))
+	embed = discord.Embed(title="neko's Music Bot", description="再生中", color=0xda70d6)
+	embed.add_field(name="title", value=video_title)
+	embed.add_field(name="url", value=web)
+	await channel.send("", embed=embed)
 
 @tree.command(name="play", description="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 async def play(interaction: discord.Interaction, url:str):
@@ -139,54 +142,73 @@ async def play(interaction: discord.Interaction, search:str):
 
 async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	voice_client = interaction.guild.voice_client
+	responsed = False
+
 	if voice_client is None:
-		if interaction.user.voice != None:
+		if interaction.user.voice is not None:
 			isPlaying_dict[interaction.guild.id] = False
 			await interaction.user.voice.channel.connect()
-			embed = discord.Embed(title="neko's Music Bot",description="ボイスチャンネルに接続しました。",color=0xda70d6)
-			embed.add_field(name="接続先チャンネル",value=f"<#{interaction.user.voice.channel.id}>")
-			await interaction.response.send_message("",embed=embed)
 			responsed = True
+			await interaction.response.send_message(
+				embed=discord.Embed(
+					title="neko's Music Bot",
+					description="ボイスチャンネルに接続しました。",
+					color=0xda70d6
+				).add_field(
+					name="接続先チャンネル",
+					value=f"<#{interaction.user.voice.channel.id}>"
+				)
+			)
 			voice_client = interaction.guild.voice_client
 		else:
-			embed = discord.Embed(title="neko's Music Bot",description="あなたはボイスチャンネルに接続していません。",color=discord.Colour.red())
-			await interaction.response.send_message("",embed=embed,ephemeral=True)
+			await interaction.response.send_message(
+				embed=discord.Embed(
+					title="neko's Music Bot",
+					description="あなたはボイスチャンネルに接続していません。",
+					color=discord.Colour.red()
+				),
+				ephemeral=True
+			)
 			return
-	elif isPlaying_dict[interaction.guild.id] == True:
-		queue = queue_dict[interaction.guild.id]
-		loop = asyncio.get_event_loop()
-		ydl_opts = {
-			"outtmpl": f"{interaction.guild.id}",
-			"format": "bestaudio/best",
-			"noplaylist": False,
-		}
-		await interaction.response.defer()
-		ydl = YoutubeDL(ydl_opts)
-		dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
-		flag = "entries" in dic
-		if flag == True:
-			for info_dict in dic['entries']:
-				url = info_dict.get('webpage_url', None)
-				title = dic.get('title', None)
-				queue.append(url)
-				embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
-				embed.add_field(name="タイトル",value=title)
-				embed.add_field(name="動画URL",value=url)
-				await interaction.channel.send("",embed=embed)
-			embed = discord.Embed(title="neko's Music Bot",description=f"{len(dic['entries'])}個の音楽をキューに挿入しました。",color=0xda70d6)
-			await interaction.followup.send("",embed=embed)
-		else:
-				url = dic.get('webpage_url', None)
-				title = dic.get('title', None)
-				queue.append(url)
-				embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
-				embed.add_field(name="タイトル",value=title)
-				embed.add_field(name="動画URL",value=url)
-				await interaction.followup.send("",embed=embed)
+
+	if isPlaying_dict[interaction.guild.id]:
+		await handle_queue_entry(url, interaction, responsed)
 		return
-	
-	if responsed != True:
-		await interaction.response.defer()
+
+	await handle_music_entry(url, interaction, responsed, voice_client)
+
+
+async def handle_queue_entry(url, interaction, responsed):
+	queue = queue_dict[interaction.guild.id]
+	loop = asyncio.get_event_loop()
+	ydl_opts = {
+		"outtmpl": f"{interaction.guild.id}",
+		"format": "bestaudio/best",
+		"noplaylist": False,
+	}
+	await interaction.response.defer()
+	ydl = YoutubeDL(ydl_opts)
+	dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
+	flag = "entries" in dic
+
+	if flag:
+		entries_count = len(dic['entries'])
+		for info_dict in dic['entries']:
+			await queue.put(info_dict.get('webpage_url'))
+		await interaction.channel.send(
+			embed=discord.Embed(
+				title="neko's Music Bot",
+				description=f"{entries_count}個の音楽をキューに挿入しました。",
+				color=0xda70d6
+			)
+		)
+	else:
+		await queue.put(dic.get('webpage_url'))
+
+	await send_music_inserted_message(dic, interaction, responsed)
+
+
+async def handle_music_entry(url, interaction, responsed, voice_client):
 	queue = queue_dict[interaction.guild.id]
 	loop = asyncio.get_event_loop()
 	ydl_opts = {
@@ -197,37 +219,51 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	ydl = YoutubeDL(ydl_opts)
 	dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
-	if flag == True:
+
+	if flag:
 		for info_dict in dic['entries']:
-			url = info_dict.get('webpage_url', None)
-			title = dic.get('title', None)
-			queue.append(url)
-			embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
-			embed.add_field(name="タイトル",value=title)
-			embed.add_field(name="動画URL",value=url)
-			await interaction.channel.send("",embed=embed)
-		embed = discord.Embed(title="neko's Music Bot",description=f"{len(dic['entries'])}個の音楽をキューに挿入しました。",color=0xda70d6)
-		if responsed != True:
-			await interaction.followup.send("",embed=embed)
-		else:
-			await interaction.channel.send("",embed=embed)
+			await queue.put(info_dict.get('webpage_url'))
 	else:
-		url = dic.get('webpage_url', None)
-		title = dic.get('title', None)
-		queue.append(url)
-		embed = discord.Embed(title="neko's Music Bot",description="曲をキューに挿入しました。",color=0xda70d6)
-		embed.add_field(name="タイトル",value=title)
-		embed.add_field(name="動画URL",value=url)
-		if responsed != True:
-			await interaction.followup.send("",embed=embed)
-		else:
-			await interaction.channel.send("",embed=embed)
-	if isPlaying_dict[interaction.guild.id] != True:
+		await queue.put(dic.get('webpage_url'))
+
+	await send_music_inserted_message(dic, interaction, responsed)
+
+	if not isPlaying_dict[interaction.guild.id]:
 		isPlaying_dict[interaction.guild.id] = True
-		embed = discord.Embed(title="neko's Music Bot",description="再生を開始します。",color=0xda70d6)
-		await interaction.channel.send("",embed=embed)
-		await playbgm(voice_client,interaction.channel,queue)
-		return
+		await interaction.channel.send(
+			embed=discord.Embed(
+				title="neko's Music Bot",
+				description="再生を開始します。",
+				color=0xda70d6
+			)
+		)
+		await playbgm(voice_client, interaction.channel, queue)
+
+
+async def send_music_inserted_message(dic, interaction, responsed):
+	if 'entries' in dic:
+		entries_count = len(dic['entries'])
+		description = f"{entries_count}個の音楽をキューに挿入しました。"
+	else:
+		description = "曲をキューに挿入しました。"
+
+	embed = discord.Embed(
+		title="neko's Music Bot",
+		description=description,
+		color=0xda70d6
+	).add_field(
+		name="タイトル",
+		value=dic.get('title')
+	).add_field(
+		name="動画URL",
+		value=dic.get('webpage_url')
+	)
+
+	if responsed:
+		await interaction.followup.send(embed=embed)
+	else:
+		await interaction.channel.send(embed=embed)
+
 
 @tree.command(name="stop", description="今再生している音楽を停止して、キューを破棄します。")
 async def stop(interaction: discord.Interaction):
