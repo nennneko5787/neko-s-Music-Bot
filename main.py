@@ -175,7 +175,23 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 		await handle_queue_entry(url, interaction, responsed)
 		return
 
-	await handle_music_entry(url, interaction, responsed, voice_client)
+	try:
+		await handle_music_entry(url, interaction, responsed, voice_client)
+	except Exception as e:
+		await handle_error(e, interaction, voice_client)
+
+async def handle_error(error, interaction, voice_client):
+	# エラーメッセージを表示する
+	embed = discord.Embed(title="エラーが発生しました。", description=f"安心してください。エラーログは開発者に自動的に送信されました。\nサポートが必要な場合は、[サポートサーバー](https://discord.gg/PN3KWEnYzX) に参加してください。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
+	await interaction.channel.send(embed=embed)
+
+	# エラーログをDiscordのWebhookに送信する
+	webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"))
+	embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
+	await webhook.send(embed=embed)
+
+	# ボイスチャンネルから切断する
+	await voice_client.disconnect()
 
 
 async def handle_queue_entry(url, interaction, responsed):
@@ -260,7 +276,7 @@ async def send_music_inserted_message(dic, interaction, responsed):
 	)
 
 	if responsed:
-		await interaction.followup.send(embed=embed)
+		await interaction.followup.send(embed=embed)  # ここでresponsedがTrueの場合はinteraction.followup.send()を呼び出す
 	else:
 		await interaction.channel.send(embed=embed)
 
