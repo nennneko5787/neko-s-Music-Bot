@@ -242,7 +242,7 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 	else:
 		await queue.put(dic.get('webpage_url'))
 
-	responsed = await (dic, interaction, responsed)
+	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
 	if not isPlaying_dict[interaction.guild.id]:
 		isPlaying_dict[interaction.guild.id] = True
