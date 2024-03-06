@@ -210,7 +210,7 @@ async def handle_queue_entry(url, interaction, responsed):
 
 	if flag:
 		entries_count = len(dic['entries'])
-		if entries_count <= 1
+		if entries_count <= 1:
 			responsed = True
 		for info_dict in dic['entries']:
 			await queue.put(info_dict.get('webpage_url'))
