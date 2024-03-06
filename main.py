@@ -186,7 +186,8 @@ async def handle_error(error, interaction, voice_client):
 	await interaction.channel.send(embed=embed)
 
 	# エラーログをDiscordのWebhookに送信する
-	webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"))
+	async with aiohttp.ClientSession() as session:
+		webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"), session=session)
 	embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
 	await webhook.send(embed=embed)
 
