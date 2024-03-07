@@ -13,6 +13,7 @@ import datetime
 import aiohttp
 from discord.app_commands import locale_str
 from translate import MyTranslator
+import threading
 
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
@@ -139,11 +140,21 @@ async def handle_download_and_play(url, voice_client, channel, language):
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
 async def play(interaction: discord.Interaction, url:str):
-	await musicPlayFunction(interaction, url)
+	loop = asyncio.get_event_loop()
+	thread = threading.Thread(target=playMusicAtThread, args=(interaction,url,))
+	await loop.run_in_executor(None,thread.start)
+	await loop.run_in_executor(None,thread.join)
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
 async def yplay(interaction: discord.Interaction, search:str):
-	await musicPlayFunction(interaction, f"ytsearch:{search}")
+	loop = asyncio.get_event_loop()
+	thread = threading.Thread(target=playMusicAtThread, args=(interaction,f"ytsearch:{search}",))
+	await loop.run_in_executor(None,thread.start)
+	await loop.run_in_executor(None,thread.join)
+
+def playMusicAtThread(interaction: discord.Interaction, url:str):
+	loop = asyncio.get_event_loop()  # イベントループを取得
+	loop.run_until_complete(musicPlayFunction(interaction, url))  # 非同期関数を同期的に実行
 
 async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	voice_client = interaction.guild.voice_client
