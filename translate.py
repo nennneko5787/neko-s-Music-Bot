@@ -222,7 +222,7 @@ FMT_TLANSLATION_DATA: dict[Locale, dict[str, str]] = {
 }
 
 class MyTranslator(Translator):
-	async def translate(self, string: locale_str, locale: Locale, context: TranslationContext):
+	async def translate(self, string: locale_str, locale: Locale, context: TranslationContext = None):
 		if 'fmt_arg' in string.extras:
 			fmt = FMT_TLANSLATION_DATA.get(locale, {}).get(string.message, string.message)
 			return fmt.format(**(string.extras['fmt_arg']))
