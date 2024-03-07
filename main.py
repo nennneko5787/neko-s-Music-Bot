@@ -13,9 +13,9 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 import datetime
 import aiohttp
-from translator import Translator
 from discord import Locale
-from discord.app_commands import TranslationContext, Translator, locale_str
+from discord.app_commands import locale_str
+from translate import MyTranslator
 
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
@@ -32,7 +32,7 @@ tree = discord.app_commands.CommandTree(client) #←ココ
 @client.event
 async def on_ready():
 	print('ログインしました')
-	await tree.set_translator(Translator())
+	await tree.set_translator(MyTranslator())
 	await tree.sync()  #スラッシュコマンドを同期
 	myLoop.start()
 
@@ -354,7 +354,7 @@ async def help(interaction: discord.Interaction):
 	for command in tree.get_commands(type=discord.app_commands.Command):
 		params = []
 		for parameter in command.parameters:
-			params.append(f"**{parameter.locale_name}**: {parameter.type}")
+			params.append(f"**{parameter.locale_name}**: {parameter.type.name}")
 		p = ', '.join(params)
 		embed.add_field(name=f"/{command.name} {p}",value=command.description)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
