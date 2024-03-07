@@ -226,7 +226,7 @@ class MyTranslator(Translator):
 		if 'fmt_arg' in string.extras:
 			fmt = FMT_TLANSLATION_DATA.get(locale, {}).get(string.message, string.message)
 			return fmt.format(**(string.extras['fmt_arg']))
-		elif TLANSLATION_DATA.get(locale, {}).get(string.message) != None:
+		elif TLANSLATION_DATA.get(locale, {}).get(string.message, None) != None:
 			return TLANSLATION_DATA.get(locale, {}).get(string.message)
 		else:
 			return string.message
