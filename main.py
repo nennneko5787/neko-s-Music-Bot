@@ -54,7 +54,7 @@ async def videodownloader(url: str, svid: int):
 	}
 	loop = asyncio.get_event_loop()
 	ydl = YoutubeDL(ydl_opts)
-	info_dict = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
+	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
 	return info_dict
 	
 async def nicodl(url: str, svid: int):
@@ -71,8 +71,8 @@ async def nicodl(url: str, svid: int):
 	}
 	loop = asyncio.get_event_loop()
 	ydl = YoutubeDL(ydl_opts)
-	await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.download([url]))
-	info_dict = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
+	await asyncio.to_thread(lambda: ydl.download([url]))
+	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
 	print("download successful!")
 	# 必要な情報を取り出す処理を追加
 	return {
@@ -140,20 +140,11 @@ async def handle_download_and_play(url, voice_client, channel, language):
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
 async def play(interaction: discord.Interaction, url:str):
-	loop = asyncio.get_event_loop()
-	thread = threading.Thread(target=playMusicAtThread, args=(interaction,url,loop,))
-	await loop.run_in_executor(None,thread.start)
-	await loop.run_in_executor(None,thread.join)
+	await musicPlayFunction(interaction, url)
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
 async def yplay(interaction: discord.Interaction, search:str):
-	loop = asyncio.get_event_loop()
-	thread = threading.Thread(target=playMusicAtThread, args=(interaction,f"ytsearch:{search}",loop,))
-	await loop.run_in_executor(None,thread.start)
-	await loop.run_in_executor(None,thread.join)
-
-def playMusicAtThread(interaction: discord.Interaction, url:str, loop):
-	loop.run_until_complete(musicPlayFunction(interaction, url))  # 非同期関数を同期的に実行
+	await musicPlayFunction(interaction, f"ytsearch:{search}")
 
 async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	voice_client = interaction.guild.voice_client
@@ -227,7 +218,7 @@ async def handle_queue_entry(url, interaction, responsed):
 	}
 	await interaction.response.defer()
 	ydl = YoutubeDL(ydl_opts)
-	dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
+	dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
 
 	if flag:
@@ -251,7 +242,7 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 		"noplaylist": False,
 	}
 	ydl = YoutubeDL(ydl_opts)
-	dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
+	dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
 
 	if flag:
