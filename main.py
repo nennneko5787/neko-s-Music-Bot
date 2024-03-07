@@ -141,7 +141,7 @@ async def handle_download_and_play(url, voice_client, channel):
 async def play(interaction: discord.Interaction, url:str):
 	await musicPlayFunction(interaction, url)
 
-@tree.command(name="yplay", description=locale_str('Searches Youtube for the specified words or phrases. If music is already playing, it will be inserted into the cue.'))
+@tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
 async def yplay(interaction: discord.Interaction, search:str):
 	await musicPlayFunction(interaction, f"ytsearch:{search}")
 
