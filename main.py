@@ -27,7 +27,7 @@ client = discord.Client(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
 
 @client.event
-async def on_ready():
+async def setup_hook():
 	print('ログインしました')
 	await tree.set_translator(MyTranslator())
 	await tree.sync()  #スラッシュコマンドを同期
@@ -128,7 +128,7 @@ async def handle_download_and_play(url, voice_client, channel, language):
 		web = info_dict.get('webpage_url', None)
 		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.ogg")
 
-	voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client, channel)))
+	voice_client.play(source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=0xda70d6)
 	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=video_title)
 	embed.add_field(name=await MyTranslator().translate(locale_str("Video URL"),language), value=web)
