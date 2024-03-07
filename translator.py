@@ -5,7 +5,7 @@ from discord.app_commands import TranslationContext, Translator, locale_str
 TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 	Locale.japanese: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': 'urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。',
-		'Searches for the word specified in SEARCH and plays the hit music. If music is already being played, it is inserted into the cue.': 'searchで指定されたワードを検索し、ヒットした音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。',
+		'Searches Youtube for the specified words or phrases. If music is already playing, it will be inserted into the cue.': '指定された語句でYoutubeを検索します。すでに音楽が再生されている場合は、キューに挿入されます。',
 		'Connected to voice channel.': 'ボイスチャンネルに接続しました。',
 		'Destination Channel': '接続先チャンネル',
 		'You are not currently connecting to any voice channel.': 'あなたはボイスチャンネルに接続していません。',
