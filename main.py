@@ -138,11 +138,11 @@ async def handle_download_and_play(url, voice_client, channel, language):
 	await channel.send("", embed=embed)
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
-async def play(interaction: discord.Interaction, url:str, repeat_times: discord.app_commands.Range[int, 10] = 1):
+async def play(interaction: discord.Interaction, url:str, repeat_times: discord.app_commands.Range[int, 1] = 1):
 	await musicPlayFunction(interaction, url, repeat_times)
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
-async def yplay(interaction: discord.Interaction, search:str, repeat_times: discord.app_commands.Range[int, 10] = 1):
+async def yplay(interaction: discord.Interaction, search:str, repeat_times: discord.app_commands.Range[int, 1] = 1):
 	await musicPlayFunction(interaction, f"ytsearch:{search}", repeat_times)
 
 async def musicPlayFunction(interaction: discord.Interaction, url: str, repeat_times: int = 1):
@@ -175,6 +175,8 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str, repeat_t
 				ephemeral=True
 			)
 			return
+
+	await interaction.response.defer()
 
 	if isPlaying_dict[interaction.guild.id]:
 		for _ in range(repeat_times):
@@ -217,7 +219,6 @@ async def handle_queue_entry(url, interaction, responsed, repeat_times=1):
 		"format": "bestaudio/best",
 		"noplaylist": False,
 	}
-	await interaction.response.defer()
 	ydl = YoutubeDL(ydl_opts)
 	dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
