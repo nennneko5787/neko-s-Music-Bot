@@ -31,6 +31,9 @@ async def setup_hook():
 	print('ログインしました')
 	await tree.set_translator(MyTranslator())
 	await tree.sync()  #スラッシュコマンドを同期
+	
+@client.event
+async def on_ready():
 	myLoop.start()
 
 @client.event
@@ -135,14 +138,14 @@ async def handle_download_and_play(url, voice_client, channel, language):
 	await channel.send("", embed=embed)
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
-async def play(interaction: discord.Interaction, url:str):
-	await musicPlayFunction(interaction, url)
+async def play(interaction: discord.Interaction, url:str, repeat_times: discord.app_commands.Range[int, 10] = 1):
+	await musicPlayFunction(interaction, url, repeat_times)
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
-async def yplay(interaction: discord.Interaction, search:str):
-	await musicPlayFunction(interaction, f"ytsearch:{search}")
+async def yplay(interaction: discord.Interaction, search:str, repeat_times: discord.app_commands.Range[int, 10] = 1):
+	await musicPlayFunction(interaction, f"ytsearch:{search}", repeat_times)
 
-async def musicPlayFunction(interaction: discord.Interaction, url: str):
+async def musicPlayFunction(interaction: discord.Interaction, url: str, repeat_times: int = 1):
 	voice_client = interaction.guild.voice_client
 	responsed = False
 
@@ -174,11 +177,13 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 			return
 
 	if isPlaying_dict[interaction.guild.id]:
-		await handle_queue_entry(url, interaction, responsed)
+		for _ in range(repeat_times):
+			await handle_queue_entry(url, interaction, responsed)
 		return
 
 	try:
-		await handle_music_entry(url, interaction, responsed, voice_client)
+		for _ in range(repeat_times):
+			await handle_music_entry(url, interaction, responsed, voice_client)
 	except Exception as e:
 		await handle_error(e, interaction, voice_client)
 
@@ -204,7 +209,7 @@ async def handle_error(error, interaction, voice_client):
 	await voice_client.disconnect()
 
 
-async def handle_queue_entry(url, interaction, responsed):
+async def handle_queue_entry(url, interaction, responsed, repeat_times=1):
 	queue = queue_dict[interaction.guild.id]
 	loop = asyncio.get_event_loop()
 	ydl_opts = {
@@ -218,18 +223,16 @@ async def handle_queue_entry(url, interaction, responsed):
 	flag = "entries" in dic
 
 	if flag:
-		entries_count = len(dic['entries'])
-		if entries_count <= 1:
-			responsed = True
-		for info_dict in dic['entries']:
-			await queue.put(info_dict.get('webpage_url'))
+		for _ in range(repeat_times):
+			for info_dict in dic['entries']:
+				await queue.put(info_dict.get('webpage_url'))
 	else:
-		await queue.put(dic.get('webpage_url'))
+		for _ in range(repeat_times):
+			await queue.put(dic.get('webpage_url'))
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
-
-async def handle_music_entry(url, interaction, responsed, voice_client):
+async def handle_music_entry(url, interaction, responsed, voice_client, repeat_times=1):
 	queue = queue_dict[interaction.guild.id]
 	loop = asyncio.get_event_loop()
 	ydl_opts = {
@@ -242,10 +245,12 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 	flag = "entries" in dic
 
 	if flag:
-		for info_dict in dic['entries']:
-			await queue.put(info_dict.get('webpage_url'))
+		for _ in range(repeat_times):
+			for info_dict in dic['entries']:
+				await queue.put(info_dict.get('webpage_url'))
 	else:
-		await queue.put(dic.get('webpage_url'))
+		for _ in range(repeat_times):
+			await queue.put(dic.get('webpage_url'))
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
@@ -259,6 +264,7 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 			)
 		)
 		await playbgm(voice_client, interaction.channel, interaction.locale, queue)
+
 
 
 async def send_music_inserted_message(dic, interaction, responsed):
