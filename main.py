@@ -138,14 +138,14 @@ async def handle_download_and_play(url, voice_client, channel, language):
 	await channel.send("", embed=embed)
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
-async def play(interaction: discord.Interaction, url:str, repeat_times: discord.app_commands.Range[int, 1] = 1):
-	await musicPlayFunction(interaction, url, repeat_times)
+async def play(interaction: discord.Interaction, url:str):
+	await musicPlayFunction(interaction, url)
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
-async def yplay(interaction: discord.Interaction, search:str, repeat_times: discord.app_commands.Range[int, 1] = 1):
-	await musicPlayFunction(interaction, f"ytsearch:{search}", repeat_times)
+async def yplay(interaction: discord.Interaction, search:str):
+	await musicPlayFunction(interaction, f"ytsearch:{search}")
 
-async def musicPlayFunction(interaction: discord.Interaction, url: str, repeat_times: int = 1):
+async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	voice_client = interaction.guild.voice_client
 	responsed = False
 
@@ -176,16 +176,12 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str, repeat_t
 			)
 			return
 
-	await interaction.response.defer()
-
 	if isPlaying_dict[interaction.guild.id]:
-		for _ in range(repeat_times):
-			await handle_queue_entry(url, interaction, responsed)
+		await handle_queue_entry(url, interaction, responsed)
 		return
 
 	try:
-		for _ in range(repeat_times):
-			await handle_music_entry(url, interaction, responsed, voice_client)
+		await handle_music_entry(url, interaction, responsed, voice_client)
 	except Exception as e:
 		await handle_error(e, interaction, voice_client)
 
@@ -211,7 +207,7 @@ async def handle_error(error, interaction, voice_client):
 	await voice_client.disconnect()
 
 
-async def handle_queue_entry(url, interaction, responsed, repeat_times=1):
+async def handle_queue_entry(url, interaction, responsed):
 	queue = queue_dict[interaction.guild.id]
 	loop = asyncio.get_event_loop()
 	ydl_opts = {
@@ -219,21 +215,24 @@ async def handle_queue_entry(url, interaction, responsed, repeat_times=1):
 		"format": "bestaudio/best",
 		"noplaylist": False,
 	}
+	await interaction.response.defer()
 	ydl = YoutubeDL(ydl_opts)
 	dic = await loop.run_in_executor(ThreadPoolExecutor(), lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
 
 	if flag:
-		for _ in range(repeat_times):
-			for info_dict in dic['entries']:
-				await queue.put(info_dict.get('webpage_url'))
+		entries_count = len(dic['entries'])
+		if entries_count <= 1:
+			responsed = True
+		for info_dict in dic['entries']:
+			await queue.put(info_dict.get('webpage_url'))
 	else:
-		for _ in range(repeat_times):
-			await queue.put(dic.get('webpage_url'))
+		await queue.put(dic.get('webpage_url'))
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
-async def handle_music_entry(url, interaction, responsed, voice_client, repeat_times=1):
+
+async def handle_music_entry(url, interaction, responsed, voice_client):
 	queue = queue_dict[interaction.guild.id]
 	loop = asyncio.get_event_loop()
 	ydl_opts = {
@@ -246,12 +245,10 @@ async def handle_music_entry(url, interaction, responsed, voice_client, repeat_t
 	flag = "entries" in dic
 
 	if flag:
-		for _ in range(repeat_times):
-			for info_dict in dic['entries']:
-				await queue.put(info_dict.get('webpage_url'))
+		for info_dict in dic['entries']:
+			await queue.put(info_dict.get('webpage_url'))
 	else:
-		for _ in range(repeat_times):
-			await queue.put(dic.get('webpage_url'))
+		await queue.put(dic.get('webpage_url'))
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
@@ -265,7 +262,6 @@ async def handle_music_entry(url, interaction, responsed, voice_client, repeat_t
 			)
 		)
 		await playbgm(voice_client, interaction.channel, interaction.locale, queue)
-
 
 
 async def send_music_inserted_message(dic, interaction, responsed):
