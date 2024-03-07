@@ -5,15 +5,12 @@ import os
 from keep_alive import keep_alive
 import asyncio
 from yt_dlp import YoutubeDL
-import ffmpeg
 from collections import defaultdict
 import logging
-import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 import datetime
 import aiohttp
-from discord import Locale
 from discord.app_commands import locale_str
 from translate import MyTranslator
 
