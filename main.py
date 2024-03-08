@@ -57,6 +57,7 @@ async def videodownloader(url: str):
 	
 async def nicodl(url: str):
 	ydl_opts = {
+		"outtmpl": "%(id)s.%(ext)s",
 		"format": "mp3/bestaudio/best",
 		"noplaylist": True,
 		"postprocessors": [
