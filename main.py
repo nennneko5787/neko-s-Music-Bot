@@ -5,7 +5,7 @@ from keep_alive import keep_alive
 import asyncio
 from yt_dlp import YoutubeDL
 from collections import defaultdict
-import logging
+import lmp3ing
 import traceback
 import datetime
 import aiohttp
@@ -57,19 +57,19 @@ async def videodownloader(url: str):
 	
 async def nicodl(url: str):
 	ydl_opts = {
-		"format": "ogg/bestaudio/best",
+		"format": "mp3/bestaudio/best",
 		"noplaylist": True,
 		"postprocessors": [
 			{
 				"key": "FFmpegExtractAudio",
-				"preferredcodec": "ogg",
+				"preferredcodec": "mp3",
 			}
 		],
 	}
 	loop = asyncio.get_event_loop()
 	ydl = YoutubeDL(ydl_opts)
 	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-	if os.path.isfile(f"{info_dict.get('id', None)}.ogg") != True:
+	if os.path.isfile(f"{info_dict.get('id', None)}.mp3") != True:
 		await asyncio.to_thread(lambda: ydl.download([url]))
 		print("download successful!")
 	# 必要な情報を取り出す処理を追加
@@ -111,7 +111,7 @@ async def handle_voice_disconnection(voice_client, channel, language):
 	isPlaying_dict[voice_client.guild.id] = False
 
 async def handle_download_and_play(url, voice_client, channel, language):
-	logging.info("ダウンロードを開始")
+	lmp3ing.info("ダウンロードを開始")
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Waiting for song playback"),language), color=0xda70d6)
 	embed.add_field(name="url", value=url)
 	await channel.send("", embed=embed)
@@ -119,7 +119,7 @@ async def handle_download_and_play(url, voice_client, channel, language):
 
 	if url.find("nicovideo.jp") == -1:
 		info_dict = await videodownloader(url)
-		logging.info("再生")
+		lmp3ing.info("再生")
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 		video_title = info_dict.get('title', None)
 		videourl = info_dict.get('url', None)
@@ -133,7 +133,7 @@ async def handle_download_and_play(url, voice_client, channel, language):
 		video_title = info_dict.get('title', None)
 		web = info_dict.get('webpage_url', None)
 		id = info_dict.get('id', None)
-		source = discord.FFmpegPCMAudio(f"{id}.ogg")
+		source = discord.FFmpegPCMAudio(f"{id}.mp3")
 
 	nowPlaying_dict[f"{voice_client.guild.id}"] = info_dict.get('webpage_url', None)
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
