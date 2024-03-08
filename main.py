@@ -202,14 +202,14 @@ async def handle_error(error, interaction, voice_client):
 	embed = discord.Embed(title=await MyTranslator().translate(locale_str("Error!"),interaction.locale), description=msg)
 	await interaction.channel.send(embed=embed)
 
+	# ボイスチャンネルから切断する
+	await voice_client.disconnect()
+
 	# エラーログをDiscordのWebhookに送信する
 	async with aiohttp.ClientSession() as session:
 		webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"), session=session)
 		embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
 		await webhook.send(embed=embed)
-
-	# ボイスチャンネルから切断する
-	await voice_client.disconnect()
 
 
 async def handle_queue_entry(url, interaction, responsed):
@@ -375,7 +375,7 @@ async def queue(interaction: discord.Interaction):
 		ydl = YoutubeDL(ydl_opts)
 		if nowPlaying_dict[f"{interaction.guild.id}"] != "None":
 			dic = await asyncio.to_thread(lambda: ydl.extract_info(nowPlaying_dict[f"{interaction.guild.id}"], download=False))
-			qlist.append(f"**現在再生中: **[{dic.get('title')}]({dic.get('webpage_url')})")
+			qlist.append(f"**{await MyTranslator().translate(locale_str("Playing"),interaction.locale)}: **[{dic.get('title')}]({dic.get('webpage_url')})\n")
 		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
