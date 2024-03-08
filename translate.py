@@ -19,7 +19,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"The song does not seem to be playing.": "曲が再生されていないようです。",
 		"Skips the currently playing music and plays the next music in the queue.": "今再生している音楽をスキップして、キューに入っている次の音楽を再生します。",
 		"Skipped one song.": "曲を一曲スキップしました。",
-		"Pause the song.": "曲を一時停止しました。",
+		"Pause the song.": "曲を一時停止します。",
 		"Song paused.": "曲を一時停止しました。",
 		"Resume paused song.": "一時停止した音楽を再開します。",
 		"Resumed songs that had been paused.": "一時停止していた曲を再開しました。",

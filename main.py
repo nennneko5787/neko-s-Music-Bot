@@ -18,6 +18,7 @@ last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
 
 queue_dict = defaultdict(asyncio.Queue)
 isPlaying_dict = defaultdict(lambda: False)
+nowPlaying_dict = defaultdict(lambda: "None")
 
 intents = discord.Intents.default()
 intents.voice_states = True
@@ -44,9 +45,8 @@ async def on_voice_state_update(member, before, after):
 				del queue_dict[member.guild.id]
 				isPlaying_dict[member.guild.id] = False
 
-async def videodownloader(url: str, svid: int):
+async def videodownloader(url: str):
 	ydl_opts = {
-		"outtmpl": f"{svid}",
 		"format": "bestaudio/best",
 		"noplaylist": True,
 	}
@@ -55,9 +55,8 @@ async def videodownloader(url: str, svid: int):
 	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
 	return info_dict
 	
-async def nicodl(url: str, svid: int):
+async def nicodl(url: str):
 	ydl_opts = {
-		"outtmpl": f"{svid}",
 		"format": "ogg/bestaudio/best",
 		"noplaylist": True,
 		"postprocessors": [
@@ -83,6 +82,7 @@ async def nicodl(url: str, svid: int):
 
 async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None):
 	queue = dqueue if dqueue else queue_dict.get(voice_client.guild.id)
+	del nowPlaying_dict[f"{voice_client.guild.id}"]
 	if not queue or queue.qsize() == 0:
 		await handle_empty_queue(voice_client, channel, language)
 		return
@@ -117,7 +117,7 @@ async def handle_download_and_play(url, voice_client, channel, language):
 	loop = asyncio.get_event_loop()
 
 	if url.find("nicovideo.jp") == -1:
-		info_dict = await videodownloader(url, voice_client.guild.id)
+		info_dict = await videodownloader(url)
 		logging.info("再生")
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 		video_title = info_dict.get('title', None)
@@ -128,12 +128,13 @@ async def handle_download_and_play(url, voice_client, channel, language):
 		embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("*Nico Nico Douga videos take a little time to play. Please understand."),language),
 							  color=0xda70d6)
 		await channel.send("", embed=embed)
-		info_dict = await nicodl(url, voice_client.guild.id)
+		info_dict = await nicodl(url)
 		video_title = info_dict.get('title', None)
 		web = info_dict.get('webpage_url', None)
 		id = info_dict.get('id', None)
 		source = discord.FFmpegPCMAudio(f"{id}.ogg")
 
+	nowPlaying_dict[f"{voice_client.guild.id}"] = info_dict.get('webpage_url', None)
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=0xda70d6)
 	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=video_title)
@@ -370,10 +371,13 @@ async def queue(interaction: discord.Interaction):
 			"noplaylist": False,
 		}
 		c = 1
+		ydl = YoutubeDL(ydl_opts)
+		if nowPlaying_dict[f"{interaction.guild.id}"] != "None":
+			dic = await asyncio.to_thread(lambda: ydl.extract_info(nowPlaying_dict[f"{interaction.guild.id}"], download=False))
+			qlist.append(f"**現在再生中: **[{dic.get('title')}]({dic.get('webpage_url')})")
 		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
-			ydl = YoutubeDL(ydl_opts)
 			dic = await asyncio.to_thread(lambda: ydl.extract_info(item, download=False))
 			qlist.append(f"#{c} [{dic.get('title')}]({dic.get('webpage_url')})")
 			c = c + 1
@@ -392,10 +396,10 @@ async def help(interaction: discord.Interaction):
 	for command in tree.get_commands(type=discord.AppCommandType.chat_input):
 		params = []
 		for parameter in command.parameters:
-			params.append(f"**{parameter.locale_name}**: {parameter.type}")
+			params.append(f"**{parameter.locale_name}**: <{parameter.type}>")
 			await asyncio.sleep(0)
 		p = ', '.join(params)
-		embed.add_field(name=f"/{command.name} {p}",value=command.description)
+		embed.add_field(name=f"/{command.name} {p}",value=await MyTranslator().translate(locale_str(command.description),interaction.locale))
 		await asyncio.sleep(0)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 	await interaction.followup.send("",embed=embed)
