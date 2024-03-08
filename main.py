@@ -69,7 +69,7 @@ async def nicodl(url: str):
 	loop = asyncio.get_event_loop()
 	ydl = YoutubeDL(ydl_opts)
 	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-	if os.path.is_file(f"{info_dict.get('id', None)}.ogg") != True:
+	if os.path.isfile(f"{info_dict.get('id', None)}.ogg") != True:
 		await asyncio.to_thread(lambda: ydl.download([url]))
 		print("download successful!")
 	# 必要な情報を取り出す処理を追加
@@ -375,7 +375,7 @@ async def queue(interaction: discord.Interaction):
 		ydl = YoutubeDL(ydl_opts)
 		if nowPlaying_dict[f"{interaction.guild.id}"] != "None":
 			dic = await asyncio.to_thread(lambda: ydl.extract_info(nowPlaying_dict[f"{interaction.guild.id}"], download=False))
-			qlist.append(f"**{await MyTranslator().translate(locale_str("Playing"),interaction.locale)}: **[{dic.get('title')}]({dic.get('webpage_url')})\n")
+			qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **[{dic.get('title')}]({dic.get('webpage_url')})\n")
 		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
