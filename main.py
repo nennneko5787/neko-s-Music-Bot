@@ -11,6 +11,7 @@ import datetime
 import aiohttp
 from discord.app_commands import locale_str
 from translate import MyTranslator
+import copy
 
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
@@ -355,7 +356,8 @@ async def resume(interaction: discord.Interaction):
 @tree.command(name="queue", description=locale_str("You can check the songs in the queue."))
 async def queue(interaction: discord.Interaction):
 	if interaction.guild.id in queue_dict:
-		q = queue_dict[interaction.guild.id]
+		await interaction.response.defer()
+		q = copy.deepcopy(queue_dict[interaction.guild.id])
 		length = q.qsize()
 		if length == 0:
 			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
@@ -377,6 +379,7 @@ async def queue(interaction: discord.Interaction):
 			c = c + 1
 			await asyncio.sleep(0)
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+		await interaction.followup.send(embed=embed)
 	else:
 		embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
 		await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -384,15 +387,18 @@ async def queue(interaction: discord.Interaction):
 
 @tree.command(name="help", description=locale_str("You can check the available commands."))
 async def help(interaction: discord.Interaction):
+	await interaction.response.defer()
 	embed = discord.Embed(title="neko's Music Bot",description="",color=0xda70d6)
 	for command in tree.get_commands(type=discord.AppCommandType.chat_input):
 		params = []
 		for parameter in command.parameters:
 			params.append(f"**{parameter.locale_name}**: {parameter.type}")
+			await asyncio.sleep(0)
 		p = ', '.join(params)
 		embed.add_field(name=f"/{command.name} {p}",value=command.description)
+		await asyncio.sleep(0)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
-	await interaction.response.send_message("",embed=embed)
+	await interaction.followup.send("",embed=embed)
 
 @tasks.loop(seconds=20)  # repeat after every 20 seconds
 async def myLoop():
@@ -401,6 +407,7 @@ async def myLoop():
 	for guild in client.guilds:
 		if guild.voice_client != None:
 			vccount += 1
+		await asyncio.sleep(0)
 	await client.change_presence(activity=discord.Game(
 		name=f"/help | {len(client.guilds)} SERVERS | {vccount} VOICE CHANNELS | deployed: {last_commit_date}"))
 
