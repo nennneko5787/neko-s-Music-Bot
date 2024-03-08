@@ -82,7 +82,8 @@ async def nicodl(url: str):
 
 async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None):
 	queue = dqueue if dqueue else queue_dict.get(voice_client.guild.id)
-	del nowPlaying_dict[f"{voice_client.guild.id}"]
+	if voice_client.guild.id in nowPlaying_dict:
+		del nowPlaying_dict[f"{voice_client.guild.id}"]
 	if not queue or queue.qsize() == 0:
 		await handle_empty_queue(voice_client, channel, language)
 		return
