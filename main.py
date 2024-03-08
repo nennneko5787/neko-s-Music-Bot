@@ -111,7 +111,7 @@ async def handle_voice_disconnection(voice_client, channel, language):
 	isPlaying_dict[voice_client.guild.id] = False
 
 async def handle_download_and_play(url, voice_client, channel, language):
-	lmp3ing.info("ダウンロードを開始")
+	logging.info("ダウンロードを開始")
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Waiting for song playback"),language), color=0xda70d6)
 	embed.add_field(name="url", value=url)
 	await channel.send("", embed=embed)
@@ -119,7 +119,7 @@ async def handle_download_and_play(url, voice_client, channel, language):
 
 	if url.find("nicovideo.jp") == -1:
 		info_dict = await videodownloader(url)
-		lmp3ing.info("再生")
+		logging.info("再生")
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 		video_title = info_dict.get('title', None)
 		videourl = info_dict.get('url', None)
