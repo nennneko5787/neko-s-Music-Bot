@@ -31,6 +31,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"*Nico Nico Douga videos take a little time to play. Please understand.": "※ニコニコ動画の動画は再生に少し時間がかかります。ご了承ください。",
 		"Playing": "再生中",
 		"No songs in queue": "キューに入っている曲はありません",
+		"You can check the songs in the queue.": "キュー内の曲を確認することができます。",
 	},
 	Locale.chinese: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '播放指定的音乐。如果已经在播放音乐，则将其插入到队列中。',
@@ -61,6 +62,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"*Nico Nico Douga videos take a little time to play. Please understand.": "*ニコニコ動画影片需要一點時間播放。請諒解。",
 		"Playing": "正在播放",
 		"No songs in queue": "队列中没有歌曲",
+		"You can check the songs in the queue.": "您可以查看队列中的歌曲。",
 	},
 	Locale.taiwan_chinese: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '播放指定的音樂URL。如果已經在播放音樂，則將其插入到佇列中。',
@@ -91,6 +93,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"*Nico Nico Douga videos take a little time to play. Please understand.": "*ニコニコ動画影片需要一點時間播放。請諒解。",
 		"Playing": "正在播放",
 		"No songs in queue": "佇列中沒有歌曲",
+		"You can check the songs in the queue.": "您可以檢查隊列中的歌曲。",
 	},
 	Locale.korean: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '지정된 URL의 음악을 재생합니다. 이미 음악이 재생 중인 경우에는 큐에 삽입됩니다.',
@@ -121,6 +124,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"*Nico Nico Douga videos take a little time to play. Please understand.": "* 니코니코 동영상은 재생하는 데 시간이 걸릴 수 있습니다. 양해 바랍니다.",
 		"Playing": "재생 중",
 		"No songs in queue": "큐에 노래가 없습니다",
+		"You can check the songs in the queue.": "대기열에서 노래를 확인할 수 있습니다.",
 	},
 	Locale.ukrainian: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': 'Відтворює музику, вказану за URL. Якщо музика вже відтворюється, вона вставляється в чергу.',
@@ -151,6 +155,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"*Nico Nico Douga videos take a little time to play. Please understand.": "*Відео Nico Nico Douga потребує трохи часу для відтворення. Будь ласка, розумійте.",
 		"Playing": "Відтворення",
 		"No songs in queue": "Немає пісень у черзі",
+		"You can check the songs in the queue.": "Ви можете перевірити пісні у черзі.",
 	},
 	Locale.british_english: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the queue.': 'Plays the music specified by URL. If music is already being played, it is inserted into the queue.',
@@ -181,6 +186,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"*Nico Nico Douga videos take a little time to play. Please understand.": "*Nico Nico Douga videos take a little time to play. Please understand.",
 		"Playing": "Playing",
 		"No songs in queue": "No songs in queue",
+		"You can check the songs in the queue.": "You can check the songs in the queue.",
 	},
 	Locale.russian: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the queue.': 'Воспроизводит музыку, указанную по URL. Если музыка уже играет, она вставляется в очередь.',
@@ -211,6 +217,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"*Nico Nico Douga videos take a little time to play. Please understand.": "*Видеоролики Nico Nico Douga занимают некоторое время на воспроизведение. Пожалуйста, поймите.",
 		"Playing": "Воспроизведение",
 		"No songs in queue": "Нет песен в очереди",
+		"You can check the songs in the queue.": "Вы можете проверить песни в очереди.",
 	},
 }
 

@@ -1,5 +1,4 @@
 import discord
-from discord import app_commands
 from discord.ext import tasks
 import os
 from keep_alive import keep_alive
@@ -8,12 +7,10 @@ from yt_dlp import YoutubeDL
 from collections import defaultdict
 import logging
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 import datetime
 import aiohttp
 from discord.app_commands import locale_str
 from translate import MyTranslator
-import threading
 
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
@@ -71,14 +68,16 @@ async def nicodl(url: str, svid: int):
 	}
 	loop = asyncio.get_event_loop()
 	ydl = YoutubeDL(ydl_opts)
-	await asyncio.to_thread(lambda: ydl.download([url]))
 	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-	print("download successful!")
+	if os.path.is_file(f"{info_dict.get('id', None)}.ogg") != True:
+		await asyncio.to_thread(lambda: ydl.download([url]))
+		print("download successful!")
 	# 必要な情報を取り出す処理を追加
 	return {
 		'title': info_dict.get('title', None),
 		'url': info_dict.get('url', None),
-		'webpage_url': info_dict.get('webpage_url', None)
+		'webpage_url': info_dict.get('webpage_url', None),
+		'id': info_dict.get('id', None)
 	}
 
 async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None):
@@ -94,7 +93,8 @@ async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None)
 	await handle_download_and_play(url, voice_client, channel, language)
 
 async def handle_empty_queue(voice_client, channel, language):
-	await channel.send(await MyTranslator().translate(locale_str("No songs in queue"), language))
+	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),language),color=discord.Colour.red())
+	await channel.send(embed=embed)
 	isPlaying_dict[voice_client.guild.id] = False
 	await voice_client.disconnect()
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Disconnected from voice channel."),language),
@@ -130,7 +130,8 @@ async def handle_download_and_play(url, voice_client, channel, language):
 		info_dict = await nicodl(url, voice_client.guild.id)
 		video_title = info_dict.get('title', None)
 		web = info_dict.get('webpage_url', None)
-		source = discord.FFmpegPCMAudio(f"{voice_client.guild.id}.ogg")
+		id = info_dict.get('id', None)
+		source = discord.FFmpegPCMAudio(f"{id}.ogg")
 
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=0xda70d6)
@@ -201,8 +202,8 @@ async def handle_error(error, interaction, voice_client):
 	# エラーログをDiscordのWebhookに送信する
 	async with aiohttp.ClientSession() as session:
 		webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"), session=session)
-	embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
-	await webhook.send(embed=embed)
+		embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
+		await webhook.send(embed=embed)
 
 	# ボイスチャンネルから切断する
 	await voice_client.disconnect()
@@ -227,6 +228,7 @@ async def handle_queue_entry(url, interaction, responsed):
 			responsed = True
 		for info_dict in dic['entries']:
 			await queue.put(info_dict.get('webpage_url'))
+			await asyncio.sleep(0)
 	else:
 		await queue.put(dic.get('webpage_url'))
 
@@ -248,6 +250,7 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 	if flag:
 		for info_dict in dic['entries']:
 			await queue.put(info_dict.get('webpage_url'))
+			await asyncio.sleep(0)
 	else:
 		await queue.put(dic.get('webpage_url'))
 
@@ -349,13 +352,43 @@ async def resume(interaction: discord.Interaction):
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("Resumed songs that had been paused."),interaction.locale),color=0xda70d6)
 	await interaction.response.send_message("",embed=embed)
 
+@tree.command(name="queue", description=locale_str("You can check the songs in the queue."))
+async def queue(interaction: discord.Interaction):
+	if interaction.guild.id in queue_dict:
+		q = queue_dict[interaction.guild.id]
+		length = q.qsize()
+		if length == 0:
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
+			await interaction.response.send_message(embed=embed, ephemeral=True)
+			return
+		qlist = []
+		ydl_opts = {
+			"outtmpl": f"{interaction.guild.id}",
+			"format": "bestaudio/best",
+			"noplaylist": False,
+		}
+		c = 1
+		# キューの中身を表示
+		while not q.empty():
+			item = await q.get()
+			ydl = YoutubeDL(ydl_opts)
+			dic = await asyncio.to_thread(lambda: ydl.extract_info(item, download=False))
+			qlist.append(f"#{c} [{dic.get('title')}]({dic.get('webpage_url')})")
+			c = c + 1
+			await asyncio.sleep(0)
+		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+	else:
+		embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
+		await interaction.response.send_message(embed=embed, ephemeral=True)
+		return
+
 @tree.command(name="help", description=locale_str("You can check the available commands."))
 async def help(interaction: discord.Interaction):
 	embed = discord.Embed(title="neko's Music Bot",description="",color=0xda70d6)
-	for command in tree.get_commands(type=discord.app_commands.Command):
+	for command in tree.get_commands(type=discord.AppCommandType.chat_input):
 		params = []
 		for parameter in command.parameters:
-			params.append(f"**{parameter.locale_name}**: {parameter.type.name}")
+			params.append(f"**{parameter.locale_name}**: {parameter.type}")
 		p = ', '.join(params)
 		embed.add_field(name=f"/{command.name} {p}",value=command.description)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
