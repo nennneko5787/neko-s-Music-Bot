@@ -18,7 +18,7 @@ last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
 
 queue_dict = defaultdict(asyncio.Queue)
 isPlaying_dict = defaultdict(lambda: False)
-nowPlaying_dict = defaultdict(lambda: "None")
+nowPlaying_dict = defaultdict(lambda: {"title": None})
 
 intents = discord.Intents.default()
 intents.voice_states = True
@@ -39,7 +39,7 @@ async def on_ready():
 @client.event
 async def on_voice_state_update(member, before, after):
 	if member.id == client.user.id:
-		if after == None:
+		if after is None:
 			flag = member.guild.id in queue_dict
 			if flag:
 				del queue_dict[member.guild.id]
@@ -55,7 +55,7 @@ async def videodownloader(url: str):
 	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
 	return info_dict
 	
-async def nicodl(url: str):
+async def nicodl(url: str, id: str):
 	ydl_opts = {
 		"outtmpl": "%(id)s",
 		"format": "mp3/bestaudio/best",
@@ -69,22 +69,16 @@ async def nicodl(url: str):
 	}
 	loop = asyncio.get_event_loop()
 	ydl = YoutubeDL(ydl_opts)
-	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-	if os.path.isfile(f"{info_dict.get('id', None)}.mp3") != True:
+	if os.path.isfile(f"{id}.mp3") != True:
 		await asyncio.to_thread(lambda: ydl.download([url]))
 		print("download successful!")
 	# 必要な情報を取り出す処理を追加
-	return {
-		'title': info_dict.get('title', None),
-		'url': info_dict.get('url', None),
-		'webpage_url': info_dict.get('webpage_url', None),
-		'id': info_dict.get('id', None)
-	}
+	return True
 
 async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None):
 	queue = dqueue if dqueue else queue_dict.get(voice_client.guild.id)
 	if voice_client.guild.id in nowPlaying_dict:
-		nowPlaying_dict[f"{voice_client.guild.id}"] = "None"
+		nowPlaying_dict[f"{voice_client.guild.id}"] = {"title": None}
 	if not queue or queue.qsize() == 0:
 		await handle_empty_queue(voice_client, channel, language)
 		return
@@ -92,8 +86,8 @@ async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None)
 		await handle_voice_disconnection(voice_client, channel, language)
 		return
 
-	url = await queue.get()
-	await handle_download_and_play(url, voice_client, channel, language)
+	item = await queue.get()
+	await handle_download_and_play(item, voice_client, channel, language)
 
 async def handle_empty_queue(voice_client, channel, language):
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),language),color=discord.Colour.red())
@@ -111,32 +105,33 @@ async def handle_voice_disconnection(voice_client, channel, language):
 	await channel.send("", embed=embed)
 	isPlaying_dict[voice_client.guild.id] = False
 
-async def handle_download_and_play(url, voice_client, channel, language):
+async def handle_download_and_play(item, voice_client, channel, language):
 	logging.info("ダウンロードを開始")
+	url = item.get("url")
+	weburl = item.get("webpage_url")
+	title = item.get("title")
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Waiting for song playback"),language), color=0xda70d6)
 	embed.add_field(name="url", value=url)
 	await channel.send("", embed=embed)
 	loop = asyncio.get_event_loop()
 
 	if url.find("nicovideo.jp") == -1:
-		info_dict = await videodownloader(url)
-		logging.info("再生")
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
-		video_title = info_dict.get('title', None)
-		videourl = info_dict.get('url', None)
-		web = info_dict.get('webpage_url', None)
+		video_title = title
+		videourl = url
+		web = weburl
 		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
 	else:
 		embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("*Nico Nico Douga videos take a little time to play. Please understand."),language),
 							  color=0xda70d6)
 		await channel.send("", embed=embed)
-		info_dict = await nicodl(url)
-		video_title = info_dict.get('title', None)
-		web = info_dict.get('webpage_url', None)
-		id = info_dict.get('id', None)
+		id = item.get("id")
+		flag = await nicodl(url, id)
+		video_title = title
+		web = weburl
 		source = discord.FFmpegPCMAudio(f"{id}.mp3")
 
-	nowPlaying_dict[f"{voice_client.guild.id}"] = info_dict.get('webpage_url', None)
+	nowPlaying_dict[f"{voice_client.guild.id}"] = item
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=0xda70d6)
 	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=video_title)
@@ -231,10 +226,20 @@ async def handle_queue_entry(url, interaction, responsed):
 		if entries_count <= 1:
 			responsed = True
 		for info_dict in dic['entries']:
-			await queue.put(info_dict.get('webpage_url'))
+			await queue.put({
+				"webpage_url": info_dict.get('webpage_url'),
+				"url": info_dict.get('url'),
+				"title": info_dict.get('title'),
+				"id": info_dict.get('id')
+			})
 			await asyncio.sleep(0)
 	else:
-		await queue.put(dic.get('webpage_url'))
+		await queue.put({
+			"webpage_url": dic.get('webpage_url'),
+			"url": dic.get('url'),
+			"title": dic.get('title'),
+			"id": dic.get('id')
+		})
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
@@ -253,10 +258,20 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 
 	if flag:
 		for info_dict in dic['entries']:
-			await queue.put(info_dict.get('webpage_url'))
+			await queue.put({
+				"webpage_url": info_dict.get('webpage_url'),
+				"url": info_dict.get('url'),
+				"title": info_dict.get('title'),
+				"id": info_dict.get('id')
+			})
 			await asyncio.sleep(0)
 	else:
-		await queue.put(dic.get('webpage_url'))
+		await queue.put({
+			"webpage_url": dic.get('webpage_url'),
+			"url": dic.get('url'),
+			"title": dic.get('title'),
+			"id": dic.get('id')
+		})
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
@@ -368,17 +383,14 @@ async def queue(interaction: discord.Interaction):
 			"noplaylist": False,
 		}
 		c = 1
-		ydl = YoutubeDL(ydl_opts)
-		if nowPlaying_dict[f"{interaction.guild.id}"] != "None":
-			dic = await asyncio.to_thread(lambda: ydl.extract_info(nowPlaying_dict[f"{interaction.guild.id}"], download=False))
-			qlist.append(f"**現在再生中: **[{dic.get('title')}]({dic.get('webpage_url')})")
+		if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
+			qlist.append(f"**現在再生中: **[{nowPlaying_dict[f"{interaction.guild.id}"].get('title')}]({nowPlaying_dict[f"{interaction.guild.id}"].get('webpage_url')})")
 		else:
 			qlist.append(f"**現在再生中: **None")
 		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
-			dic = await asyncio.to_thread(lambda: ydl.extract_info(item, download=False))
-			qlist.append(f"#{c} [{dic.get('title')}]({dic.get('webpage_url')})")
+			qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 			c = c + 1
 			await asyncio.sleep(0)
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
