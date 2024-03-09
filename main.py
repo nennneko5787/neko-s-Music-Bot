@@ -84,7 +84,7 @@ async def nicodl(url: str):
 async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None):
 	queue = dqueue if dqueue else queue_dict.get(voice_client.guild.id)
 	if voice_client.guild.id in nowPlaying_dict:
-		del nowPlaying_dict[f"{voice_client.guild.id}"]
+		nowPlaying_dict[f"{voice_client.guild.id}"] = "None"
 	if not queue or queue.qsize() == 0:
 		await handle_empty_queue(voice_client, channel, language)
 		return
@@ -356,9 +356,6 @@ async def resume(interaction: discord.Interaction):
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("Resumed songs that had been paused."),interaction.locale),color=0xda70d6)
 	await interaction.response.send_message("",embed=embed)
 
-async def get_song_info(ydl, item):
-	return await asyncio.to_thread(lambda: ydl.extract_info(item, download=False))
-
 @tree.command(name="queue", description=locale_str("You can check the songs in the queue."))
 async def queue(interaction: discord.Interaction):
 	if interaction.guild.id in queue_dict:
@@ -366,43 +363,33 @@ async def queue(interaction: discord.Interaction):
 		q = copy.deepcopy(queue_dict[interaction.guild.id])
 		length = q.qsize()
 		if length == 0:
-			embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("No songs in queue"), interaction.locale), color=discord.Colour.red())
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
 			await interaction.response.send_message(embed=embed, ephemeral=True)
 			return
-
+		qlist = []
 		ydl_opts = {
 			"outtmpl": f"{interaction.guild.id}",
 			"format": "bestaudio/best",
 			"noplaylist": False,
 		}
+		c = 1
 		ydl = YoutubeDL(ydl_opts)
-
-		tasks = []
-		qlist = []
-
 		if nowPlaying_dict[f"{interaction.guild.id}"] != "None":
 			dic = await asyncio.to_thread(lambda: ydl.extract_info(nowPlaying_dict[f"{interaction.guild.id}"], download=False))
-			qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'), interaction.locale)}: **[{dic.get('title')}]({dic.get('webpage_url')})\n")
-
+			qlist.append(f"**現在再生中: **[{dic.get('title')}]({dic.get('webpage_url')})")
+		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
-			tasks.append(get_song_info(ydl, item))
-			await asyncio.sleep(0)
-		
-		# Gather all tasks concurrently
-		song_infos = await asyncio.gather(*tasks)
-
-		c = 1
-		for dic in song_infos:
+			dic = await asyncio.to_thread(lambda: ydl.extract_info(item, download=False))
 			qlist.append(f"#{c} [{dic.get('title')}]({dic.get('webpage_url')})")
-			c += 1
+			c = c + 1
 			await asyncio.sleep(0)
-
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 		await interaction.followup.send(embed=embed)
 	else:
-		embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("No songs in queue"), interaction.locale), color=discord.Colour.red())
+		embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
 		await interaction.response.send_message(embed=embed, ephemeral=True)
+		return
 
 @tree.command(name="help", description=locale_str("You can check the available commands."))
 async def help(interaction: discord.Interaction):
