@@ -139,10 +139,12 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	await channel.send("", embed=embed)
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
+@discord.app_commands.guild_only()
 async def play(interaction: discord.Interaction, url:str):
 	await musicPlayFunction(interaction, url)
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
+@discord.app_commands.guild_only()
 async def yplay(interaction: discord.Interaction, search:str):
 	await musicPlayFunction(interaction, f"ytsearch:{search}")
 
@@ -321,6 +323,7 @@ async def send_music_inserted_message(dic, interaction, responsed):
 
 
 @tree.command(name="stop", description=locale_str("Stops the music currently playing and discards the cue."))
+@discord.app_commands.guild_only()
 async def stop(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -338,6 +341,7 @@ async def stop(interaction: discord.Interaction):
 		await interaction.response.send_message("",embed=embed)
 
 @tree.command(name="skip", description=locale_str("Skips the currently playing music and plays the next music in the queue."))
+@discord.app_commands.guild_only()
 async def skip(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -350,6 +354,7 @@ async def skip(interaction: discord.Interaction):
 	await playbgm(voice_client)
 
 @tree.command(name="pause", description=locale_str("Pause the song."))
+@discord.app_commands.guild_only()
 async def pause(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -361,6 +366,7 @@ async def pause(interaction: discord.Interaction):
 	await interaction.response.send_message("",embed=embed)
 
 @tree.command(name="resume", description=locale_str("Resume paused song."))
+@discord.app_commands.guild_only()
 async def resume(interaction: discord.Interaction):
 	voice_client = interaction.guild.voice_client
 	if voice_client is None:
@@ -372,6 +378,7 @@ async def resume(interaction: discord.Interaction):
 	await interaction.response.send_message("",embed=embed)
 
 @tree.command(name="queue", description=locale_str("You can check the songs in the queue."))
+@discord.app_commands.guild_only()
 async def queue(interaction: discord.Interaction):
 	if interaction.guild.id in queue_dict:
 		await interaction.response.defer()
@@ -384,7 +391,7 @@ async def queue(interaction: discord.Interaction):
 		}
 		c = 1
 		if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
-			qlist.append(f"**現在再生中: **[{nowPlaying_dict[f"{interaction.guild.id}"].get('title')}]({nowPlaying_dict[f"{interaction.guild.id}"].get('webpage_url')})")
+			qlist.append(f"**現在再生中: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
 		else:
 			qlist.append(f"**現在再生中: **None")
 		# キューの中身を表示
@@ -401,6 +408,7 @@ async def queue(interaction: discord.Interaction):
 		return
 
 @tree.command(name="help", description=locale_str("You can check the available commands."))
+@discord.app_commands.guild_only()
 async def help(interaction: discord.Interaction):
 	await interaction.response.defer()
 	embed = discord.Embed(title="neko's Music Bot",description="",color=0xda70d6)
@@ -410,7 +418,7 @@ async def help(interaction: discord.Interaction):
 			params.append(f"**{parameter.locale_name}**: <{parameter.type}>")
 			await asyncio.sleep(0)
 		p = ', '.join(params)
-		embed.add_field(name=f"/{command.name} {p}",value=await MyTranslator().translate(locale_str(command.description),interaction.locale))
+		embed.add_field(name=f"/{command.name} {p}",value=await MyTranslator().translate(locale_str(command.description),interaction.locale), inline=False)
 		await asyncio.sleep(0)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 	await interaction.followup.send("",embed=embed)
