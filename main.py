@@ -123,7 +123,7 @@ async def handle_download_and_play(item, voice_client, channel, language):
 							  color=0xda70d6)
 		await channel.send("", embed=embed)
 		id = item.get("id")
-		flag = await nicodl(url, id)
+		flag = await nicodl(weburl, id)
 		source = discord.FFmpegPCMAudio(f"{id}.mp3")
 
 	nowPlaying_dict[f"{voice_client.guild.id}"] = item
