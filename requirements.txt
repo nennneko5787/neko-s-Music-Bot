@@ -2,4 +2,3 @@ discord.py[voice]
 Flask
 yt-dlp
 ffmpeg-python
-asyncpg

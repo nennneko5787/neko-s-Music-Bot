@@ -12,7 +12,6 @@ import aiohttp
 from discord.app_commands import locale_str
 from translate import MyTranslator
 import copy
-import asyncpg
 
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
@@ -26,44 +25,6 @@ intents.voice_states = True
 intents.guilds = True
 client = discord.Client(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
-
-# Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-
-async def connect_to_database():
-	return await asyncpg.connect(DATABASE_URL)
-
-async def get_volume_data(connection, guild_id):
-	result = await connection.fetchrow(
-		"""
-		SELECT volume FROM data WHERE id = $1
-		""",
-		guild_id,
-	)
-	return result['volume'] if result is not None else 0
-
-async def get_pitch_data(connection, guild_id):
-	result = await connection.fetchrow(
-		"""
-		SELECT pitch FROM data WHERE id = $1
-		""",
-		guild_id,
-	)
-	return result['pitch'] if result is not None else 100
-
-async def update_guild_data(connection, guild_id, volume, pitch):
-	await connection.execute(
-		"""
-		INSERT INTO data (id, volume, pitch)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (id) DO UPDATE
-		SET volume = $2, pitch = $3
-		""",
-		guild_id,
-		volume,
-		pitch,
-	)
 
 @client.event
 async def setup_hook():
@@ -157,15 +118,10 @@ async def handle_download_and_play(url, voice_client, channel, language):
 	await channel.send("", embed=embed)
 	loop = asyncio.get_event_loop()
 
-	connection = await connect_to_database()
-	volume = await get_volume_data(connection, voice_client.guild.id)
-	pitch = await get_pitch_data(connection, voice_client.guild.id)
-	await connection.close()
-	FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': f'-vn -af volume={volume}dB -af asetrate=48000*{pitch}/100,atempo=100/{pitch}'}
-
 	if url.find("nicovideo.jp") == -1:
 		info_dict = await videodownloader(url)
 		logging.info("再生")
+		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 		video_title = info_dict.get('title', None)
 		videourl = info_dict.get('url', None)
 		web = info_dict.get('webpage_url', None)
@@ -178,7 +134,7 @@ async def handle_download_and_play(url, voice_client, channel, language):
 		video_title = info_dict.get('title', None)
 		web = info_dict.get('webpage_url', None)
 		id = info_dict.get('id', None)
-		source = discord.FFmpegPCMAudio(f"{id}.mp3", **FFMPEG_OPTIONS)
+		source = discord.FFmpegPCMAudio(f"{id}.mp3")
 
 	nowPlaying_dict[f"{voice_client.guild.id}"] = info_dict.get('webpage_url', None)
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
@@ -447,16 +403,6 @@ async def queue(interaction: discord.Interaction):
 	else:
 		embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("No songs in queue"), interaction.locale), color=discord.Colour.red())
 		await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@tree.command(name="setting", description=locale_str("Pitch and volume can be set."))
-async def setting(interaction: discord.Interaction, volume: int = None, pitch: int = None):
-	await interaction.response.defer()
-	connection = await connect_to_database()
-	vol = await get_volume_data(connection, interaction.guild.id) if volume is not None else 0
-	pit = await get_pitch_data(connection, interaction.guild.id) if pitch is not None else 100
-	await update_guild_data(connection, interaction.guild.id, vol, pit)
-	await connection.close()
-	embed = discord.Embed(title=await MyTranslator().translate(locale_str("Settings have been changed."), interaction.locale), description=f"volume: `{vol}`\npitch: `{pit}`")
 
 @tree.command(name="help", description=locale_str("You can check the available commands."))
 async def help(interaction: discord.Interaction):
