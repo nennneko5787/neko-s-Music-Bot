@@ -111,31 +111,26 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	weburl = item.get("webpage_url")
 	title = item.get("title")
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Waiting for song playback"),language), color=0xda70d6)
-	embed.add_field(name="url", value=url)
+	embed.add_field(name="url", value=weburl)
 	await channel.send("", embed=embed)
 	loop = asyncio.get_event_loop()
 
 	if url.find("nicovideo.jp") == -1:
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
-		video_title = title
-		videourl = url
-		web = weburl
-		source = await discord.FFmpegOpusAudio.from_probe(videourl, **FFMPEG_OPTIONS)
+		source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
 	else:
 		embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("*Nico Nico Douga videos take a little time to play. Please understand."),language),
 							  color=0xda70d6)
 		await channel.send("", embed=embed)
 		id = item.get("id")
 		flag = await nicodl(url, id)
-		video_title = title
-		web = weburl
 		source = discord.FFmpegPCMAudio(f"{id}.mp3")
 
 	nowPlaying_dict[f"{voice_client.guild.id}"] = item
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=0xda70d6)
-	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=video_title)
-	embed.add_field(name=await MyTranslator().translate(locale_str("Video URL"),language), value=web)
+	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=title)
+	embed.add_field(name=await MyTranslator().translate(locale_str("Video URL"),language), value=weburl)
 	await channel.send("", embed=embed)
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
@@ -351,7 +346,7 @@ async def skip(interaction: discord.Interaction):
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("Skipped one song."),interaction.locale),color=0xda70d6)
 	await interaction.response.send_message("",embed=embed)
 	voice_client.stop()
-	await playbgm(voice_client)
+	await playbgm(voice_client,voice_client.channel,interaction.locale)
 
 @tree.command(name="pause", description=locale_str("Pause the song."))
 @discord.app_commands.guild_only()
