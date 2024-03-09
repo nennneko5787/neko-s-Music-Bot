@@ -56,7 +56,7 @@ async def update_guild_data(connection, guild_id, volume, pitch):
 	await connection.execute(
 		"""
 		INSERT INTO data (id, volume, pitch)
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2, $3)
 		ON CONFLICT (id) DO UPDATE
 		SET volume = $2, pitch = $3
 		""",
