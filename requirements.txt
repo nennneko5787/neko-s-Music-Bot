@@ -1,4 +1,4 @@
 discord.py[voice]
 Flask
-git+https://github.com/yt-dlp/yt-dlp.git
+https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
 ffmpeg-python
