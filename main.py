@@ -57,19 +57,20 @@ async def videodownloader(url: str):
 	
 async def nicodl(url: str):
 	ydl_opts = {
-		"format": "ogg/bestaudio/best",
+		"outtmpl": "%(id)s",
+		"format": "mp3/bestaudio/best",
 		"noplaylist": True,
 		"postprocessors": [
 			{
 				"key": "FFmpegExtractAudio",
-				"preferredcodec": "ogg",
+				"preferredcodec": "mp3",
 			}
 		],
 	}
 	loop = asyncio.get_event_loop()
 	ydl = YoutubeDL(ydl_opts)
 	info_dict = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-	if os.path.is_file(f"{info_dict.get('id', None)}.ogg") != True:
+	if os.path.isfile(f"{info_dict.get('id', None)}.mp3") != True:
 		await asyncio.to_thread(lambda: ydl.download([url]))
 		print("download successful!")
 	# 必要な情報を取り出す処理を追加
@@ -83,7 +84,7 @@ async def nicodl(url: str):
 async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None):
 	queue = dqueue if dqueue else queue_dict.get(voice_client.guild.id)
 	if voice_client.guild.id in nowPlaying_dict:
-		del nowPlaying_dict[f"{voice_client.guild.id}"]
+		nowPlaying_dict[f"{voice_client.guild.id}"] = "None"
 	if not queue or queue.qsize() == 0:
 		await handle_empty_queue(voice_client, channel, language)
 		return
@@ -133,7 +134,7 @@ async def handle_download_and_play(url, voice_client, channel, language):
 		video_title = info_dict.get('title', None)
 		web = info_dict.get('webpage_url', None)
 		id = info_dict.get('id', None)
-		source = discord.FFmpegPCMAudio(f"{id}.ogg")
+		source = discord.FFmpegPCMAudio(f"{id}.mp3")
 
 	nowPlaying_dict[f"{voice_client.guild.id}"] = info_dict.get('webpage_url', None)
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
@@ -202,14 +203,14 @@ async def handle_error(error, interaction, voice_client):
 	embed = discord.Embed(title=await MyTranslator().translate(locale_str("Error!"),interaction.locale), description=msg)
 	await interaction.channel.send(embed=embed)
 
+	# ボイスチャンネルから切断する
+	await voice_client.disconnect()
+
 	# エラーログをDiscordのWebhookに送信する
 	async with aiohttp.ClientSession() as session:
 		webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"), session=session)
 		embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
 		await webhook.send(embed=embed)
-
-	# ボイスチャンネルから切断する
-	await voice_client.disconnect()
 
 
 async def handle_queue_entry(url, interaction, responsed):
@@ -360,11 +361,6 @@ async def queue(interaction: discord.Interaction):
 	if interaction.guild.id in queue_dict:
 		await interaction.response.defer()
 		q = copy.deepcopy(queue_dict[interaction.guild.id])
-		length = q.qsize()
-		if length == 0:
-			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
-			await interaction.response.send_message(embed=embed, ephemeral=True)
-			return
 		qlist = []
 		ydl_opts = {
 			"outtmpl": f"{interaction.guild.id}",
@@ -376,6 +372,8 @@ async def queue(interaction: discord.Interaction):
 		if nowPlaying_dict[f"{interaction.guild.id}"] != "None":
 			dic = await asyncio.to_thread(lambda: ydl.extract_info(nowPlaying_dict[f"{interaction.guild.id}"], download=False))
 			qlist.append(f"**現在再生中: **[{dic.get('title')}]({dic.get('webpage_url')})")
+		else:
+			qlist.append(f"**現在再生中: **None")
 		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
