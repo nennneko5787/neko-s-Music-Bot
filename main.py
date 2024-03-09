@@ -361,11 +361,6 @@ async def queue(interaction: discord.Interaction):
 	if interaction.guild.id in queue_dict:
 		await interaction.response.defer()
 		q = copy.deepcopy(queue_dict[interaction.guild.id])
-		length = q.qsize()
-		if length == 0:
-			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
-			await interaction.response.send_message(embed=embed, ephemeral=True)
-			return
 		qlist = []
 		ydl_opts = {
 			"outtmpl": f"{interaction.guild.id}",
@@ -377,6 +372,8 @@ async def queue(interaction: discord.Interaction):
 		if nowPlaying_dict[f"{interaction.guild.id}"] != "None":
 			dic = await asyncio.to_thread(lambda: ydl.extract_info(nowPlaying_dict[f"{interaction.guild.id}"], download=False))
 			qlist.append(f"**現在再生中: **[{dic.get('title')}]({dic.get('webpage_url')})")
+		else:
+			qlist.append(f"**現在再生中: **None")
 		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
