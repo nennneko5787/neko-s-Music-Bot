@@ -114,9 +114,6 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	title = item.get("title")
 	thumbnail = item.get("thumbnail")
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Waiting for song playback"),language), color=0xda70d6)
-	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=title)
-	embed.add_field(name=await MyTranslator().translate(locale_str("Video URL"),language), value=weburl)
-	embed.set_image(url=thumbnail)
 	await channel.send(embed=embed)
 
 	if url.find("nicovideo.jp") == -1:
