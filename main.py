@@ -17,6 +17,7 @@ last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hour
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
 
 queue_dict = defaultdict(asyncio.Queue)
+isConnecting_dict = defaultdict(lambda: False)
 isPlaying_dict = defaultdict(lambda: False)
 nowPlaying_dict = defaultdict(lambda: {"title": None})
 
@@ -44,6 +45,7 @@ async def on_voice_state_update(member, before, after):
 			if flag:
 				del queue_dict[member.guild.id]
 				isPlaying_dict[member.guild.id] = False
+				isConnecting_dict[member.guild.id] = False
 
 async def videodownloader(url: str):
 	ydl_opts = {
@@ -82,7 +84,7 @@ async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None)
 	if not queue or queue.qsize() == 0:
 		await handle_empty_queue(voice_client, channel, language)
 		return
-	if not voice_client.is_connected():
+	elif not voice_client.is_connected():
 		await handle_voice_disconnection(voice_client, channel, language)
 		return
 
@@ -94,6 +96,7 @@ async def handle_empty_queue(voice_client, channel, language):
 	await channel.send(embed=embed)
 	isPlaying_dict[voice_client.guild.id] = False
 	await voice_client.disconnect()
+	isConnecting_dict[voice_client.guild.id] = False
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Disconnected from voice channel."),language),
 						  color=discord.Colour.red())
 	embed.add_field(name=await MyTranslator().translate(locale_str("Disconnected channel"),language), value=voice_client.channel.jump_url)
@@ -104,6 +107,7 @@ async def handle_voice_disconnection(voice_client, channel, language):
 						  color=discord.Colour.red())
 	await channel.send("", embed=embed)
 	isPlaying_dict[voice_client.guild.id] = False
+	isConnecting_dict[voice_client.guild.id] = False
 
 async def handle_download_and_play(item, voice_client, channel, language):
 	logging.info("ダウンロードを開始")
@@ -136,21 +140,22 @@ async def handle_download_and_play(item, voice_client, channel, language):
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
 @discord.app_commands.guild_only()
 async def play(interaction: discord.Interaction, url:str):
-	await musicPlayFunction(interaction, url)
+	await asyncio.create_task(musicPlayFunction(interaction, url))
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
 @discord.app_commands.guild_only()
 async def yplay(interaction: discord.Interaction, search:str):
-	await musicPlayFunction(interaction, f"ytsearch:{search}")
+	await asyncio.create_task(musicPlayFunction(interaction, f"ytsearch:{search}"))
 
 async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	voice_client = interaction.guild.voice_client
 	responsed = False
 
-	if voice_client is None:
+	if voice_client is None and isConnecting_dict[interaction.guild.id] == False:
 		if interaction.user.voice is not None:
 			isPlaying_dict[interaction.guild.id] = False
 			await interaction.user.voice.channel.connect()
+			isConnecting_dict[interaction.guild.id] = True
 			responsed = True
 			await interaction.response.send_message(
 				embed=discord.Embed(
@@ -197,6 +202,7 @@ async def handle_error(error, interaction, voice_client):
 
 	# ボイスチャンネルから切断する
 	await voice_client.disconnect()
+	isConnecting_dict[interaction.guild.id] = False
 
 	# エラーログをDiscordのWebhookに送信する
 	async with aiohttp.ClientSession() as session:
@@ -229,7 +235,7 @@ async def handle_queue_entry(url, interaction, responsed):
 				"title": info_dict.get('title'),
 				"id": info_dict.get('id')
 			})
-			await asyncio.sleep(0)
+			await asyncio.sleep(0.01)
 	else:
 		await queue.put({
 			"webpage_url": dic.get('webpage_url'),
@@ -261,7 +267,7 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 				"title": info_dict.get('title'),
 				"id": info_dict.get('id')
 			})
-			await asyncio.sleep(0)
+			await asyncio.sleep(0.01)
 	else:
 		await queue.put({
 			"webpage_url": dic.get('webpage_url'),
@@ -394,7 +400,7 @@ async def queue(interaction: discord.Interaction):
 			item = await q.get()
 			qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 			c = c + 1
-			await asyncio.sleep(0)
+			await asyncio.sleep(0.01)
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 		await interaction.followup.send(embed=embed)
 	else:
@@ -410,11 +416,11 @@ async def help(interaction: discord.Interaction):
 	for command in tree.get_commands(type=discord.AppCommandType.chat_input):
 		params = []
 		for parameter in command.parameters:
-			params.append(f"**{parameter.locale_name}**: <{parameter.type}>")
-			await asyncio.sleep(0)
+			params.append(f"**{parameter.locale_name}**: <{parameter.type.name}>")
+			await asyncio.sleep(0.01)
 		p = ', '.join(params)
 		embed.add_field(name=f"/{command.name} {p}",value=await MyTranslator().translate(locale_str(command.description),interaction.locale), inline=False)
-		await asyncio.sleep(0)
+		await asyncio.sleep(0.01)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 	await interaction.followup.send("",embed=embed)
 
@@ -425,7 +431,7 @@ async def myLoop():
 	for guild in client.guilds:
 		if guild.voice_client != None:
 			vccount += 1
-		await asyncio.sleep(0)
+		await asyncio.sleep(0.01)
 	await client.change_presence(activity=discord.Game(
 		name=f"/help | {len(client.guilds)} SERVERS | {vccount} VOICE CHANNELS | deployed: {last_commit_date}"))
 
