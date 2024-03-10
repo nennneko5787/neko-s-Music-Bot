@@ -13,6 +13,19 @@ from discord.app_commands import locale_str
 from translate import MyTranslator
 import copy
 
+class DiscordClient(discord.Client):
+	async def cleanup(self):
+		for guild in client.guilds:
+			if guild.voice_client != None:
+				embed = discord.Embed(title="neko's Music Bot",description="ボットが再起動するため、ボイスチャンネルから切断します。 / The bot disconnects from the voice channel to restart.",color=discord.Colour.red())
+				await guild.voice_client.channel.send(embed=embed)
+				await guild.voice_client.disconnect()
+			await asyncio.sleep(0.01)
+
+	async def close(self):
+		await self.cleanup()
+		await super().close()
+
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
 
@@ -21,10 +34,7 @@ isConnecting_dict = defaultdict(lambda: False)
 isPlaying_dict = defaultdict(lambda: False)
 nowPlaying_dict = defaultdict(lambda: {"title": None})
 
-intents = discord.Intents.default()
-intents.voice_states = True
-intents.guilds = True
-client = discord.Client(intents=discord.Intents.default())
+client = DiscordClient(intents=discord.Intents.default())
 tree = discord.app_commands.CommandTree(client) #←ココ
 
 @client.event
@@ -99,6 +109,7 @@ async def handle_empty_queue(voice_client, channel, language):
 						  color=discord.Colour.red())
 	embed.add_field(name=await MyTranslator().translate(locale_str("Disconnected channel"),language), value=voice_client.channel.jump_url)
 	await channel.send(embed=embed)
+	return
 
 async def handle_voice_disconnection(voice_client, channel, language):
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Disconnected from voice channel."),language),
@@ -106,6 +117,7 @@ async def handle_voice_disconnection(voice_client, channel, language):
 	await channel.send(embed=embed)
 	isPlaying_dict[voice_client.guild.id] = False
 	isConnecting_dict[voice_client.guild.id] = False
+	return
 
 async def handle_download_and_play(item, voice_client, channel, language):
 	logging.info("ダウンロードを開始")
@@ -115,6 +127,8 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	thumbnail = item.get("thumbnail")
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Waiting for song playback"),language), color=0xda70d6)
 	await channel.send(embed=embed)
+	source = discord.FFmpegPCMAudio(f"{id}.mp3")
+	await asyncio.to_thread(voice_client.play, source)
 
 	if url.find("nicovideo.jp") == -1:
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -192,6 +206,8 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	if isPlaying_dict[interaction.guild.id]:
 		await handle_queue_entry(url, interaction)
 		return
+
+	await interaction.channel.send("https://i.imgur.com/bnNP1Ih.png")
 
 	try:
 		await handle_music_entry(url, interaction, voice_client)
