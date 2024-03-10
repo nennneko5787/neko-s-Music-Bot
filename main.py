@@ -153,11 +153,12 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 
 	if voice_client is None and isConnecting_dict[interaction.guild.id] == False:
 		if interaction.user.voice is not None:
+			await interaction.response.defer()
 			isPlaying_dict[interaction.guild.id] = False
 			await interaction.user.voice.channel.connect()
 			isConnecting_dict[interaction.guild.id] = True
 			responsed = True
-			await interaction.response.send_message(
+			await interaction.followup.send(
 				embed=discord.Embed(
 					title="neko's Music Bot",
 					description=await MyTranslator().translate(locale_str('Connected to voice channel.'),interaction.locale),
@@ -219,7 +220,6 @@ async def handle_queue_entry(url, interaction, responsed):
 		"format": "bestaudio/best",
 		"noplaylist": False,
 	}
-	await interaction.response.defer()
 	ydl = YoutubeDL(ydl_opts)
 	dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
@@ -245,6 +245,7 @@ async def handle_queue_entry(url, interaction, responsed):
 		})
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
+
 
 async def handle_music_entry(url, interaction, responsed, voice_client):
 	queue = queue_dict[interaction.guild.id]
@@ -277,34 +278,6 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
-	# 音声チャンネルに接続されていない場合は接続する
-	if voice_client is None:
-		if interaction.user.voice is not None:
-			isPlaying_dict[interaction.guild.id] = False
-			await interaction.user.voice.channel.connect()
-			isConnecting_dict[interaction.guild.id] = True
-			await interaction.response.send_message(
-				embed=discord.Embed(
-					title="neko's Music Bot",
-					description=await MyTranslator().translate(locale_str('Connected to voice channel.'),interaction.locale),
-					color=0xda70d6
-				).add_field(
-					name=await MyTranslator().translate(locale_str('Destination Channel'),interaction.locale),
-					value=f"<#{interaction.user.voice.channel.id}>"
-				)
-			)
-			voice_client = interaction.guild.voice_client
-		else:
-			await interaction.response.send_message(
-				embed=discord.Embed(
-					title="neko's Music Bot",
-					description=await MyTranslator().translate(locale_str("You are not currently connected to any voice channel."),interaction.locale),
-					color=discord.Colour.red()
-				),
-				ephemeral=True
-			)
-			return
-
 	if not isPlaying_dict[interaction.guild.id]:
 		isPlaying_dict[interaction.guild.id] = True
 		await interaction.channel.send(
@@ -315,6 +288,7 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 			)
 		)
 		await playbgm(voice_client, interaction.channel, interaction.locale, queue)
+
 
 async def send_music_inserted_message(dic, interaction, responsed):
 	if 'entries' in dic:
