@@ -131,7 +131,8 @@ async def handle_download_and_play(item, voice_client, channel, language):
 		source = discord.FFmpegPCMAudio(f"{id}.mp3")
 
 	nowPlaying_dict[f"{voice_client.guild.id}"] = item
-	await asyncio.to_thread(voice_client.play, source, after=lambda e: asyncio.create_task(playbgm(voice_client, channel, language)))
+	loop = asyncio.get_event_loop()
+	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=0xda70d6)
 	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=title)
 	embed.add_field(name=await MyTranslator().translate(locale_str("Video URL"),language), value=weburl)
@@ -152,9 +153,10 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 	voice_client = interaction.guild.voice_client
 	responsed = False
 
+	await interaction.response.defer(ephemeral=True)
+
 	if voice_client is None and isConnecting_dict[interaction.guild.id] == False:
 		if interaction.user.voice is not None:
-			await interaction.response.defer()
 			isPlaying_dict[interaction.guild.id] = False
 			await interaction.user.voice.channel.connect()
 			isConnecting_dict[interaction.guild.id] = True
@@ -167,11 +169,12 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 				).add_field(
 					name=await MyTranslator().translate(locale_str('Destination Channel'),interaction.locale),
 					value=f"<#{interaction.user.voice.channel.id}>"
-				)
+				),
+				ephemeral=False
 			)
 			voice_client = interaction.guild.voice_client
 		else:
-			await interaction.response.send_message(
+			await interaction.followup.send(
 				embed=discord.Embed(
 					title="neko's Music Bot",
 					description=await MyTranslator().translate(locale_str("You are not currently connecting to any voice channel."),interaction.locale),
@@ -200,7 +203,11 @@ async def handle_error(error, interaction, voice_client):
 		},
 	))
 	embed = discord.Embed(title=await MyTranslator().translate(locale_str("Error!"),interaction.locale), description=msg)
-	await interaction.channel.send(embed=embed)
+	if responsed == False:
+		await interaction.followup.send(embed=embed, ephemeral=False)  # ここでresponsedがTrueの場合はinteraction.followup.send()を呼び出す
+		responsed = True
+	else:
+		await interaction.channel.send(embed=embed, ephemeral=False)
 
 	# ボイスチャンネルから切断する
 	await voice_client.disconnect()
@@ -318,10 +325,10 @@ async def send_music_inserted_message(dic, interaction, responsed):
 	)
 
 	if responsed == False:
-		await interaction.followup.send(embed=embed)  # ここでresponsedがTrueの場合はinteraction.followup.send()を呼び出す
+		await interaction.followup.send(embed=embed, ephemeral=False)  # ここでresponsedがTrueの場合はinteraction.followup.send()を呼び出す
 		responsed = True
 	else:
-		await interaction.channel.send(embed=embed)
+		await interaction.channel.send(embed=embed, ephemeral=False)
 	return responsed
 
 
