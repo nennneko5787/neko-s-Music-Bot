@@ -127,9 +127,7 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	thumbnail = item.get("thumbnail")
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Waiting for song playback"),language), color=0xda70d6)
 	await channel.send(embed=embed)
-	source = discord.FFmpegPCMAudio(f"{id}.mp3")
-	await asyncio.to_thread(voice_client.play, source)
-
+	
 	if url.find("nicovideo.jp") == -1:
 		FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 		source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
