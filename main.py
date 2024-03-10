@@ -211,7 +211,7 @@ async def handle_error(error, interaction, voice_client):
         },
     ))
     embed = discord.Embed(title=await MyTranslator().translate(locale_str("Error!"),interaction.locale), description=msg)
-    await interaction.channel.send(embed=embed, ephemeral=False)
+    await interaction.channel.send(embed=embed)
 
     # ボイスチャンネルから切断する
     if voice_client:
@@ -300,7 +300,7 @@ async def send_music_inserted_message(dic, interaction):
         value=dic.get('webpage_url')
     )
 
-    await interaction.channel.send(embed=embed, ephemeral=False)
+    await interaction.channel.send(embed=embed)
 
 
 @tree.command(name="stop", description=locale_str("Stops the music currently playing and discards the cue."))
