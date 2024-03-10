@@ -202,27 +202,30 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 		await handle_error(e, interaction, voice_client)
 
 async def handle_error(error, interaction, voice_client):
-    # エラーメッセージを表示する
-    default_msg = "Rest assured, the error log has been sent automatically to the developer. The error log has been automatically sent to the developer. \nIf you need a support, please join the [support server](https://discord.gg/PN3KWEnYzX). \nThe following is a traceback of the ```python\n{traceback}\n```"
-    msg = await interaction.translate(locale_str(
-        default_msg,
-        fmt_arg={
-            'traceback' : traceback.format_exc(), 
-        },
-    ))
-    embed = discord.Embed(title=await MyTranslator().translate(locale_str("Error!"),interaction.locale), description=msg)
-    await interaction.channel.send(embed=embed)
+	# エラーメッセージを表示する
+	default_msg = "Rest assured, the error log has been sent automatically to the developer. The error log has been automatically sent to the developer. \nIf you need a support, please join the [support server](https://discord.gg/PN3KWEnYzX). \nThe following is a traceback of the ```python\n{traceback}\n```"
+	msg = await interaction.translate(locale_str(
+		default_msg,
+		fmt_arg={
+			'traceback' : traceback.format_exc(), 
+		},
+	))
+	embed = discord.Embed(title=await MyTranslator().translate(locale_str("Error!"),interaction.locale), description=msg)
+	await interaction.channel.send(embed=embed)
 
-    # ボイスチャンネルから切断する
-    if voice_client:
-        await voice_client.disconnect()
-        isConnecting_dict[interaction.guild.id] = False
+	# ボイスチャンネルから切断する
+	if voice_client:
+		await voice_client.disconnect()
+		isConnecting_dict[interaction.guild.id] = False
 
-    # エラーログをDiscordのWebhookに送信する
-    async with aiohttp.ClientSession() as session:
-        webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"), session=session)
-        embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
-        await webhook.send(embed=embed)
+	# エラーログをDiscordのWebhookに送信する
+	async with aiohttp.ClientSession() as session:
+		webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"), session=session)
+		embed = discord.Embed(
+			title="エラーログが届きました！",
+			description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```"
+		)
+		await webhook.send(embed=embed)
 
 async def handle_music(url, interaction, voice_client=None):
 	queue = queue_dict[interaction.guild.id]
@@ -274,31 +277,31 @@ async def handle_music_entry(url, interaction, voice_client):
 	return await handle_music(url, interaction, voice_client)
 
 async def send_music_inserted_message(dic, interaction):
-    if 'entries' in dic:
-        entries_count = len(dic['entries'])
-        default_msg = '{entries_count} songs inserted into the queue.'
-        description = await interaction.translate(locale_str(
-            default_msg,
-            fmt_arg={
-                'entries_count' : entries_count, 
-            },
-        ))
-    else:
-        description = await MyTranslator().translate(locale_str("Song inserted into the queue.",),interaction.locale)
+	if 'entries' in dic:
+		entries_count = len(dic['entries'])
+		default_msg = '{entries_count} songs inserted into the queue.'
+		description = await interaction.translate(locale_str(
+			default_msg,
+			fmt_arg={
+				'entries_count' : entries_count, 
+			},
+		))
+	else:
+		description = await MyTranslator().translate(locale_str("Song inserted into the queue.",),interaction.locale)
 
-    embed = discord.Embed(
-        title="neko's Music Bot",
-        description=description,
-        color=0xda70d6
-    ).add_field(
-        name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
-        value=dic.get('title')
-    ).add_field(
-        name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
-        value=dic.get('webpage_url')
-    )
+	embed = discord.Embed(
+		title="neko's Music Bot",
+		description=description,
+		color=0xda70d6
+	).add_field(
+		name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
+		value=dic.get('title')
+	).add_field(
+		name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
+		value=dic.get('webpage_url')
+	)
 
-    await interaction.channel.send(embed=embed)
+	await interaction.channel.send(embed=embed)
 
 
 @tree.command(name="stop", description=locale_str("Stops the music currently playing and discards the cue."))
