@@ -160,7 +160,6 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 			isPlaying_dict[interaction.guild.id] = False
 			await interaction.user.voice.channel.connect()
 			isConnecting_dict[interaction.guild.id] = True
-			responsed = True
 			await interaction.followup.send(
 				embed=discord.Embed(
 					title="neko's Music Bot",
@@ -183,46 +182,50 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 				ephemeral=True
 			)
 			return
+	else:
+		await interaction.followup.send(
+			embed=discord.Embed(
+				title="neko's Music Bot",
+				description=await MyTranslator().translate(locale_str('Operation accepted. Please wait a moment...'),interaction.locale),
+				color=0xda70d6
+			),
+			ephemeral=False
+		)
 
 	if isPlaying_dict[interaction.guild.id]:
-		await handle_queue_entry(url, interaction, responsed)
+		await handle_queue_entry(url, interaction)
 		return
 
 	try:
-		await handle_music_entry(url, interaction, responsed, voice_client)
+		await handle_music_entry(url, interaction, voice_client)
 	except Exception as e:
 		await handle_error(e, interaction, voice_client)
 
 async def handle_error(error, interaction, voice_client):
-	# エラーメッセージを表示する
-	default_msg = "Rest assured, the error log has been sent automatically to the developer. The error log has been automatically sent to the developer. \nIf you need a support, please join the [support server](https://discord.gg/PN3KWEnYzX). \nThe following is a traceback of the ```python\n{traceback}\n```"
-	msg = await interaction.translate(locale_str(
-		default_msg,
-		fmt_arg={
-			'traceback' : traceback.format_exc(), 
-		},
-	))
-	embed = discord.Embed(title=await MyTranslator().translate(locale_str("Error!"),interaction.locale), description=msg)
-	if responsed == False:
-		await interaction.followup.send(embed=embed, ephemeral=False)  # ここでresponsedがTrueの場合はinteraction.followup.send()を呼び出す
-		responsed = True
-	else:
-		await interaction.channel.send(embed=embed, ephemeral=False)
+    # エラーメッセージを表示する
+    default_msg = "Rest assured, the error log has been sent automatically to the developer. The error log has been automatically sent to the developer. \nIf you need a support, please join the [support server](https://discord.gg/PN3KWEnYzX). \nThe following is a traceback of the ```python\n{traceback}\n```"
+    msg = await interaction.translate(locale_str(
+        default_msg,
+        fmt_arg={
+            'traceback' : traceback.format_exc(), 
+        },
+    ))
+    embed = discord.Embed(title=await MyTranslator().translate(locale_str("Error!"),interaction.locale), description=msg)
+    await interaction.channel.send(embed=embed, ephemeral=False)
 
-	# ボイスチャンネルから切断する
-	await voice_client.disconnect()
-	isConnecting_dict[interaction.guild.id] = False
+    # ボイスチャンネルから切断する
+    if voice_client:
+        await voice_client.disconnect()
+        isConnecting_dict[interaction.guild.id] = False
 
-	# エラーログをDiscordのWebhookに送信する
-	async with aiohttp.ClientSession() as session:
-		webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"), session=session)
-		embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
-		await webhook.send(embed=embed)
+    # エラーログをDiscordのWebhookに送信する
+    async with aiohttp.ClientSession() as session:
+        webhook = discord.Webhook.from_url(os.getenv("errorlog_webhook"), session=session)
+        embed = discord.Embed("<@&1130083364116897862>",title="エラーログが届きました！", description=f"{interaction.guild.name}(ID: {interaction.guild.id})っていうサーバーでエラーが発生しました。\n以下、トレースバックです。```python\n{traceback.format_exc()}\n```")
+        await webhook.send(embed=embed)
 
-
-async def handle_queue_entry(url, interaction, responsed):
+async def handle_music(url, interaction, voice_client=None):
 	queue = queue_dict[interaction.guild.id]
-	loop = asyncio.get_event_loop()
 	ydl_opts = {
 		"outtmpl": f"{interaction.guild.id}",
 		"format": "bestaudio/best",
@@ -233,9 +236,6 @@ async def handle_queue_entry(url, interaction, responsed):
 	flag = "entries" in dic
 
 	if flag:
-		entries_count = len(dic['entries'])
-		if entries_count <= 1:
-			responsed = True
 		for info_dict in dic['entries']:
 			await queue.put({
 				"webpage_url": info_dict.get('webpage_url'),
@@ -251,43 +251,12 @@ async def handle_queue_entry(url, interaction, responsed):
 			"url": dic.get('url'),
 			"title": dic.get('title'),
 			"id": dic.get('id'),
-			"thumbnail": info_dict.get('thumbnail'),
+			"thumbnail": dic.get('thumbnail'),
 		})
 
 	responsed = await send_music_inserted_message(dic, interaction, responsed)
 
-
-async def handle_music_entry(url, interaction, responsed, voice_client):
-	queue = queue_dict[interaction.guild.id]
-	ydl_opts = {
-		"outtmpl": f"{interaction.guild.id}",
-		"format": "bestaudio/best",
-		"noplaylist": False,
-	}
-	ydl = YoutubeDL(ydl_opts)
-	dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-	flag = "entries" in dic
-
-	if flag:
-		for info_dict in dic['entries']:
-			await queue.put({
-				"webpage_url": info_dict.get('webpage_url'),
-				"url": info_dict.get('url'),
-				"title": info_dict.get('title'),
-				"id": info_dict.get('id')
-			})
-			await asyncio.sleep(0.01)
-	else:
-		await queue.put({
-			"webpage_url": dic.get('webpage_url'),
-			"url": dic.get('url'),
-			"title": dic.get('title'),
-			"id": dic.get('id')
-		})
-
-	responsed = await send_music_inserted_message(dic, interaction, responsed)
-
-	if not isPlaying_dict[interaction.guild.id]:
+	if voice_client and not isPlaying_dict[interaction.guild.id]:
 		isPlaying_dict[interaction.guild.id] = True
 		await interaction.channel.send(
 			embed=discord.Embed(
@@ -298,38 +267,40 @@ async def handle_music_entry(url, interaction, responsed, voice_client):
 		)
 		await playbgm(voice_client, interaction.channel, interaction.locale, queue)
 
-
-async def send_music_inserted_message(dic, interaction, responsed):
-	if 'entries' in dic:
-		entries_count = len(dic['entries'])
-		default_msg = '{entries_count} songs inserted into the queue.'
-		description = await interaction.translate(locale_str(
-			default_msg,
-			fmt_arg={
-				'entries_count' : entries_count, 
-			},
-		))
-	else:
-		description = await MyTranslator().translate(locale_str("Song inserted into the queue.",),interaction.locale)
-
-	embed = discord.Embed(
-		title="neko's Music Bot",
-		description=description,
-		color=0xda70d6
-	).add_field(
-		name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
-		value=dic.get('title')
-	).add_field(
-		name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
-		value=dic.get('webpage_url')
-	)
-
-	if responsed == False:
-		await interaction.followup.send(embed=embed, ephemeral=False)  # ここでresponsedがTrueの場合はinteraction.followup.send()を呼び出す
-		responsed = True
-	else:
-		await interaction.channel.send(embed=embed, ephemeral=False)
 	return responsed
+
+async def handle_queue_entry(url, interaction):
+	return await handle_music(url, interaction)
+
+async def handle_music_entry(url, interaction, voice_client):
+	return await handle_music(url, interaction, voice_client)
+
+async def send_music_inserted_message(dic, interaction):
+    if 'entries' in dic:
+        entries_count = len(dic['entries'])
+        default_msg = '{entries_count} songs inserted into the queue.'
+        description = await interaction.translate(locale_str(
+            default_msg,
+            fmt_arg={
+                'entries_count' : entries_count, 
+            },
+        ))
+    else:
+        description = await MyTranslator().translate(locale_str("Song inserted into the queue.",),interaction.locale)
+
+    embed = discord.Embed(
+        title="neko's Music Bot",
+        description=description,
+        color=0xda70d6
+    ).add_field(
+        name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
+        value=dic.get('title')
+    ).add_field(
+        name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
+        value=dic.get('webpage_url')
+    )
+
+    await interaction.channel.send(embed=embed, ephemeral=False)
 
 
 @tree.command(name="stop", description=locale_str("Stops the music currently playing and discards the cue."))
