@@ -254,7 +254,7 @@ async def handle_music(url, interaction, voice_client=None):
 			"thumbnail": dic.get('thumbnail'),
 		})
 
-	responsed = await send_music_inserted_message(dic, interaction, responsed)
+	await send_music_inserted_message(dic, interaction)
 
 	if voice_client and not isPlaying_dict[interaction.guild.id]:
 		isPlaying_dict[interaction.guild.id] = True
@@ -266,8 +266,6 @@ async def handle_music(url, interaction, voice_client=None):
 			)
 		)
 		await playbgm(voice_client, interaction.channel, interaction.locale, queue)
-
-	return responsed
 
 async def handle_queue_entry(url, interaction):
 	return await handle_music(url, interaction)
