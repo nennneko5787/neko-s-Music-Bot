@@ -215,6 +215,9 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 		if "ERROR: Unsupported URL: " in error:
 			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("That URL is not supported."),interaction.locale),color=discord.Colour.red())
 			await interaction.channel.send("",embed=embed)
+		elif "This video is not available" in error:
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("That video is not available."),interaction.locale),color=discord.Colour.red())
+			await interaction.channel.send("",embed=embed)
 		else:
 			await handle_error(interaction, voice_client)
 	except Exception:
