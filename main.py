@@ -3,6 +3,7 @@ from discord.ext import tasks
 import os
 from keep_alive import keep_alive
 import asyncio
+import yt_dlp
 from yt_dlp import YoutubeDL
 from collections import defaultdict
 import logging
@@ -209,10 +210,17 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 
 	try:
 		await handle_music_entry(url, interaction, voice_client)
-	except Exception as e:
-		await handle_error(e, interaction, voice_client)
+	except yt_dlp.utils.DownloadError:
+		error = traceback.format_exc()
+		if "ERROR: Unsupported URL: " in error:
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("That URL is not supported."),interaction.locale),color=discord.Colour.red())
+			await interaction.channel.send("",embed=embed)
+		else:
+			await handle_error(interaction, voice_client)
+	except Exception:
+		await handle_error(interaction, voice_client)
 
-async def handle_error(error, interaction, voice_client):
+async def handle_error(interaction, voice_client):
 	# エラーメッセージを表示する
 	default_msg = "Rest assured, the error log has been sent automatically to the developer. The error log has been automatically sent to the developer. \nIf you need a support, please join the [support server](https://discord.gg/PN3KWEnYzX). \nThe following is a traceback of the ```python\n{traceback}\n```"
 	msg = await interaction.translate(locale_str(
