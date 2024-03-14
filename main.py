@@ -13,6 +13,7 @@ import aiohttp
 from discord.app_commands import locale_str
 from translate import MyTranslator
 import copy
+import psutil
 
 class DiscordClient(discord.Client):
 	async def cleanup(self):
@@ -421,6 +422,15 @@ async def help(interaction: discord.Interaction):
 		await asyncio.sleep(0.01)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 	await interaction.followup.send("",embed=embed)
+
+@tree.command(name="ping", description="ping")
+async def ping(interaction: discord.Interaction):
+	ping = client.latency
+	cpu_percent = psutil.cpu_percent()
+	mem = psutil.virtual_memory() 
+	embed = discord.Embed(title="Ping", description=f"Ping : {ping}ms\nCPU : {cpu_percent}%\nMemory : {mem.percent}%", color=discord.Colour.gold)
+	embed.set_thumbnail(url=client.user.display_avatar.url)
+	await interaction.response.send_message(embed=embed)
 
 @tasks.loop(seconds=20)  # repeat after every 20 seconds
 async def myLoop():
