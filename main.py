@@ -36,7 +36,7 @@ isConnecting_dict = defaultdict(lambda: False)
 isPlaying_dict = defaultdict(lambda: False)
 nowPlaying_dict = defaultdict(lambda: {"title": None})
 
-client = DiscordClient(intents=discord.Intents.default())
+client = DiscordClient(intents=discord.Intents.default(),member_cache_flags=discord.MemberCacheFlags.none())
 tree = discord.app_commands.CommandTree(client) #←ココ
 
 @client.event
