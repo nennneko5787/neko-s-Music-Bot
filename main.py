@@ -428,7 +428,7 @@ async def ping(interaction: discord.Interaction):
 	ping = client.latency
 	cpu_percent = psutil.cpu_percent()
 	mem = psutil.virtual_memory() 
-	embed = discord.Embed(title="Ping", description=f"Ping : {ping}ms\nCPU : {cpu_percent}%\nMemory : {mem.percent}%", color=discord.Colour.gold)
+	embed = discord.Embed(title="Ping", description=f"Ping : {ping}ms\nCPU : {cpu_percent}%\nMemory : {mem.percent}%", color=discord.Colour.gold())
 	embed.set_thumbnail(url=client.user.display_avatar.url)
 	await interaction.response.send_message(embed=embed)
 
