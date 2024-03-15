@@ -14,6 +14,9 @@ from discord.app_commands import locale_str
 from translate import MyTranslator
 import copy
 import psutil
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import re
 
 class DiscordClient(discord.Client):
 	async def cleanup(self):
@@ -36,8 +39,11 @@ isConnecting_dict = defaultdict(lambda: False)
 isPlaying_dict = defaultdict(lambda: False)
 nowPlaying_dict = defaultdict(lambda: {"title": None})
 
-client = DiscordClient(intents=discord.Intents.default(),member_cache_flags=discord.MemberCacheFlags.none())
+client = DiscordClient(intents=discord.Intents.default(), member_cache_flags=discord.MemberCacheFlags.none(), max_message=None)
 tree = discord.app_commands.CommandTree(client) #←ココ
+
+client_credentials_manager = spotipy.oauth2.SpotifyClientCredentials(os.getenv("spotify_clientid"), os.getenv("spotify_client_secret"))
+sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
 @client.event
 async def setup_hook():
@@ -252,6 +258,13 @@ async def handle_error(interaction, voice_client):
 
 async def handle_music(url, interaction, voice_client=None):
 	queue = queue_dict[interaction.guild.id]
+	match = re.search(r'/track/([^/?]+)', url)
+
+	if match:
+		track_id = match.group(1)
+		result = await asyncio.to_thread(sp.track, f"spotify:track:{track_id}")
+		url = f"ytsearch: {result['name']}"
+
 	ydl_opts = {
 		"outtmpl": f"{interaction.guild.id}",
 		"format": "bestaudio/best",
