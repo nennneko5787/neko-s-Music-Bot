@@ -287,17 +287,20 @@ async def handle_music(url, interaction, voice_client=None):
 		result = await asyncio.to_thread(sp.track, f"spotify:track:{track_id}")
 		url = f"ytsearch: {result['name']}"
 
+	lang = languages.get(interaction.locale,"en-US")
+	langg = languages2.get(interaction.locale,"en-US")
+
 	ydl_opts = {
 		"outtmpl": "%(id)s",
 		"format": "bestaudio/best",
 		"noplaylist": False,
 		'extractor_args': {
 			'youtube': {
-				'lang': languages2.get(interaction.locale,"en-US")
+				'lang': langg
 			}
 		},
 		'headers': {
-			'Accept-Language': languages.get(interaction.locale,"en-US")
+			'Accept-Language': lang
 		},
 	}
 	ydl = YoutubeDL(ydl_opts)
