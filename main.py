@@ -294,6 +294,13 @@ async def handle_music(url, interaction, voice_client=None):
 		"outtmpl": "%(id)s",
 		"format": "bestaudio/best",
 		"noplaylist": False,
+	}
+
+	"""
+	ydl_opts = {
+		"outtmpl": "%(id)s",
+		"format": "bestaudio/best",
+		"noplaylist": False,
 		'extractor_args': {
 			'youtube': {
 				'lang': langg
@@ -303,6 +310,8 @@ async def handle_music(url, interaction, voice_client=None):
 			'Accept-Language': lang
 		},
 	}
+	"""
+
 	ydl = YoutubeDL(ydl_opts)
 	
 	dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
