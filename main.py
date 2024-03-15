@@ -133,7 +133,6 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	weburl = item.get("webpage_url")
 	title = item.get("title")
 	thumbnail = item.get("thumbnail")
-	color = item.get("color")
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Waiting for song playback"),language), color=0xda70d6)
 	await channel.send(embed=embed)
 	
@@ -151,7 +150,7 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	nowPlaying_dict[f"{voice_client.guild.id}"] = item
 	loop = asyncio.get_event_loop()
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
-	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=color)	#color=0xda70d6
+	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=0xda70d6)
 	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=title)
 	embed.add_field(name=await MyTranslator().translate(locale_str("Video URL"),language), value=weburl)
 	embed.set_image(url=thumbnail)
@@ -261,13 +260,10 @@ async def handle_music(url, interaction, voice_client=None):
 	queue = queue_dict[interaction.guild.id]
 	match = re.search(r'/track/([^/?]+)', url)
 
-	isspotify = False
-
 	if match:
 		track_id = match.group(1)
 		result = await asyncio.to_thread(sp.track, f"spotify:track:{track_id}")
 		url = f"ytsearch: {result['name']}"
-		isspotify = True
 
 	ydl_opts = {
 		"outtmpl": "%(id)s",
@@ -275,76 +271,28 @@ async def handle_music(url, interaction, voice_client=None):
 		"noplaylist": False,
 	}
 	ydl = YoutubeDL(ydl_opts)
+	
+	dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
+	flag = "entries" in dic
 
-	isalbum = re.search(r'/album/([^/?]+)', url)
-	isplaylist = re.search(r'/album/([^/?]+)', url)
-
-	if isalbum:
-		album_id = isalbum.group(1)
-		result = await asyncio.to_thread(sp.album, f"spotify:album:{album_id}")
-		for track in result['tracks']['items']:
-			url = f"ytsearch: {track['name']}"
-			dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
+	if flag:
+		for info_dict in dic['entries']:
 			await queue.put({
-				"webpage_url": dic.get('webpage_url'),
-				"url": dic.get('url'),
-				"title": dic.get('title'),
-				"id": dic.get('id'),
-				"thumbnail": dic.get('thumbnail'),
-				"color": discord.Colour.from_rgb(30,215,96),
+				"webpage_url": info_dict.get('webpage_url'),
+				"url": info_dict.get('url'),
+				"title": info_dict.get('title'),
+				"id": info_dict.get('id'),
+				"thumbnail": info_dict.get('thumbnail'),
 			})
-	elif isplaylist:
-		isplaylist = isplaylist.group(1)
-		result = await asyncio.to_thread(sp.playlist, f"spotify:playlist:{isplaylist}")
-		for track in result['tracks']['items']:
-			url = f"ytsearch: {track['name']}"
-			dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-			await queue.put({
-				"webpage_url": dic.get('webpage_url'),
-				"url": dic.get('url'),
-				"title": dic.get('title'),
-				"id": dic.get('id'),
-				"thumbnail": dic.get('thumbnail'),
-				"color": discord.Colour.from_rgb(30,215,96),
-			})
+			await asyncio.sleep(0.01)
 	else:
-		dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-		flag = "entries" in dic
-
-		if flag:
-			for info_dict in dic['entries']:
-				if isspotify:
-					color = discord.Colour.from_rgb(30,215,96)
-				elif "youtube" in info_dict.get("webpage_url"):
-					color = discord.Colour.from_rgb(255,0,0)
-				else:
-					color = None
-
-				await queue.put({
-					"webpage_url": info_dict.get('webpage_url'),
-					"url": info_dict.get('url'),
-					"title": info_dict.get('title'),
-					"id": info_dict.get('id'),
-					"thumbnail": info_dict.get('thumbnail'),
-					"color": color,
-				})
-				await asyncio.sleep(0.01)
-		else:
-			if isspotify:
-				color = discord.Colour.from_rgb(30,215,96)
-			elif "youtube" in dic.get("webpage_url"):
-				color = discord.Colour.from_rgb(255,0,0)
-			else:
-				color = None
-
-			await queue.put({
-				"webpage_url": dic.get('webpage_url'),
-				"url": dic.get('url'),
-				"title": dic.get('title'),
-				"id": dic.get('id'),
-				"thumbnail": dic.get('thumbnail'),
-				"color": color,
-			})
+		await queue.put({
+			"webpage_url": dic.get('webpage_url'),
+			"url": dic.get('url'),
+			"title": dic.get('title'),
+			"id": dic.get('id'),
+			"thumbnail": dic.get('thumbnail'),
+		})
 
 	await send_music_inserted_message(dic, interaction)
 
@@ -374,7 +322,7 @@ async def send_music_inserted_message(dic, interaction):
 			embed = discord.Embed(
 				title="neko's Music Bot",
 				description=description,
-				color=dic["entries"][0].get('color')	#0xda70d6
+				color=0xda70d6
 			).add_field(
 				name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
 				value=dic["entries"][0].get('title')
@@ -390,32 +338,20 @@ async def send_music_inserted_message(dic, interaction):
 					'entries_count' : entries_count, 
 				},
 			))
-
-			embed = discord.Embed(
-				title="neko's Music Bot",
-				description=description,
-				color=dic["entries"][0].get('color')	#0xda70d6
-			).add_field(
-				name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
-				value=dic["entries"][0].get('title')
-			).add_field(
-				name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
-				value=dic["entries"][0].get('webpage_url')
-			)
 	else:
 		description = await MyTranslator().translate(locale_str("Song inserted into the queue.",),interaction.locale)
 
-		embed = discord.Embed(
-			title="neko's Music Bot",
-			description=description,
-			color=dic.get('color')	#0xda70d6
-		).add_field(
-			name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
-			value=dic.get('title')
-		).add_field(
-			name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
-			value=dic.get('webpage_url')
-		)
+	embed = discord.Embed(
+		title="neko's Music Bot",
+		description=description,
+		color=0xda70d6
+	).add_field(
+		name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
+		value=dic.get('title')
+	).add_field(
+		name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
+		value=dic.get('webpage_url')
+	)
 
 	await interaction.channel.send(embed=embed)
 
