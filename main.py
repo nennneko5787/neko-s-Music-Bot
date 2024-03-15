@@ -56,6 +56,17 @@ languages = {
 	discord.Locale.russian: "ru-RU",
 }
 
+languages2 = {
+	discord.Locale.japanese: "ja",
+	discord.Locale.korean: "ko",
+	discord.Locale.chinese: "zh-CN",
+	discord.Locale.taiwan_chinese: "zh-TW",
+	discord.Locale.american_english: "en-US",
+	discord.Locale.british_english: "en-GB",
+	discord.Locale.ukrainian: "uk",
+	discord.Locale.russian: "ru",
+}
+
 @client.event
 async def setup_hook():
 	print('ログインしました')
@@ -282,11 +293,11 @@ async def handle_music(url, interaction, voice_client=None):
 		"noplaylist": False,
 		'extractor_args': {
 			'youtube': {
-				'lang': str(interaction.locale)
+				'lang': languages2[interaction.locale] if interaction.locale in languages2 else "en-US"
 			}
 		},
 		'headers': {
-			'Accept-Language': languages[interaction.locale],  # Accept-Languageヘッダーを追加
+			'Accept-Language': languages[interaction.locale] if interaction.locale in languages else "en-US"
 		},
 	}
 	ydl = YoutubeDL(ydl_opts)
