@@ -282,7 +282,7 @@ async def handle_music(url, interaction, voice_client=None):
 		"noplaylist": False,
 		'extractor_args': {
 			'youtube': {
-				'lang': interaction.locale
+				'lang': str(interaction.locale)
 			}
 		},
 		'headers': {
@@ -336,7 +336,7 @@ async def send_music_inserted_message(dic, interaction):
 	if 'entries' in dic:
 		entries_count = len(dic['entries'])
 		if entries_count == 1:
-			description = await MyTranslator().translate(locale_str("Song inserted into the queue.",),interaction.locale)
+			description = await MyTranslator().translate(locale_str("{entries_count} songs inserted into the queue.",),interaction.locale)
 
 			embed = discord.Embed(
 				title="neko's Music Bot",
