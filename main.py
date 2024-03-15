@@ -259,14 +259,15 @@ async def handle_error(interaction, voice_client):
 
 async def handle_music(url, interaction, voice_client=None):
 	queue = queue_dict[interaction.guild.id]
-	is_spotify = False
-
 	match = re.search(r'/track/([^/?]+)', url)
+
+	isspotify = False
+
 	if match:
 		track_id = match.group(1)
 		track = await asyncio.to_thread(sp.track, f"spotify:track:{track_id}")
-		url = f"ytsearch: {track['name']}"
-		is_spotify = True
+		url = f"ytsearch: {result['name']}"
+		isspotify = True
 
 	ydl_opts = {
 		"outtmpl": "%(id)s",
@@ -275,38 +276,95 @@ async def handle_music(url, interaction, voice_client=None):
 	}
 	ydl = YoutubeDL(ydl_opts)
 
-	is_album = re.search(r'/album/([^/?]+)', url)
-	is_playlist = re.search(r'/playlist/([^/?]+)', url)
+	isalbum = re.search(r'/album/([^/?]+)', url)
+	isplaylist = re.search(r'/playlist/([^/?]+)', url)
 
-	if is_album or is_playlist:
-		result = await asyncio.to_thread(sp.album if is_album else sp.playlist, f"spotify:{'album' if is_album else 'playlist'}:{is_album.group(1) if is_album else is_playlist.group(1)}")
-		tracks = result['tracks']['items']
+	if isalbum:
+		album_id = isalbum.group(1)
+		result = await asyncio.to_thread(sp.album, f"spotify:album:{album_id}")
+		for track in result['tracks']['items']:
+			_url = f"ytsearch: {track['name']}"
+			dic = await asyncio.to_thread(lambda: ydl.extract_info(_url, download=False))
+			await queue.put({
+				"webpage_url": f"https://open.spotify.com/track/{track['id']}",
+				"url": dic.get('url'),
+				"title": track['name'],
+				"id": track['id'],
+				"thumbnail": None,
+				"color": discord.Colour.from_rgb(30,215,96),
+			})
+			await asyncio.sleep(0.01)
+	elif isplaylist:
+		isplaylist = isplaylist.group(1)
+		result = await asyncio.to_thread(sp.playlist, f"spotify:playlist:{isplaylist}")
+		for track in result['tracks']['items']:
+			_url = f"ytsearch: {track['name']}"
+			dic = await asyncio.to_thread(lambda: ydl.extract_info(_url, download=False))
+			await queue.put({
+				"webpage_url": f"https://open.spotify.com/track/{track['id']}",
+				"url": dic.get('url'),
+				"title": track['name'],
+				"id": track['id'],
+				"thumbnail": None,
+				"color": discord.Colour.from_rgb(30,215,96),
+			})
+			await asyncio.sleep(0.01)
 	else:
 		dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
-		if "entries" in dic:
-			tracks = dic['entries']
+		flag = "entries" in dic
+
+		if flag:
+			for info_dict in dic['entries']:
+				if isspotify:
+					await queue.put({
+						"webpage_url": f"https://open.spotify.com/track/{track['id']}",
+						"url": info_dict.get('url'),
+						"title": track['name'],
+						"id": track['id'],
+						"thumbnail": None,
+						"color": discord.Colour.from_rgb(30,215,96),
+					})
+				else:
+					if "youtube" in info_dict.get("webpage_url"):
+						color = discord.Colour.from_rgb(255,0,0)
+					else:
+						color = None
+
+					await queue.put({
+						"webpage_url": info_dict.get('webpage_url'),
+						"url": info_dict.get('url'),
+						"title": info_dict.get('title'),
+						"id": info_dict.get('id'),
+						"thumbnail": info_dict.get('thumbnail'),
+						"color": color,
+					})
+
+				await asyncio.sleep(0.01)
 		else:
-			tracks = [dic]
+			if isspotify:
+				color = discord.Colour.from_rgb(30,215,96)
+				await queue.put({
+					"webpage_url": f"https://open.spotify.com/track/{track['id']}",
+					"url": dic.get('url'),
+					"title": track['name'],
+					"id": track['id'],
+					"thumbnail": None,
+					"color": discord.Colour.from_rgb(30,215,96),
+				})
+			else:
+				if "youtube" in dic.get("webpage_url"):
+					color = discord.Colour.from_rgb(255,0,0)
+				else:
+					color = None
 
-	for track in tracks:
-		if is_spotify:
-			track_url = f"https://open.spotify.com/track/{track['id']}"
-		else:
-			track_url = track.get('url')
-
-		color = None
-		if not is_spotify and "youtube" in track.get("webpage_url"):
-			color = discord.Colour.from_rgb(255, 0, 0)
-
-		await queue.put({
-			"webpage_url": track_url,
-			"url": track_url,
-			"title": track['name'],
-			"id": track['id'],
-			"thumbnail": track.get('thumbnail'),
-			"color": color,
-		})
-		await asyncio.sleep(0.01)
+				await queue.put({
+					"webpage_url": dic.get('webpage_url'),
+					"url": dic.get('url'),
+					"title": dic.get('title'),
+					"id": dic.get('id'),
+					"thumbnail": dic.get('thumbnail'),
+					"color": color,
+				})
 
 	await send_music_inserted_message(dic, interaction)
 
@@ -315,7 +373,7 @@ async def handle_music(url, interaction, voice_client=None):
 		await interaction.channel.send(
 			embed=discord.Embed(
 				title="neko's Music Bot",
-				description=await MyTranslator().translate(locale_str("Starts playing the song."), interaction.locale),
+				description=await MyTranslator().translate(locale_str("Starts playing the song."),interaction.locale),
 				color=0xda70d6
 			)
 		)
