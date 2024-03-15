@@ -39,7 +39,10 @@ isConnecting_dict = defaultdict(lambda: False)
 isPlaying_dict = defaultdict(lambda: False)
 nowPlaying_dict = defaultdict(lambda: {"title": None})
 
-client = DiscordClient(intents=discord.Intents.default(), member_cache_flags=discord.MemberCacheFlags.none(), max_message=None)
+intents = discord.Intents.none()
+intents.guilds = True
+intents.voice_states = True
+client = DiscordClient(intents=intents, member_cache_flags=discord.MemberCacheFlags.none(), max_message=None)
 tree = discord.app_commands.CommandTree(client) #←ココ
 
 client_credentials_manager = spotipy.oauth2.SpotifyClientCredentials(os.getenv("spotify_clientid"), os.getenv("spotify_client_secret"))
