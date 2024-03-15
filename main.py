@@ -359,7 +359,13 @@ async def send_music_inserted_message(dic, interaction):
 	if 'entries' in dic:
 		entries_count = len(dic['entries'])
 		if entries_count == 1:
-			description = await MyTranslator().translate(locale_str("{entries_count} songs inserted into the queue.",),interaction.locale)
+			default_msg = '{entries_count} songs inserted into the queue.'
+			description = await interaction.translate(locale_str(
+				default_msg,
+				fmt_arg={
+					'entries_count' : entries_count, 
+				},
+			))
 
 			embed = discord.Embed(
 				title="neko's Music Bot",
