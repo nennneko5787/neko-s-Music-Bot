@@ -293,11 +293,11 @@ async def handle_music(url, interaction, voice_client=None):
 		"noplaylist": False,
 		'extractor_args': {
 			'youtube': {
-				'lang': languages2[interaction.locale] if interaction.locale in languages2 else "en-US"
+				'lang': languages2.get(interaction.locale,"en-US")
 			}
 		},
 		'headers': {
-			'Accept-Language': languages[interaction.locale] if interaction.locale in languages else "en-US"
+			'Accept-Language': languages.get(interaction.locale,"en-US")
 		},
 	}
 	ydl = YoutubeDL(ydl_opts)
@@ -487,7 +487,7 @@ async def ping(interaction: discord.Interaction):
 	ping = client.latency
 	cpu_percent = psutil.cpu_percent()
 	mem = psutil.virtual_memory() 
-	embed = discord.Embed(title="Ping", description=f"Ping : {ping}ms\nCPU : {cpu_percent}%\nMemory : {mem.percent}%", color=discord.Colour.gold())
+	embed = discord.Embed(title="Ping", description=f"Ping : {ping*1000}ms\nCPU : {cpu_percent}%\nMemory : {mem.percent}%", color=discord.Colour.gold())
 	embed.set_thumbnail(url=client.user.display_avatar.url)
 	await interaction.response.send_message(embed=embed)
 
