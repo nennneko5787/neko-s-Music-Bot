@@ -280,6 +280,11 @@ async def handle_music(url, interaction, voice_client=None):
 		"outtmpl": "%(id)s",
 		"format": "bestaudio/best",
 		"noplaylist": False,
+		'extractor_args': {
+			'youtube': {
+				'lang': interaction.locale
+			}
+		},
 		'headers': {
 			'Accept-Language': languages[interaction.locale],  # Accept-Languageヘッダーを追加
 		},
