@@ -45,6 +45,17 @@ tree = discord.app_commands.CommandTree(client) #←ココ
 client_credentials_manager = spotipy.oauth2.SpotifyClientCredentials(os.getenv("spotify_clientid"), os.getenv("spotify_client_secret"))
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
+languages = {
+	discord.Locale.japanese: "ja-JP",
+	discord.Locale.korean: "ko-KR",
+	discord.Locale.chinese: "zh-CN",
+	discord.Locale.taiwan_chinese: "zh-TW",
+	discord.Locale.american_english: "en-US",
+	discord.Locale.british_english: "en-GB",
+	discord.Locale.ukrainian: "uk-UA",
+	discord.Locale.russian: "ru-RU",
+}
+
 @client.event
 async def setup_hook():
 	print('ログインしました')
@@ -269,6 +280,9 @@ async def handle_music(url, interaction, voice_client=None):
 		"outtmpl": "%(id)s",
 		"format": "bestaudio/best",
 		"noplaylist": False,
+		'headers': {
+			'Accept-Language': languages[interaction.locale],  # Accept-Languageヘッダーを追加
+		},
 	}
 	ydl = YoutubeDL(ydl_opts)
 	
