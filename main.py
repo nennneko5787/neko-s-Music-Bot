@@ -283,8 +283,8 @@ async def handle_music(url, interaction, voice_client=None):
 		album_id = isalbum.group(1)
 		result = await asyncio.to_thread(sp.album, f"spotify:album:{album_id}")
 		for track in result['tracks']['items']:
-			url = f"ytsearch: {track['name']}"
-			dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
+			_url = f"ytsearch: {track['name']}"
+			dic = await asyncio.to_thread(lambda: ydl.extract_info(_url, download=False))
 			await queue.put({
 				"webpage_url": f"https://open.spotify.com/track/{track['id']}",
 				"url": dic.get('url'),
@@ -298,8 +298,8 @@ async def handle_music(url, interaction, voice_client=None):
 		isplaylist = isplaylist.group(1)
 		result = await asyncio.to_thread(sp.playlist, f"spotify:playlist:{isplaylist}")
 		for track in result['tracks']['items']:
-			url = f"ytsearch: {track['name']}"
-			dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
+			_url = f"ytsearch: {track['name']}"
+			dic = await asyncio.to_thread(lambda: ydl.extract_info(_url, download=False))
 			await queue.put({
 				"webpage_url": f"https://open.spotify.com/track/{track['id']}",
 				"url": dic.get('url'),
