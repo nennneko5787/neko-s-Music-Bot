@@ -34,6 +34,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"You can check the songs in the queue.": "キュー内の曲を確認することができます。",
 		"Operation accepted. Please wait a moment...": "操作を受け付けました。しばらくお待ち下さい...",
 		"That URL is not supported.": "そのURLはサポートされていません。",
+		"That song is not available.": "その曲は利用できません。",
 	},
 	Locale.chinese: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '播放指定的音乐。如果已经在播放音乐，则将其插入到队列中。',
@@ -67,6 +68,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"You can check the songs in the queue.": "您可以查看队列中的歌曲。",
 		"Operation accepted. Please wait a moment...": "操作已接受，请稍候...",
 		"That URL is not supported.": "该URL不受支持。",
+		"That song is not available.": "该歌曲不可用。",
 	},
 	Locale.taiwan_chinese: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '播放指定的音樂URL。如果已經在播放音樂，則將其插入到佇列中。',
@@ -100,6 +102,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"You can check the songs in the queue.": "您可以檢查隊列中的歌曲。",
 		"Operation accepted. Please wait a moment...": "操作已接受，請稍候...",
 		"That URL is not supported.": "該URL不受支援。",
+		"That song is not available.": "該歌曲不可用。",
 	},
 	Locale.korean: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '지정된 URL의 음악을 재생합니다. 이미 음악이 재생 중인 경우에는 큐에 삽입됩니다.',
@@ -133,6 +136,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"You can check the songs in the queue.": "대기열에서 노래를 확인할 수 있습니다.",
 		"Operation accepted. Please wait a moment...": "작업이 수락되었습니다. 잠시만 기다려주십시오...",
 		"That URL is not supported.": "해당 URL은(는) 지원되지 않습니다.",
+		"That song is not available.": "해당 곡은 이용할 수 없습니다.",
 	},
 	Locale.ukrainian: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': 'Відтворює музику, вказану за URL. Якщо музика вже відтворюється, вона вставляється в чергу.',
@@ -166,6 +170,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"You can check the songs in the queue.": "Ви можете перевірити пісні у черзі.",
 		"Operation accepted. Please wait a moment...": "Операція прийнята. Будь ласка, зачекайте трохи...",
 		"That URL is not supported.": "Цей URL не підтримується.",
+		"That song is not available.": "Ця пісня недоступна.",
 	},
 	Locale.russian: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the queue.': 'Воспроизводит музыку, указанную по URL. Если музыка уже играет, она вставляется в очередь.',
@@ -199,6 +204,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"You can check the songs in the queue.": "Вы можете проверить песни в очереди.",
 		"Operation accepted. Please wait a moment...": "Операция принята. Пожалуйста, подождите немного...",
 		"That URL is not supported.": "Этот URL не поддерживается.",
+		"That song is not available.": "Эта песня недоступна.",
 	},
 }
 

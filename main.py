@@ -13,6 +13,10 @@ import aiohttp
 from discord.app_commands import locale_str
 from translate import MyTranslator
 import copy
+import psutil
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import re
 
 class DiscordClient(discord.Client):
 	async def cleanup(self):
@@ -35,8 +39,36 @@ isConnecting_dict = defaultdict(lambda: False)
 isPlaying_dict = defaultdict(lambda: False)
 nowPlaying_dict = defaultdict(lambda: {"title": None})
 
-client = DiscordClient(intents=discord.Intents.default())
+intents = discord.Intents.none()
+intents.guilds = True
+intents.voice_states = True
+client = DiscordClient(intents=intents, member_cache_flags=discord.MemberCacheFlags.none(), max_message=None, chunk_guilds_at_startup=False)
 tree = discord.app_commands.CommandTree(client) #←ココ
+
+client_credentials_manager = spotipy.oauth2.SpotifyClientCredentials(os.getenv("spotify_clientid"), os.getenv("spotify_client_secret"))
+sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+
+languages = {
+	discord.Locale.japanese: "ja-JP",
+	discord.Locale.korean: "ko-KR",
+	discord.Locale.chinese: "zh-CN",
+	discord.Locale.taiwan_chinese: "zh-TW",
+	discord.Locale.american_english: "en-US",
+	discord.Locale.british_english: "en-GB",
+	discord.Locale.ukrainian: "uk-UA",
+	discord.Locale.russian: "ru-RU",
+}
+
+languages2 = {
+	discord.Locale.japanese: "ja",
+	discord.Locale.korean: "ko",
+	discord.Locale.chinese: "zh-CN",
+	discord.Locale.taiwan_chinese: "zh-TW",
+	discord.Locale.american_english: "en-US",
+	discord.Locale.british_english: "en-GB",
+	discord.Locale.ukrainian: "uk",
+	discord.Locale.russian: "ru",
+}
 
 @client.event
 async def setup_hook():
@@ -215,6 +247,9 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 		if "ERROR: Unsupported URL: " in error:
 			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("That URL is not supported."),interaction.locale),color=discord.Colour.red())
 			await interaction.channel.send("",embed=embed)
+		elif "This video is not available" in error:
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("That video is not available."),interaction.locale),color=discord.Colour.red())
+			await interaction.channel.send("",embed=embed)
 		else:
 			await handle_error(interaction, voice_client)
 	except Exception:
@@ -248,12 +283,40 @@ async def handle_error(interaction, voice_client):
 
 async def handle_music(url, interaction, voice_client=None):
 	queue = queue_dict[interaction.guild.id]
+	match = re.search(r'/track/([^/?]+)', url)
+
+	if match:
+		track_id = match.group(1)
+		result = await asyncio.to_thread(sp.track, f"spotify:track:{track_id}")
+		url = f"ytsearch: {result['name']}"
+
+	lang = languages.get(interaction.locale,"en-US")
+	langg = languages2.get(interaction.locale,"en-US")
+
 	ydl_opts = {
-		"outtmpl": f"{interaction.guild.id}",
+		"outtmpl": "%(id)s",
 		"format": "bestaudio/best",
 		"noplaylist": False,
 	}
+
+	"""
+	ydl_opts = {
+		"outtmpl": "%(id)s",
+		"format": "bestaudio/best",
+		"noplaylist": False,
+		'extractor_args': {
+			'youtube': {
+				'lang': langg
+			}
+		},
+		'headers': {
+			'Accept-Language': lang
+		},
+	}
+	"""
+
 	ydl = YoutubeDL(ydl_opts)
+	
 	dic = await asyncio.to_thread(lambda: ydl.extract_info(url, download=False))
 	flag = "entries" in dic
 
@@ -298,13 +361,34 @@ async def handle_music_entry(url, interaction, voice_client):
 async def send_music_inserted_message(dic, interaction):
 	if 'entries' in dic:
 		entries_count = len(dic['entries'])
-		default_msg = '{entries_count} songs inserted into the queue.'
-		description = await interaction.translate(locale_str(
-			default_msg,
-			fmt_arg={
-				'entries_count' : entries_count, 
-			},
-		))
+		if entries_count == 1:
+			default_msg = '{entries_count} songs inserted into the queue.'
+			description = await interaction.translate(locale_str(
+				default_msg,
+				fmt_arg={
+					'entries_count' : entries_count, 
+				},
+			))
+
+			embed = discord.Embed(
+				title="neko's Music Bot",
+				description=description,
+				color=0xda70d6
+			).add_field(
+				name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
+				value=dic["entries"][0].get('title')
+			).add_field(
+				name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
+				value=dic["entries"][0].get('webpage_url')
+			)
+		else:
+			default_msg = '{entries_count} songs inserted into the queue.'
+			description = await interaction.translate(locale_str(
+				default_msg,
+				fmt_arg={
+					'entries_count' : entries_count, 
+				},
+			))
 	else:
 		description = await MyTranslator().translate(locale_str("Song inserted into the queue.",),interaction.locale)
 
@@ -418,6 +502,15 @@ async def help(interaction: discord.Interaction):
 		await asyncio.sleep(0.01)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 	await interaction.followup.send("",embed=embed)
+
+@tree.command(name="ping", description="ping")
+async def ping(interaction: discord.Interaction):
+	ping = client.latency
+	cpu_percent = psutil.cpu_percent()
+	mem = psutil.virtual_memory() 
+	embed = discord.Embed(title="Ping", description=f"Ping : {ping*1000}ms\nCPU : {cpu_percent}%\nMemory : {mem.percent}%", color=discord.Colour.gold())
+	embed.set_thumbnail(url=client.user.display_avatar.url)
+	await interaction.response.send_message(embed=embed)
 
 @tasks.loop(seconds=20)  # repeat after every 20 seconds
 async def myLoop():
