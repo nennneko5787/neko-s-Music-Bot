@@ -436,7 +436,6 @@ async def skip(interaction: discord.Interaction):
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("Skipped one song."),interaction.locale),color=0xda70d6)
 	await interaction.response.send_message("",embed=embed)
 	voice_client.stop()
-	await playbgm(voice_client,voice_client.channel,interaction.locale)
 
 @tree.command(name="pause", description=locale_str("Pause the song."))
 @discord.app_commands.guild_only()
@@ -502,6 +501,55 @@ async def help(interaction: discord.Interaction):
 		await asyncio.sleep(0.01)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 	await interaction.followup.send("",embed=embed)
+
+@tree.command(name="forceplay", description="forceplay")
+async def ping(interaction: discord.Interaction):
+	await interaction.response.defer()
+	if voice_client is None and isConnecting_dict[interaction.guild.id] == False:
+		if interaction.user.voice is not None:
+			isPlaying_dict[interaction.guild.id] = False
+			await interaction.user.voice.channel.connect()
+			isConnecting_dict[interaction.guild.id] = True
+			await interaction.followup.send(
+				embed=discord.Embed(
+					title="neko's Music Bot",
+					description=await MyTranslator().translate(locale_str('Connected to voice channel.'),interaction.locale),
+					color=0xda70d6
+				).add_field(
+					name=await MyTranslator().translate(locale_str('Destination Channel'),interaction.locale),
+					value=f"<#{interaction.user.voice.channel.id}>"
+				),
+				ephemeral=False
+			)
+			voice_client = interaction.guild.voice_client
+		else:
+			await interaction.followup.send(
+				embed=discord.Embed(
+					title="neko's Music Bot",
+					description=await MyTranslator().translate(locale_str("You are not currently connecting to any voice channel."),interaction.locale),
+					color=discord.Colour.red()
+				),
+				ephemeral=True
+			)
+			return
+	else:
+		await interaction.followup.send(
+			embed=discord.Embed(
+				title="neko's Music Bot",
+				description=await MyTranslator().translate(locale_str('Operation accepted. Please wait a moment...'),interaction.locale),
+				color=0xda70d6
+			),
+			ephemeral=False
+		)
+	queue = queue_dict[interaction.guild.id]
+	if queue.qsize() != 0:
+		embed = discord.Embed(title="neko's Music Bot", description="Start force playing.", color=discord.Colour.purple())
+		await interaction.channel.send(embed=embed, ephemeral=True)
+		isPlaying_dict[interaction.guild.id] = True
+		await playbgm(voice_client, interaction.channel, interaction.locale, queue)
+	else:
+		embed = discord.Embed(title="neko's Music Bot", description="Queue is Empty.", color=discord.Colour.red())
+		await interaction.channel.send(embed=embed, ephemeral=True)
 
 @tree.command(name="ping", description="ping")
 async def ping(interaction: discord.Interaction):
