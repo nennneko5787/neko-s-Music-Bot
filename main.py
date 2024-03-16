@@ -535,7 +535,7 @@ async def help(interaction: discord.Interaction):
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 	await interaction.followup.send("",embed=embed)
 
-@tree.command(name="forceplay", description=locale_str("If a song is in the queue, it is forced to play the song. (You may not want to use this function very often.)"))
+@tree.command(name="forceplay", description=locale_str("If a song is in the queue, it is forced to play the song."))
 @discord.app_commands.guild_only()
 async def forceplay(interaction: discord.Interaction):
 	await interaction.response.defer()
