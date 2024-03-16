@@ -70,7 +70,7 @@ languages2 = {
 	discord.Locale.russian: "ru",
 }
 
-YOUTUBE_DISABLED = False
+# YOUTUBE_DISABLED = False
 
 @client.event
 async def setup_hook():
@@ -81,9 +81,11 @@ async def setup_hook():
 @client.event
 async def on_ready():
 	myLoop.start()
+	"""
 	if "Develop" in client.user.name:
 		global YOUTUBE_DISABLED
 		YOUTUBE_DISABLED = False
+	"""
 
 @client.event
 async def on_voice_state_update(member, before, after):
@@ -189,6 +191,7 @@ async def handle_download_and_play(item, voice_client, channel, language):
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
 @discord.app_commands.guild_only()
 async def play(interaction: discord.Interaction, url:str):
+	"""
 	global YOUTUBE_DISABLED
 	if YOUTUBE_DISABLED:
 		if "youtube.com" in url:
@@ -199,11 +202,13 @@ async def play(interaction: discord.Interaction, url:str):
 			),
 			await interaction.response.send_message(embed=embed,ephemeral=True)
 			return
+	"""
 	await asyncio.create_task(musicPlayFunction(interaction, url))
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
 @discord.app_commands.guild_only()
 async def yplay(interaction: discord.Interaction, search:str):
+	"""
 	global YOUTUBE_DISABLED
 	if YOUTUBE_DISABLED:
 		embed=discord.Embed(
@@ -213,6 +218,7 @@ async def yplay(interaction: discord.Interaction, search:str):
 		),
 		await interaction.response.send_message(embed=embed,ephemeral=True)
 		return
+	"""
 	await asyncio.create_task(musicPlayFunction(interaction, f"ytsearch:{search}"))
 
 async def musicPlayFunction(interaction: discord.Interaction, url: str):
