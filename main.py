@@ -494,7 +494,7 @@ class QueueView(discord.ui.View):
 		self.page = 0
 	
 	@discord.ui.button(emoji="◀", style=discord.ButtonStyle.success)
-	async def prev(self, interaction: discord.Interaction):
+	async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
 		if interaction.guild.id in queue_dict:
 			await interaction.response.defer()
 			self.page -= 1
@@ -523,7 +523,7 @@ class QueueView(discord.ui.View):
 			return
 
 	@discord.ui.button(emoji="▶", style=discord.ButtonStyle.success)
-	async def next(self, interaction: discord.Interaction):
+	async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
 		if interaction.guild.id in queue_dict:
 			await interaction.response.defer()
 			self.page += 1
@@ -552,7 +552,7 @@ class QueueView(discord.ui.View):
 			return
 
 	@discord.ui.button(emoji="❌", style=discord.ButtonStyle.danger)
-	async def close(self, interaction: discord.Interaction):
+	async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
 		await interaction.response.defer()
 		await interaction.message.delete()
 
