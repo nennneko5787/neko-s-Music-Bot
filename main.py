@@ -514,8 +514,10 @@ class QueueView(discord.ui.View):
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
-			if self.page == 1:
+			if (self.page - 1)*10 < 0:
 				view.prev.disabled = True
+			if (self.page + 1)*10 > c:
+				view.next.disabled = True
 			await interaction.message.edit(embed=embed, view=view)
 		else:
 			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
@@ -543,6 +545,8 @@ class QueueView(discord.ui.View):
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
+			if (self.page - 1)*10 < 0:
+				view.prev.disabled = True
 			if (self.page + 1)*10 > c:
 				view.next.disabled = True
 			await interaction.message.edit(embed=embed, view=view)
@@ -571,6 +575,8 @@ class QueueView(discord.ui.View):
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
+			if (self.page - 1)*10 < 0:
+				view.prev.disabled = True
 			if (self.page + 1)*10 > c:
 				view.next.disabled = True
 			await interaction.message.edit(embed=embed, view=view)
@@ -605,7 +611,10 @@ async def queue(interaction: discord.Interaction):
 			await asyncio.sleep(0.01)
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 		view = QueueView()
-		view.prev.disabled = True
+			if (self.page - 1)*10 < 0:
+				view.prev.disabled = True
+			if (self.page + 1)*10 > c:
+				view.next.disabled = True
 		await interaction.followup.send(embed=embed, view=view)
 	else:
 		embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
