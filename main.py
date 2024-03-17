@@ -571,7 +571,7 @@ async def queue(interaction: discord.Interaction):
 		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
-			if c >= 10 and c <= 20:
+			if c >= 0 and c <= 9:
 				qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 			c = c + 1
 			await asyncio.sleep(0.01)
