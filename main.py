@@ -502,9 +502,9 @@ class QueueView(discord.ui.View):
 			qlist = []
 			c = 1
 			if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
-				qlist.append(f"**{await MyTranslator().translate(locale_str("Playing"),interaction.locale)}: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
 			else:
-				qlist.append(f"**{await MyTranslator().translate(locale_str("Playing"),interaction.locale)}: **None")
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
 			# キューの中身を表示
 			while not q.empty():
 				item = await q.get()
