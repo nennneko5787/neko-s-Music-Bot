@@ -514,7 +514,7 @@ class QueueView(discord.ui.View):
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
-			if (self.page - 1)*10 < 0:
+			if (self.page - 1)*10 < 10:
 				view.prev.disabled = True
 			if (self.page + 1)*10 > c:
 				view.next.disabled = True
@@ -545,7 +545,7 @@ class QueueView(discord.ui.View):
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
-			if (self.page - 1)*10 < 0:
+			if (self.page - 1)*10 < 10:
 				view.prev.disabled = True
 			if (self.page + 1)*10 > c:
 				view.next.disabled = True
@@ -575,7 +575,7 @@ class QueueView(discord.ui.View):
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
-			if (self.page - 1)*10 < 0:
+			if (self.page - 1)*10 < 10:
 				view.prev.disabled = True
 			if (self.page + 1)*10 > c:
 				view.next.disabled = True
@@ -611,7 +611,7 @@ async def queue(interaction: discord.Interaction):
 			await asyncio.sleep(0.01)
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 		view = QueueView()
-		if (1 - 1)*10 < 0:
+		if (1 - 1)*10 < 10:
 			view.prev.disabled = True
 		if (1 + 1)*10 > c:
 			view.next.disabled = True
