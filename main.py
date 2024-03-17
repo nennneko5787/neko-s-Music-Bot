@@ -493,7 +493,7 @@ class QueueView(discord.ui.View):
 		super().__init__(timeout=None)
 		self.page = 0
 	
-	@discord.ui.button(emoji="◀", style=discord.ButtonStyle.success)
+	@discord.ui.button(emoji="◀", style=discord.ButtonStyle.primary)
 	async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
 		if interaction.guild.id in queue_dict:
 			await interaction.response.defer()
@@ -522,7 +522,7 @@ class QueueView(discord.ui.View):
 			await interaction.response.send_message(embed=embed, ephemeral=True)
 			return
 
-	@discord.ui.button(emoji="▶", style=discord.ButtonStyle.success)
+	@discord.ui.button(emoji="▶", style=discord.ButtonStyle.primary)
 	async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
 		if interaction.guild.id in queue_dict:
 			await interaction.response.defer()
@@ -551,7 +551,35 @@ class QueueView(discord.ui.View):
 			await interaction.response.send_message(embed=embed, ephemeral=True)
 			return
 
-	@discord.ui.button(emoji="❌", style=discord.ButtonStyle.danger)
+	@discord.ui.button(emoji="🔄", style=discord.ButtonStyle.primary)
+	async def reload(self, interaction: discord.Interaction, button: discord.ui.Button):
+		if interaction.guild.id in queue_dict:
+			await interaction.response.defer()
+			q = copy.deepcopy(queue_dict[interaction.guild.id])
+			qlist = []
+			c = 1
+			if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
+			else:
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
+			# キューの中身を表示
+			while not q.empty():
+				item = await q.get()
+				if c >= self.page * 10 and c <= self.page + 10:
+					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
+				c = c + 1
+				await asyncio.sleep(0.01)
+			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+			view = QueueView()
+			if (self.page + 1)*10 > c:
+				view.next.disabled = True
+			await interaction.message.edit(embed=embed, view=view)
+		else:
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
+			await interaction.response.send_message(embed=embed, ephemeral=True)
+			return
+
+	@discord.ui.button(emoji="❌", style=discord.ButtonStyle.secondary)
 	async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
 		await interaction.response.defer()
 		await interaction.message.delete()
