@@ -493,7 +493,7 @@ class QueueView(discord.ui.View):
 		super().__init__(timeout=None)
 		self.page = 0
 	
-	@discord.ui.button(emoji="◀", label=MyTranslator().translate(locale_str("Prev page"),interaction.locale), style=discord.ButtonStyle.success)
+	@discord.ui.button(emoji="◀", style=discord.ButtonStyle.success)
 	async def prev(self, interaction: discord.Interaction):
 		if interaction.guild.id in queue_dict:
 			await interaction.response.defer()
@@ -522,7 +522,7 @@ class QueueView(discord.ui.View):
 			await interaction.response.send_message(embed=embed, ephemeral=True)
 			return
 
-	@discord.ui.button(emoji="▶", label=MyTranslator().translate(locale_str("Next page"),interaction.locale), style=discord.ButtonStyle.success)
+	@discord.ui.button(emoji="▶", style=discord.ButtonStyle.success)
 	async def next(self, interaction: discord.Interaction):
 		if interaction.guild.id in queue_dict:
 			await interaction.response.defer()
@@ -551,7 +551,7 @@ class QueueView(discord.ui.View):
 			await interaction.response.send_message(embed=embed, ephemeral=True)
 			return
 
-	@discord.ui.button(emoji="❌", label=MyTranslator().translate(locale_str("Close queue view"),interaction.locale), style=discord.ButtonStyle.danger)
+	@discord.ui.button(emoji="❌", style=discord.ButtonStyle.danger)
 	async def close(self, interaction: discord.Interaction):
 		await interaction.response.defer()
 		await interaction.message.delete()

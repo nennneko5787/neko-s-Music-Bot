@@ -37,10 +37,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"If a song is in the queue, it is forced to play the song.": "キューに曲が入っている場合、強制的に曲を再生します。",
 		"View gateway Ping, CPU utilization, and memory utilization.": "ゲートウェイのPing、CPU使用率、メモリ使用率を見ることができます。",
 		"The feature to play Youtube songs has been disabled.": "Youtubeの曲を再生する機能は無効化されています。",
-		"Displays an invitation link to the support server.": "サポートサーバーの招待リンクを表示します。",
-		"Prev page": "前のページ",
-		"Next page": "次のページ",
-		"Close queue view": "キューを閉じる",
+		"Displays an invitation link to the support server.": "サポートサーバーの招待リンクを表示します。"
 	},
 	Locale.chinese: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '播放指定的音乐。如果已经在播放音乐，则将其插入到队列中。',
@@ -78,10 +75,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"If a song is in the queue, it is forced to play the song.": "如果有歌曲在队列中，则强制播放该歌曲。",
 		"View gateway Ping, CPU utilization, and memory utilization.": "您可以查看网关的 Ping、CPU 使用率和内存使用率。",
 		"The feature to play Youtube songs has been disabled.": "已禁用播放Youtube歌曲的功能。",
-		"Displays an invitation link to the support server.": "显示支持服务器的邀请链接。",
-		"Prev page": "上一页",
-		"Next page": "下一页",
-		"Close queue view": "关闭队列视图",
+		"Displays an invitation link to the support server.": "显示支持服务器的邀请链接。"
 	},
 	Locale.taiwan_chinese: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '播放指定的音樂URL。如果已經在播放音樂，則將其插入到佇列中。',
@@ -119,10 +113,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"If a song is in the queue, it is forced to play the song.": "如果有歌曲在佇列中，則強制播放該歌曲。",
 		"View gateway Ping, CPU utilization, and memory utilization.": "您可以查看閘道器的 Ping、CPU 使用率和記憶體使用率。",
 		"The feature to play Youtube songs has been disabled.": "已停用播放 Youtube 歌曲的功能。",
-		"Displays an invitation link to the support server.": "顯示支援伺服器的邀請鏈接。",
-		"Prev page": "上一頁",
-		"Next page": "下一頁",
-		"Close queue view": "關閉佇列檢視"
+		"Displays an invitation link to the support server.": "顯示支援伺服器的邀請鏈接。"
 	},
 	Locale.korean: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': '지정된 URL의 음악을 재생합니다. 이미 음악이 재생 중인 경우에는 큐에 삽입됩니다.',
@@ -159,10 +150,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"If a song is in the queue, it is forced to play the song.": "대기열에 곡이 있으면 해당 곡을 강제로 재생합니다.",
 		"View gateway Ping, CPU utilization, and memory utilization.": "게이트웨이의 핑(Ping), CPU 사용률 및 메모리 사용률을 확인할 수 있습니다.",
 		"The feature to play Youtube songs has been disabled.": "YouTube 노래를 재생하는 기능이 비활성화되었습니다.",
-		"Displays an invitation link to the support server.": "지원 서버로의 초대 링크를 표시합니다.",
-		"Prev page": "이전 페이지",
-		"Next page": "다음 페이지",
-		"Close queue view": "대기열 보기 닫기"
+		"Displays an invitation link to the support server.": "지원 서버로의 초대 링크를 표시합니다."
 	},
 	Locale.ukrainian: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': 'Відтворює музику, вказану за URL. Якщо музика вже відтворюється, вона вставляється в чергу.',
@@ -199,10 +187,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"If a song is in the queue, it is forced to play the song.": "Якщо пісня є у черзі, вона буде примусово відтворена.",
 		"View gateway Ping, CPU utilization, and memory utilization.": "Ви можете переглядати пінг, використання ЦП та використання пам'яті відомого шлюзу.",
 		"The feature to play Youtube songs has been disabled.": "Функція відтворення пісень з YouTube була вимкнена.",
-		"Displays an invitation link to the support server.": "Показує посилання на запрошення до сервера підтримки.",
-		"Prev page": "Попередня сторінка",
-		"Next page": "Наступна сторінка",
-		"Close queue view": "Закрити перегляд черги"
+		"Displays an invitation link to the support server.": "Показує посилання на запрошення до сервера підтримки."
 	},
 	Locale.russian: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the queue.': 'Воспроизводит музыку, указанную по URL. Если музыка уже играет, она вставляется в очередь.',
@@ -239,10 +224,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"If a song is in the queue, it is forced to play the song.": "Если песня находится в очереди, она будет принудительно воспроизведена.",
 		"View gateway Ping, CPU utilization, and memory utilization.": "Вы можете просматривать пинг, использование ЦП и использование памяти шлюза.",
 		"The feature to play Youtube songs has been disabled.": "Функция воспроизведения песен с YouTube отключена.",
-		"Displays an invitation link to the support server.": "Отображает пригласительную ссылку на сервер поддержки.",
-		"Prev page": "Предыдущая страница",
-		"Next page": "Следующая страница",
-		"Close queue view": "Закрыть просмотр очереди"
+		"Displays an invitation link to the support server.": "Отображает пригласительную ссылку на сервер поддержки."
 	},
 	Locale.vietnamese: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': 'Phát nhạc được chỉ định bằng url. Nếu nhạc đã được phát, nó sẽ được chèn vào hàng đợi.',
@@ -279,10 +261,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"If a song is in the queue, it is forced to play the song.": "Nếu có bài hát trong hàng đợi, bài hát sẽ được bắt buộc phát.",
 		"View gateway Ping, CPU utilization, and memory utilization.": "Xem Ping cổng, sử dụng CPU và sử dụng bộ nhớ.",
 		"The feature to play Youtube songs has been disabled.": "Chức năng phát nhạc từ Youtube đã bị vô hiệu hóa.",
-		"Displays an invitation link to the support server.": "Hiển thị liên kết mời đến máy chủ hỗ trợ.",
-		"Prev page": "Trang trước",
-		"Next page": "Trang tiếp theo",
-		"Close queue view": "Đóng xem hàng đợi"
+		"Displays an invitation link to the support server.": "Hiển thị liên kết mời đến máy chủ hỗ trợ."
 	},
 	Locale.thai: {
 		'Plays the music specified by url. If music is already being played, it is inserted into the cue.': 'เล่นเพลงที่ระบุโดย url หากเพลงกำลังเล่นอยู่แล้ว จะถูกแทรกเข้าไปในคิว',
@@ -319,10 +298,7 @@ TLANSLATION_DATA: dict[Locale, dict[str, str]]= {
 		"If a song is in the queue, it is forced to play the song.": "หากมีเพลงในคิว จะถูกบังคับให้เล่นเพลง",
 		"View gateway Ping, CPU utilization, and memory utilization.": "ดูปิงเกตเวย์ การใช้ CPU และการใช้หน่วยความจำ",
 		"The feature to play Youtube songs has been disabled.": "คุณลักษณะที่ใช้เล่นเพลง Youtube ถูกปิดใช้งาน",
-		"Displays an invitation link to the support server.": "แสดงลิงก์เชิญไปยังเซิร์ฟเวอร์สนับสนุน",
-		"Prev page": "หน้าก่อนหน้า",
-		"Next page": "หน้าถัดไป",
-		"Close queue view": "ปิดมุมมองคิว"
+		"Displays an invitation link to the support server.": "แสดงลิงก์เชิญไปยังเซิร์ฟเวอร์สนับสนุน"
 	},
 }
 
