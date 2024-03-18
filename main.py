@@ -8,7 +8,7 @@ from yt_dlp import YoutubeDL
 from collections import defaultdict
 import logging
 import traceback
-import datetime
+import datetime 
 import aiohttp
 from discord.app_commands import locale_str
 from translate import MyTranslator
@@ -74,12 +74,12 @@ YOUTUBE_DISABLED = False
 
 @client.event
 async def setup_hook():
-	print('ログインしました')
 	await tree.set_translator(MyTranslator())
 	await tree.sync()  #スラッシュコマンドを同期
 	
 @client.event
 async def on_ready():
+	print(f'{client.user}にログインしました')
 	myLoop.start()
 	if "Develop" in client.user.name:
 		global YOUTUBE_DISABLED
@@ -181,8 +181,8 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	loop = asyncio.get_event_loop()
 	await asyncio.to_thread(voice_client.play, source, after=lambda e: loop.create_task(playbgm(voice_client, channel, language)))
 	embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("Playing"),language), color=discord.Colour.purple())
-	embed.add_field(name=await MyTranslator().translate(locale_str("Video title"),language), value=title)
-	embed.add_field(name=await MyTranslator().translate(locale_str("Video URL"),language), value=weburl)
+	embed.add_field(name=await MyTranslator().translate(locale_str("title"),language), value=title)
+	embed.add_field(name="URL", value=weburl)
 	embed.set_image(url=thumbnail)
 	await channel.send(embed=embed)
 
@@ -191,7 +191,7 @@ async def handle_download_and_play(item, voice_client, channel, language):
 async def play(interaction: discord.Interaction, url:str):
 	global YOUTUBE_DISABLED
 	if YOUTUBE_DISABLED:
-		if "youtube.com" in url:
+		if "youtu" in url:
 			embed=discord.Embed(
 				title="neko's Music Bot",
 				description=await MyTranslator().translate(locale_str('The feature to play Youtube songs has been disabled.'),interaction.locale),
@@ -354,7 +354,7 @@ async def handle_music(url, interaction, voice_client=None):
 				"url": info_dict.get('url'),
 				"title": info_dict.get('title') if not isSpotify else result['name'],
 				"id": info_dict.get('id') if not isSpotify else result['id'],
-				"thumbnail": info_dict.get('thumbnail'),
+				"thumbnail": info_dict.get('thumbnail') if not isSpotify else None,
 			})
 			await asyncio.sleep(0.01)
 	else:
@@ -363,7 +363,7 @@ async def handle_music(url, interaction, voice_client=None):
 			"url": dic.get('url'),
 			"title": dic.get('title') if not isSpotify else result['name'],
 			"id": dic.get('id') if not isSpotify else result['id'],
-			"thumbnail": dic.get('thumbnail'),
+			"thumbnail": dic.get('thumbnail') if not isSpotify else None,
 		})
 
 	await send_music_inserted_message(dic, interaction)
@@ -424,10 +424,10 @@ async def send_music_inserted_message(dic, interaction):
 		description=description,
 		color=discord.Colour.purple()
 	).add_field(
-		name=await MyTranslator().translate(locale_str("Video title"),interaction.locale),
+		name=await MyTranslator().translate(locale_str("title"),interaction.locale),
 		value=dic.get('title')
 	).add_field(
-		name=await MyTranslator().translate(locale_str("Video URL"),interaction.locale),
+		name=await MyTranslator().translate(locale_str("URL"),interaction.locale),
 		value=dic.get('webpage_url')
 	)
 
@@ -488,6 +488,108 @@ async def resume(interaction: discord.Interaction):
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("Resumed songs that had been paused."),interaction.locale),color=discord.Colour.purple())
 	await interaction.response.send_message("",embed=embed)
 
+class QueueView(discord.ui.View):
+	def __init__(self):
+		super().__init__(timeout=None)
+		self.page = 0
+	
+	@discord.ui.button(emoji="◀", style=discord.ButtonStyle.primary)
+	async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
+		if interaction.guild.id in queue_dict:
+			await interaction.response.defer()
+			self.page -= 1
+			q = copy.deepcopy(queue_dict[interaction.guild.id])
+			qlist = []
+			c = 1
+			if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
+			else:
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
+			# キューの中身を表示
+			while not q.empty():
+				item = await q.get()
+				if c >= self.page * 10 and c <= self.page + 10:
+					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
+				c = c + 1
+				await asyncio.sleep(0.01)
+			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+			view = QueueView()
+			if (self.page - 1)*10 < 10:
+				view.prev.disabled = True
+			if (self.page + 1)*10 > c:
+				view.next.disabled = True
+			await interaction.message.edit(embed=embed, view=view)
+		else:
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
+			await interaction.response.send_message(embed=embed, ephemeral=True)
+			return
+
+	@discord.ui.button(emoji="▶", style=discord.ButtonStyle.primary)
+	async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+		if interaction.guild.id in queue_dict:
+			await interaction.response.defer()
+			self.page += 1
+			q = copy.deepcopy(queue_dict[interaction.guild.id])
+			qlist = []
+			c = 1
+			if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
+			else:
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
+			# キューの中身を表示
+			while not q.empty():
+				item = await q.get()
+				if c >= self.page * 10 and c <= self.page + 10:
+					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
+				c = c + 1
+				await asyncio.sleep(0.01)
+			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+			view = QueueView()
+			if (self.page - 1)*10 < 10:
+				view.prev.disabled = True
+			if (self.page + 1)*10 > c:
+				view.next.disabled = True
+			await interaction.message.edit(embed=embed, view=view)
+		else:
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
+			await interaction.response.send_message(embed=embed, ephemeral=True)
+			return
+
+	@discord.ui.button(emoji="🔄", style=discord.ButtonStyle.primary)
+	async def reload(self, interaction: discord.Interaction, button: discord.ui.Button):
+		if interaction.guild.id in queue_dict:
+			await interaction.response.defer()
+			q = copy.deepcopy(queue_dict[interaction.guild.id])
+			qlist = []
+			c = 1
+			if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
+			else:
+				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
+			# キューの中身を表示
+			while not q.empty():
+				item = await q.get()
+				if c >= self.page * 10 and c <= self.page + 10:
+					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
+				c = c + 1
+				await asyncio.sleep(0.01)
+			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+			view = QueueView()
+			if (self.page - 1)*10 < 10:
+				view.prev.disabled = True
+			if (self.page + 1)*10 > c:
+				view.next.disabled = True
+			await interaction.message.edit(embed=embed, view=view)
+		else:
+			embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
+			await interaction.response.send_message(embed=embed, ephemeral=True)
+			return
+
+	@discord.ui.button(emoji="❌", style=discord.ButtonStyle.secondary)
+	async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
+		await interaction.response.defer()
+		await interaction.message.delete()
+
 @tree.command(name="queue", description=locale_str("You can check the songs in the queue."))
 @discord.app_commands.guild_only()
 async def queue(interaction: discord.Interaction):
@@ -497,17 +599,23 @@ async def queue(interaction: discord.Interaction):
 		qlist = []
 		c = 1
 		if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
-			qlist.append(f"**現在再生中: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
+			qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **[{nowPlaying_dict[f'{interaction.guild.id}'].get('title')}]({nowPlaying_dict[f'{interaction.guild.id}'].get('webpage_url')})")
 		else:
-			qlist.append(f"**現在再生中: **None")
+			qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
 		# キューの中身を表示
 		while not q.empty():
 			item = await q.get()
-			qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
+			if c >= 0 and c <= 9:
+				qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 			c = c + 1
 			await asyncio.sleep(0.01)
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
-		await interaction.followup.send(embed=embed)
+		view = QueueView()
+		if (1 - 1)*10 <= 10:
+			view.prev.disabled = True
+		if (1 + 1)*10 > c:
+			view.next.disabled = True
+		await interaction.followup.send(embed=embed, view=view)
 	else:
 		embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale),color=discord.Colour.red())
 		await interaction.response.send_message(embed=embed, ephemeral=True)
