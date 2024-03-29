@@ -191,7 +191,7 @@ async def handle_download_and_play(item, voice_client, channel, language):
 async def play(interaction: discord.Interaction, url:str):
 	global YOUTUBE_DISABLED
 	if YOUTUBE_DISABLED:
-		if "youtube.com" in url:
+		if "youtu" in url:
 			embed=discord.Embed(
 				title="neko's Music Bot",
 				description=await MyTranslator().translate(locale_str('The feature to play Youtube songs has been disabled.'),interaction.locale),
