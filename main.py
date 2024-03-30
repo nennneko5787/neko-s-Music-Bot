@@ -449,7 +449,7 @@ async def stop(interaction: discord.Interaction):
 	if isPlaying_dict[interaction.guild.id] == True:
 		del queue_dict[interaction.guild.id]
 		isPlaying_dict[interaction.guild.id] = False
-		asyncio.to_thread(voice_client.stop)
+		voice_client.stop()
 		embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("The song was stopped and the queue was discarded."),interaction.locale),color=discord.Colour.purple())
 		await interaction.response.send_message(embed=embed)
 	else:
@@ -466,7 +466,7 @@ async def skip(interaction: discord.Interaction):
 		return
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("Skipped one song."),interaction.locale),color=discord.Colour.purple())
 	await interaction.response.send_message(embed=embed)
-	asyncio.to_thread(voice_client.stop())
+	voice_client.stop()
 
 @tree.command(name="pause", description=locale_str("Pause the song."))
 @discord.app_commands.guild_only()
@@ -476,7 +476,7 @@ async def pause(interaction: discord.Interaction):
 		embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("neko's Music Bot is not connected to the voice channel."),interaction.locale),color=discord.Colour.red())
 		await interaction.response.send_message(embed=embed,ephemeral=True)
 		return
-	asyncio.to_thread(voice_client.pause())
+	voice_client.pause()
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("Song paused."),interaction.locale),color=discord.Colour.purple())
 	await interaction.response.send_message(embed=embed)
 
@@ -488,7 +488,7 @@ async def resume(interaction: discord.Interaction):
 		embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("neko's Music Bot is not connected to the voice channel."),interaction.locale),color=discord.Colour.red())
 		await interaction.response.send_message(embed=embed,ephemeral=True)
 		return
-	asyncio.to_thread(voice_client.resume())
+	voice_client.resume()
 	embed = discord.Embed(title="neko's Music Bot",description=await MyTranslator().translate(locale_str("Resumed songs that had been paused."),interaction.locale),color=discord.Colour.purple())
 	await interaction.response.send_message(embed=embed)
 
@@ -511,7 +511,7 @@ class QueueView(discord.ui.View):
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
 				item = _
-				if c >= 0 and c <= 9:
+				if c >= self.page * 10 and c <= self.page + 10:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
@@ -545,7 +545,7 @@ class QueueView(discord.ui.View):
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
 				item = _
-				if c >= 0 and c <= 9:
+				if c >= self.page * 10 and c <= self.page + 10:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
@@ -578,7 +578,7 @@ class QueueView(discord.ui.View):
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
 				item = _
-				if c >= 0 and c <= 9:
+				if c >= self.page * 10 and c <= self.page + 10:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
