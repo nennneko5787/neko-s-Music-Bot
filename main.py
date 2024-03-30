@@ -350,6 +350,8 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 	flag = "entries" in dic
 
 	if flag:
+		if shuffle_the_queue_if_playlist is True:
+			random.shuffle(dic['entries'])
 		for info_dict in dic['entries']:
 			queue.append({
 				"webpage_url": info_dict.get('webpage_url') if not isSpotify else f"https://open.spotify.com/track/{result['id']}",
@@ -359,8 +361,6 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 				"thumbnail": info_dict.get('thumbnail') if not isSpotify else None,
 			})
 			await asyncio.sleep(0.01)
-		if shuffle_the_queue_if_playlist is True:
-			random.shuffle(queue)
 	else:
 		queue.append({
 			"webpage_url": dic.get('webpage_url') if not isSpotify else f"https://open.spotify.com/track/{result['id']}",
@@ -510,7 +510,7 @@ class QueueView(discord.ui.View):
 				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
-				item = queue_dict[interaction.guild.id][_]
+				item = _
 				if c >= 0 and c <= 9:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
@@ -544,7 +544,7 @@ class QueueView(discord.ui.View):
 				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
-				item = queue_dict[interaction.guild.id][_]
+				item = _
 				if c >= 0 and c <= 9:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
@@ -577,7 +577,7 @@ class QueueView(discord.ui.View):
 				qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
-				item = queue_dict[interaction.guild.id][_]
+				item = _
 				if c >= 0 and c <= 9:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
@@ -616,7 +616,7 @@ async def queue(interaction: discord.Interaction):
 			qlist.append(f"**{await MyTranslator().translate(locale_str('Playing'),interaction.locale)}: **None")
 		# キューの中身を表示
 		for _ in queue_dict[interaction.guild.id]:
-			item = queue_dict[interaction.guild.id][_]
+			item = _
 			if c >= 0 and c <= 9:
 				qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 			c = c + 1
