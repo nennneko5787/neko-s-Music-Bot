@@ -127,7 +127,7 @@ async def playbgm(voice_client, channel, language, dqueue: asyncio.Queue = None)
 	queue = dqueue if dqueue else queue_dict.get(voice_client.guild.id)
 	if voice_client.guild.id in nowPlaying_dict:
 		nowPlaying_dict[f"{voice_client.guild.id}"] = {"title": None}
-	if not queue or queue.qsize() == 0:
+	if not queue or len(queue) == 0:
 		await handle_empty_queue(voice_client, channel, language)
 		return
 	elif not voice_client.is_connected():
