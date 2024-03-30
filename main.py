@@ -17,6 +17,7 @@ import psutil
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import re
+import random
 
 class DiscordClient(discord.Client):
 	async def cleanup(self):
@@ -188,7 +189,7 @@ async def handle_download_and_play(item, voice_client, channel, language):
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
 @discord.app_commands.guild_only()
-async def play(interaction: discord.Interaction, url:str):
+async def play(interaction: discord.Interaction, url:str, shuffle_the_queue_if_playlist: bool = False):
 	global YOUTUBE_DISABLED
 	if YOUTUBE_DISABLED:
 		if "youtube.com" in url:
@@ -199,7 +200,7 @@ async def play(interaction: discord.Interaction, url:str):
 			),
 			await interaction.response.send_message(embed=embed,ephemeral=True)
 			return
-	await asyncio.create_task(musicPlayFunction(interaction, url))
+	await asyncio.create_task(musicPlayFunction(interaction, url, shuffle_the_queue_if_playlist))
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
 @discord.app_commands.guild_only()
@@ -213,9 +214,9 @@ async def yplay(interaction: discord.Interaction, search:str):
 		),
 		await interaction.response.send_message(embed=embed,ephemeral=True)
 		return
-	await asyncio.create_task(musicPlayFunction(interaction, f"ytsearch:{search}"))
+	await asyncio.create_task(musicPlayFunction(interaction, f"ytsearch:{search}", False))
 
-async def musicPlayFunction(interaction: discord.Interaction, url: str):
+async def musicPlayFunction(interaction: discord.Interaction, url: str, shuffle_the_queue_if_playlist: bool):
 	voice_client = interaction.guild.voice_client
 	responsed = False
 
@@ -259,13 +260,13 @@ async def musicPlayFunction(interaction: discord.Interaction, url: str):
 		)
 
 	if isPlaying_dict[interaction.guild.id]:
-		await handle_queue_entry(url, interaction)
+		await handle_queue_entry(url, interaction, shuffle_the_queue_if_playlist)
 		return
 
 	await interaction.channel.send("https://i.imgur.com/bnNP1Ih.png")
 
 	try:
-		await handle_music_entry(url, interaction, voice_client)
+		await handle_music_entry(url, interaction, voice_client, shuffle_the_queue_if_playlist)
 	except yt_dlp.utils.DownloadError:
 		error = traceback.format_exc()
 		if "ERROR: Unsupported URL: " in error:
@@ -305,7 +306,7 @@ async def handle_error(interaction, voice_client, error = None):
 		)
 		await webhook.send(embed=embed)
 
-async def handle_music(url, interaction, voice_client=None):
+async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if_playlist=False):
 	queue = queue_dict[interaction.guild.id]
 	match = re.search(r'/track/([^/?]+)', url)
 
@@ -358,6 +359,8 @@ async def handle_music(url, interaction, voice_client=None):
 				"thumbnail": info_dict.get('thumbnail') if not isSpotify else None,
 			})
 			await asyncio.sleep(0.01)
+		if shuffle_the_queue_if_playlist is True:
+			random.shuffle(queue)
 	else:
 		queue.append({
 			"webpage_url": dic.get('webpage_url') if not isSpotify else f"https://open.spotify.com/track/{result['id']}",
@@ -380,11 +383,11 @@ async def handle_music(url, interaction, voice_client=None):
 		)
 		await asyncio.create_task(playbgm(voice_client, interaction.channel, interaction.locale, queue))
 
-async def handle_queue_entry(url, interaction):
-	return await handle_music(url, interaction)
+async def handle_queue_entry(url, interaction, shuffle_the_queue_if_playlist):
+	return await handle_music(url, interaction,shuffle_the_queue_if_playlist)
 
-async def handle_music_entry(url, interaction, voice_client):
-	return await handle_music(url, interaction, voice_client)
+async def handle_music_entry(url, interaction, voice_client,shuffle_the_queue_if_playlist):
+	return await handle_music(url, interaction, voice_client,shuffle_the_queue_if_playlist)
 
 async def send_music_inserted_message(dic, interaction):
 	if 'entries' in dic:
