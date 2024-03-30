@@ -5,7 +5,7 @@ from keep_alive import keep_alive
 import asyncio
 import yt_dlp
 from yt_dlp import YoutubeDL
-from collections import defaultdict, dqueue
+from collections import defaultdict, deque
 import logging
 import traceback
 import datetime
@@ -34,7 +34,7 @@ class DiscordClient(discord.Client):
 last_commit_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
 last_commit_date = last_commit_dt.strftime('%Y/%m/%d %H:%M:%S')
 
-queue_dict = defaultdict(asyncio.dqueue)
+queue_dict = defaultdict(deque)
 isConnecting_dict = defaultdict(lambda: False)
 isPlaying_dict = defaultdict(lambda: False)
 nowPlaying_dict = defaultdict(lambda: {"title": None})
