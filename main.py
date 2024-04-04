@@ -502,7 +502,7 @@ class QueueView(discord.ui.View):
 	async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
 		if interaction.guild.id in queue_dict:
 			await interaction.response.defer()
-			self.page -= 1
+			self.page = self.page - 1
 			qlist = []
 			c = 1
 			if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
@@ -522,7 +522,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < (self.page + 1)*10:
+			if c < self.page*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -536,7 +536,7 @@ class QueueView(discord.ui.View):
 	async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
 		if interaction.guild.id in queue_dict:
 			await interaction.response.defer()
-			self.page += 1
+			self.page = self.page + 1
 			qlist = []
 			c = 1
 			if nowPlaying_dict[f"{interaction.guild.id}"].get("title",None) is not None:
@@ -556,7 +556,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < (self.page + 1)*10:
+			if c < self.page*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -589,7 +589,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < (self.page + 1)*10:
+			if c < self.page*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
