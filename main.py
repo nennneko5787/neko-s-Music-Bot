@@ -18,6 +18,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import re
 import random
+import math
 
 class DiscordClient(discord.Client):
 	async def cleanup(self):
@@ -512,11 +513,11 @@ class QueueView(discord.ui.View):
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
 				item = _
-				if c >= (self.page * 10)-9 and c <= ((self.page * 10)-9) + 10:
+				if c >= (self.page * 10)-9 and c <= ((self.page * 10)-9) + 9:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
-			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
+			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {math.ceil(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView(self.page)
 			if self.page <= 1:
 				view.prev.disabled = True
@@ -546,11 +547,11 @@ class QueueView(discord.ui.View):
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
 				item = _
-				if c >= (self.page * 10)-9 and c <= ((self.page * 10)-9) + 10:
+				if c >= (self.page * 10)-9 and c <= ((self.page * 10)-9) + 9:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
-			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
+			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {math.ceil(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView(self.page)
 			if self.page <= 1:
 				view.prev.disabled = True
@@ -579,11 +580,11 @@ class QueueView(discord.ui.View):
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
 				item = _
-				if c >= (self.page * 10)-9 and c <= ((self.page * 10)-9) + 10:
+				if c >= (self.page * 10)-9 and c <= ((self.page * 10)-9) + 9:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
-			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
+			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {math.ceil(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView(self.page)
 			if self.page <= 1:
 				view.prev.disabled = True
@@ -622,7 +623,7 @@ async def queue(interaction: discord.Interaction):
 				qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 			c = c + 1
 			await asyncio.sleep(0.01)
-		embed = discord.Embed(title=f"neko's Music Bot (1 / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
+		embed = discord.Embed(title=f"neko's Music Bot (1 / {math.ceil(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
 		view = QueueView(1)
 		view.prev.disabled = True
 		if c < 10:
