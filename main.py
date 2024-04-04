@@ -353,6 +353,7 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 	if flag:
 		if shuffle_the_queue_if_playlist is True:
 			random.shuffle(dic['entries'])
+		cnt = 0
 		for info_dict in dic['entries']:
 			queue.append({
 				"webpage_url": info_dict.get('webpage_url') if not isSpotify else f"https://open.spotify.com/track/{result['id']}",
@@ -361,6 +362,8 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 				"id": info_dict.get('id') if not isSpotify else result['id'],
 				"thumbnail": info_dict.get('thumbnail') if not isSpotify else None,
 			})
+			if cnt == 1:
+				await asyncio.create_task(playbgm(voice_client, interaction.channel, interaction.locale, queue))
 			await asyncio.sleep(0.01)
 	else:
 		queue.append({
@@ -382,7 +385,6 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 				color=discord.Colour.purple()
 			)
 		)
-		await asyncio.create_task(playbgm(voice_client, interaction.channel, interaction.locale, queue))
 
 async def handle_queue_entry(url, interaction, shuffle_the_queue_if_playlist):
 	return await handle_music(url, interaction,shuffle_the_queue_if_playlist)
@@ -516,9 +518,9 @@ class QueueView(discord.ui.View):
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
-			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
-			if self.page == 1:
+			if self.page <= 1:
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
@@ -550,9 +552,9 @@ class QueueView(discord.ui.View):
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
-			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
-			if self.page == 1:
+			if self.page <= 1:
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
@@ -583,9 +585,9 @@ class QueueView(discord.ui.View):
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
-			embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
 			view = QueueView()
-			if self.page == 1:
+			if self.page <= 1:
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
@@ -622,10 +624,10 @@ async def queue(interaction: discord.Interaction):
 				qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 			c = c + 1
 			await asyncio.sleep(0.01)
-		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
+		embed = discord.Embed(title=f"neko's Music Bot (1 / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
 		view = QueueView()
 		view.prev.disabled = True
-		if c <= 10:
+		if c < 10:
 			view.next.disabled = True
 		else:
 			view.next.disabled = False
@@ -650,56 +652,6 @@ async def help(interaction: discord.Interaction):
 		await asyncio.sleep(0.01)
 	# embed.add_field(name="/play **url**:<video>",value="urlで指定された音楽を再生します。すでに音楽が再生されている場合はキューに挿入します。")
 	await interaction.followup.send(embed=embed)
-
-@tree.command(name="forceplay", description=locale_str("If a song is in the queue, it is forced to play the song."))
-@discord.app_commands.guild_only()
-async def forceplay(interaction: discord.Interaction):
-	await interaction.response.defer()
-	if voice_client is None and isConnecting_dict[interaction.guild.id] == False:
-		if interaction.user.voice is not None:
-			isPlaying_dict[interaction.guild.id] = False
-			await interaction.user.voice.channel.connect()
-			isConnecting_dict[interaction.guild.id] = True
-			await interaction.followup.send(
-				embed=discord.Embed(
-					title="neko's Music Bot",
-					description=await MyTranslator().translate(locale_str('Connected to voice channel.'),interaction.locale),
-					color=discord.Colour.purple()
-				).add_field(
-					name=await MyTranslator().translate(locale_str('Destination Channel'),interaction.locale),
-					value=f"<#{interaction.user.voice.channel.id}>"
-				),
-				ephemeral=False
-			)
-			voice_client = interaction.guild.voice_client
-		else:
-			await interaction.followup.send(
-				embed=discord.Embed(
-					title="neko's Music Bot",
-					description=await MyTranslator().translate(locale_str("You are not currently connecting to any voice channel."),interaction.locale),
-					color=discord.Colour.red()
-				),
-				ephemeral=True
-			)
-			return
-	else:
-		await interaction.followup.send(
-			embed=discord.Embed(
-				title="neko's Music Bot",
-				description=await MyTranslator().translate(locale_str('Operation accepted. Please wait a moment...'),interaction.locale),
-				color=discord.Colour.purple()
-			),
-			ephemeral=False
-		)
-	queue = queue_dict[interaction.guild.id]
-	if len(queue) != 0:
-		embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str('Starts playing the song.'),interaction.locale), color=discord.Colour.purple())
-		await interaction.channel.send(embed=embed, ephemeral=True)
-		isPlaying_dict[interaction.guild.id] = True
-		await playbgm(voice_client, interaction.channel, interaction.locale, queue)
-	else:
-		embed = discord.Embed(title="neko's Music Bot", description=await MyTranslator().translate(locale_str("No songs in queue"),interaction.locale), color=discord.Colour.red())
-		await interaction.channel.send(embed=embed, ephemeral=True)
 
 @tree.command(name="ping", description=locale_str("View gateway Ping, CPU utilization, and memory utilization."))
 async def ping(interaction: discord.Interaction):
