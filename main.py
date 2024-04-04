@@ -512,7 +512,7 @@ class QueueView(discord.ui.View):
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
 				item = _
-				if c >= self.page * 10 and c <= self.page + 10:
+				if c >= (self.page * 10)-9 and c <= ((self.page * 10)-9) + 10:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
@@ -522,7 +522,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < self.page*10:
+			if c < ((self.page-1)*10)-9:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -546,7 +546,7 @@ class QueueView(discord.ui.View):
 			# キューの中身を表示
 			for _ in queue_dict[interaction.guild.id]:
 				item = _
-				if c >= self.page * 10 and c <= self.page + 10:
+				if c >= (self.page * 10)-9 and c <= ((self.page * 10)-9) + 10:
 					qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 				c = c + 1
 				await asyncio.sleep(0.01)
@@ -556,7 +556,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < self.page*10:
+			if c < ((self.page-1)*10)-9:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -589,7 +589,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < self.page*10:
+			if c < ((self.page-1)*10)-9:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
