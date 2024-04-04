@@ -496,7 +496,7 @@ async def resume(interaction: discord.Interaction):
 class QueueView(discord.ui.View):
 	def __init__(self):
 		super().__init__(timeout=None)
-		self.page = 0
+		self.page = 1
 	
 	@discord.ui.button(emoji="◀", style=discord.ButtonStyle.primary)
 	async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -522,7 +522,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c <= (self.page + 1)*10:
+			if c < (self.page + 1)*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -556,7 +556,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c <= (self.page + 1)*10:
+			if c < (self.page + 1)*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -589,7 +589,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c <= (self.page + 1)*10:
+			if c < (self.page + 1)*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -618,14 +618,14 @@ async def queue(interaction: discord.Interaction):
 		# キューの中身を表示
 		for _ in queue_dict[interaction.guild.id]:
 			item = _
-			if c >= 0 and c <= 9:
+			if c >= 0 and c <= 10:
 				qlist.append(f"#{c} [{item.get('title')}]({item.get('webpage_url')})")
 			c = c + 1
 			await asyncio.sleep(0.01)
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 		view = QueueView()
 		view.prev.disabled = True
-		if c <= 9:
+		if c <= 10:
 			view.next.disabled = True
 		else:
 			view.next.disabled = False
