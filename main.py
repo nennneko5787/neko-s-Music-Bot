@@ -353,7 +353,6 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 	if flag:
 		if shuffle_the_queue_if_playlist is True:
 			random.shuffle(dic['entries'])
-		cnt = 0
 		for info_dict in dic['entries']:
 			queue.append({
 				"webpage_url": info_dict.get('webpage_url') if not isSpotify else f"https://open.spotify.com/track/{result['id']}",
@@ -362,8 +361,6 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 				"id": info_dict.get('id') if not isSpotify else result['id'],
 				"thumbnail": info_dict.get('thumbnail') if not isSpotify else None,
 			})
-			if cnt == 1:
-				await asyncio.create_task(playbgm(voice_client, interaction.channel, interaction.locale, queue))
 			await asyncio.sleep(0.01)
 	else:
 		queue.append({
@@ -385,6 +382,7 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 				color=discord.Colour.purple()
 			)
 		)
+	await asyncio.create_task(playbgm(voice_client, interaction.channel, interaction.locale, queue))
 
 async def handle_queue_entry(url, interaction, shuffle_the_queue_if_playlist):
 	return await handle_music(url, interaction,shuffle_the_queue_if_playlist)
