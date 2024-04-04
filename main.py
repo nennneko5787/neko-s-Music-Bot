@@ -522,7 +522,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if (self.page + 1)*10 > c:
+			if c <= (self.page + 1)*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -556,7 +556,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if (self.page + 1)*10 > c:
+			if c <= (self.page + 1)*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -589,7 +589,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if (self.page + 1)*10 > c:
+			if c <= (self.page + 1)*10:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -625,7 +625,7 @@ async def queue(interaction: discord.Interaction):
 		embed = discord.Embed(title="neko's Music Bot", description="\n".join(qlist), color=discord.Colour.purple())
 		view = QueueView()
 		view.prev.disabled = True
-		if (1 + 1)*10 > c:
+		if c <= 9:
 			view.next.disabled = True
 		else:
 			view.next.disabled = False
