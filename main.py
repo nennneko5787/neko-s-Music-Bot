@@ -494,9 +494,9 @@ async def resume(interaction: discord.Interaction):
 	await interaction.response.send_message(embed=embed)
 
 class QueueView(discord.ui.View):
-	def __init__(self):
+	def __init__(self, page: int = 1):
 		super().__init__(timeout=None)
-		self.page = 1
+		self.page = page
 	
 	@discord.ui.button(emoji="◀", style=discord.ButtonStyle.primary)
 	async def prev(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -517,7 +517,7 @@ class QueueView(discord.ui.View):
 				c = c + 1
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
-			view = QueueView()
+			view = QueueView(self.page)
 			if self.page <= 1:
 				view.prev.disabled = True
 			else:
@@ -551,7 +551,7 @@ class QueueView(discord.ui.View):
 				c = c + 1
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
-			view = QueueView()
+			view = QueueView(self.page)
 			if self.page <= 1:
 				view.prev.disabled = True
 			else:
@@ -584,7 +584,7 @@ class QueueView(discord.ui.View):
 				c = c + 1
 				await asyncio.sleep(0.01)
 			embed = discord.Embed(title=f"neko's Music Bot ({self.page} / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
-			view = QueueView()
+			view = QueueView(self.page)
 			if self.page <= 1:
 				view.prev.disabled = True
 			else:
@@ -623,7 +623,7 @@ async def queue(interaction: discord.Interaction):
 			c = c + 1
 			await asyncio.sleep(0.01)
 		embed = discord.Embed(title=f"neko's Music Bot (1 / {round(len(queue_dict[interaction.guild.id]) / 10)})", description="\n".join(qlist), color=discord.Colour.purple())
-		view = QueueView()
+		view = QueueView(1)
 		view.prev.disabled = True
 		if c < 10:
 			view.next.disabled = True
