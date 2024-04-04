@@ -325,6 +325,7 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 		"outtmpl": "%(id)s",
 		"format": "bestaudio/best",
 		"noplaylist": False,
+		'default_search': 'ytsearch',
 	}
 
 	"""
@@ -393,7 +394,7 @@ async def send_music_inserted_message(dic, interaction):
 	if 'entries' in dic:
 		entries_count = len(dic['entries'])
 		if entries_count == 1:
-			default_msg = '{entries_count} songs inserted into the '
+			default_msg = '{entries_count} songs inserted into the queue.'
 			description = await interaction.translate(locale_str(
 				default_msg,
 				fmt_arg={
@@ -413,7 +414,7 @@ async def send_music_inserted_message(dic, interaction):
 				value=dic["entries"][0].get('webpage_url')
 			)
 		else:
-			default_msg = '{entries_count} songs inserted into the '
+			default_msg = '{entries_count} songs inserted into the queue.'
 			description = await interaction.translate(locale_str(
 				default_msg,
 				fmt_arg={
@@ -421,7 +422,7 @@ async def send_music_inserted_message(dic, interaction):
 				},
 			))
 	else:
-		description = await MyTranslator().translate(locale_str("Song inserted into the ",),interaction.locale)
+		description = await MyTranslator().translate(locale_str("Song inserted into the queue.",),interaction.locale)
 
 	embed = discord.Embed(
 		title="neko's Music Bot",
