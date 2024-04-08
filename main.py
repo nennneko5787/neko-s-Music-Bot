@@ -189,6 +189,7 @@ async def handle_download_and_play(item, voice_client, channel, language):
 	await channel.send(embed=embed)
 
 @tree.command(name="play", description=locale_str('Plays the music specified by url. If music is already being played, it is inserted into the cue.'))
+@discord.app_commands.describe(shuffle_the_queue_if_playlist=locale_str('When the URL is a playlist, whether to shuffle the contents.'))
 @discord.app_commands.guild_only()
 async def play(interaction: discord.Interaction, url:str, shuffle_the_queue_if_playlist: bool = False):
 	global YOUTUBE_DISABLED
@@ -205,7 +206,7 @@ async def play(interaction: discord.Interaction, url:str, shuffle_the_queue_if_p
 
 @tree.command(name="yplay", description=locale_str('It is the same as the play command, except that it searches Youtube for the specified words.'))
 @discord.app_commands.guild_only()
-async def yplay(interaction: discord.Interaction, search:str):
+async def yplay(interaction: discord.Interaction, keyword:str):
 	global YOUTUBE_DISABLED
 	if YOUTUBE_DISABLED:
 		embed=discord.Embed(
@@ -215,7 +216,7 @@ async def yplay(interaction: discord.Interaction, search:str):
 		),
 		await interaction.response.send_message(embed=embed,ephemeral=True)
 		return
-	await asyncio.create_task(musicPlayFunction(interaction, f"ytsearch:{search}", False))
+	await asyncio.create_task(musicPlayFunction(interaction, f"ytsearch:{keyword}", False))
 
 async def musicPlayFunction(interaction: discord.Interaction, url: str, shuffle_the_queue_if_playlist: bool):
 	voice_client = interaction.guild.voice_client
@@ -330,7 +331,7 @@ async def handle_music(url, interaction, voice_client=None, shuffle_the_queue_if
 	}
 
 	"""
-	Can't work
+	doesn't work
 	ydl_opts = {
 		"outtmpl": "%(id)s",
 		"format": "bestaudio/best",
@@ -523,7 +524,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < ((self.page-1)*10)-8:
+			if self.page == math.ceil(len(queue_dict[interaction.guild.id]) / 10):
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -557,7 +558,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < ((self.page-1)*10)-8:
+			if self.page == math.ceil(len(queue_dict[interaction.guild.id]) / 10):
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -590,7 +591,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < ((self.page-1)*10)-8:
+			if self.page == math.ceil(len(queue_dict[interaction.guild.id]) / 10):
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
