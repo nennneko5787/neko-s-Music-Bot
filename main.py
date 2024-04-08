@@ -523,7 +523,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < ((self.page-1)*10)-9:
+			if c < ((self.page-1)*10)-8:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -557,7 +557,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < ((self.page-1)*10)-9:
+			if c < ((self.page-1)*10)-8:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
@@ -590,7 +590,7 @@ class QueueView(discord.ui.View):
 				view.prev.disabled = True
 			else:
 				view.prev.disabled = False
-			if c < ((self.page-1)*10)-9:
+			if c < ((self.page-1)*10)-8:
 				view.next.disabled = True
 			else:
 				view.next.disabled = False
