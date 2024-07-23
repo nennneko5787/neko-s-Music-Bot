@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.route("/")
+@app.get("/")
 async def index():
     return {
         "detail": "ok",
