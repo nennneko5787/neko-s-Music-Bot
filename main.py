@@ -59,6 +59,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+@app.route("/")
+async def index():
+    return {
+        "detail": "ok",
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
 
