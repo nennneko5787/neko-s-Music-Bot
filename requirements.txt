@@ -1,6 +1,5 @@
 discord.py[voice]
-Flask
 yt-dlp
-ffmpeg-python
-psutil
-spotipy
+python-ffmpeg
+python-dotenv
+fastapi

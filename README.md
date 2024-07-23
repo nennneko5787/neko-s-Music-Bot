@@ -1,1 +1,0 @@
-このBotの使い方: [https://nennneko5787.github.io/neko-s-music-bot/](https://nennneko5787.github.io/neko-s-music-bot/)
