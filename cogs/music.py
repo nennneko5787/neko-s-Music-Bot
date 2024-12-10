@@ -68,7 +68,7 @@ class MusicCog(commands.Cog):
                         )
                     )
                     await message.edit(embed=embed)
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(5)
                 embed = (
                     discord.Embed(title=source.info["title"])
                     .set_author(name="再生終了")
