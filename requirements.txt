@@ -2,4 +2,3 @@ yt-dlp
 discord.py[voice]
 python-dotenv
 orjson
-ffmpeg
