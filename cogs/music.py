@@ -45,7 +45,6 @@ class MusicCog(commands.Cog):
         maxCount = queue.qsize()
         while count <= maxCount:
             source: YTDLSource = await queue.get()
-            source.read()
             if guild.voice_client:
                 embed = (
                     discord.Embed(title=source.info["title"])
