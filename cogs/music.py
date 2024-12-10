@@ -69,6 +69,15 @@ class MusicCog(commands.Cog):
                     )
                     await message.edit(embed=embed)
                     await asyncio.sleep(3)
+                embed = (
+                    discord.Embed(title=source.info["title"])
+                    .set_author(name="再生終了")
+                    .add_field(
+                        name="再生時間",
+                            value=f'{time.strftime("%H:%M:%S", time.gmtime(source.progress))} / {source.info["duration_string"]}',
+                    )
+                )
+                await message.edit(embed=embed)
 
     @app_commands.command(name="play", description="曲を再生します。")
     async def playMusic(
