@@ -79,6 +79,8 @@ class MusicCog(commands.Cog):
                 )
                 await message.edit(embed=embed)
                 voiceClient.stop()
+                
+        self.playing[guild.id] = False
         await guild.voice_client.disconnect()
 
     @app_commands.command(name="play", description="曲を再生します。")
