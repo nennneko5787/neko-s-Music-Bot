@@ -143,7 +143,6 @@ class MusicCog(commands.Cog):
                 await interaction.followup.send(
                     f'**{source.info.get("title")}** をキューに追加しました。'
                 )
-                await interaction.followup.send("再生を開始します。")
             else:
                 videos: list[dict] = await self.youtube.fetchPlaylistItems(
                     self.youtube.extractPlaylistId(url)
