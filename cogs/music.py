@@ -161,7 +161,8 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(
                 "現在曲を再生していません。", ephemeral=True
             )
-        self.playing[guild.id] = False
+        await interaction.response.defer()
+        voiceClient.stop()
         await interaction.response.send_message("スキップしました。")
 
     @app_commands.command(name="stop", description="曲を停止します。")
@@ -172,10 +173,11 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(
                 "現在曲を再生していません。", ephemeral=True
             )
+        await interaction.response.defer()
         await guild.voice_client.disconnect()
         await queue.join()
         self.playing[guild.id] = False
-        await interaction.response.send_message("停止しました。")
+        await interaction.followup.send("停止しました。")
 
 
 async def setup(bot: commands.Bot):
