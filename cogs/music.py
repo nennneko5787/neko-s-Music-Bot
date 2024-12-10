@@ -42,7 +42,7 @@ class MusicCog(commands.Cog):
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: asyncio.Queue = self.queue[guild.id]
         count = 0
-        maxCount = queue.qsize()
+        maxCount = queue.qsize()-1
         while count <= maxCount:
             source: YTDLSource = await queue.get()
             if guild.voice_client:
