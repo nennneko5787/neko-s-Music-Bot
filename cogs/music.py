@@ -78,6 +78,7 @@ class MusicCog(commands.Cog):
                     )
                 )
                 await message.edit(embed=embed)
+                voiceClient.stop()
 
     @app_commands.command(name="play", description="曲を再生します。")
     async def playMusic(
@@ -170,6 +171,7 @@ class MusicCog(commands.Cog):
                 "現在曲を再生していません。", ephemeral=True
             )
         await interaction.response.defer()
+        self.playing[guild.id] = False
         voiceClient.stop()
         await interaction.response.send_message("スキップしました。")
 
