@@ -173,7 +173,7 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         self.playing[guild.id] = False
         voiceClient.stop()
-        await interaction.response.send_message("スキップしました。")
+        await interaction.followup.send("スキップしました。")
 
     @app_commands.command(name="stop", description="曲を停止します。")
     async def stopMusic(self, interaction: discord.Interaction):
