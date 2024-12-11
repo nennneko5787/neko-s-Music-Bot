@@ -79,6 +79,8 @@ class MusicCog(commands.Cog):
                 voiceClient.play(source, after=lambda _: self.setToNotPlaying(guild.id))
                 self.playing[guild.id] = True
 
+                del self.source[guild.id]
+
                 asyncio.create_task(get())
 
                 while self.playing[guild.id]:
