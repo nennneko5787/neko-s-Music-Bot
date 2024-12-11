@@ -74,7 +74,7 @@ class MusicCog(commands.Cog):
                 voiceClient: discord.VoiceClient = guild.voice_client
 
                 if isinstance(source, NicoNicoSource):
-                    print(await source.sendHeartBeat())
+                    await source.sendHeartBeat()
 
                 voiceClient.play(source, after=lambda _: self.setToNotPlaying(guild.id))
                 self.playing[guild.id] = True
@@ -85,7 +85,7 @@ class MusicCog(commands.Cog):
 
                 while self.playing[guild.id]:
                     if isinstance(source, NicoNicoSource):
-                        print(await source.sendHeartBeat())
+                        await source.sendHeartBeat()
                     embed = (
                         discord.Embed(title=source.info["title"])
                         .set_author(name="再生中")
