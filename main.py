@@ -21,6 +21,11 @@ bot = commands.Bot(
 
 
 @bot.event
+async def on_ready():
+    print("Logined as", bot.user.name)
+
+
+@bot.event
 async def setup_hook():
     await bot.load_extension("cogs.music")
     # await bot.tree.sync()

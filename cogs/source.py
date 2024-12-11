@@ -8,6 +8,10 @@ FFMPEG_OPTIONS = {
 }
 
 
+class FetchVideoInfoFailed(Exception):
+    pass
+
+
 class YTDLSource(discord.PCMVolumeTransformer):
     """yt-dlpとうまく連携できるAudioSourceを提供します。クラスを直接作るのではなく、from_url関数を使用してAudioSourceを作成してください。"""
 
@@ -29,7 +33,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
     async def getVideoInfo(cls, url) -> dict:
         process = await asyncio.create_subprocess_shell(
-            f"yt-dlp -j -f bestaudio/best --cookies ./cookies.txt {url}",
+            f'yt-dlp -j -f bestaudio/best --cookies ./cookies.txt --no-playlist "{url}"',
             stderr=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
         )
@@ -40,8 +44,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
             video_info = orjson.loads(stdout.decode("utf-8"))
             return video_info
         else:
-            print("Error:", stderr)
-            return None
+            raise FetchVideoInfoFailed(f"download failed: {url}")
 
     @classmethod
     async def from_url(cls, url, volume: float = 0.5):
@@ -54,7 +57,9 @@ class YTDLSource(discord.PCMVolumeTransformer):
         Returns:
             YTDLSource: 完成したAudioSource。
         """
+        print(f"loading {url}")
         info = await cls.getVideoInfo(url)
+        print("ok")
         if "entries" in info:
             info = info.get("entries", [])[0]
         fileName = info.get("url", "")

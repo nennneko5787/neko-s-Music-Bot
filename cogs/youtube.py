@@ -15,8 +15,11 @@ class YoutubeAPI:
                 "www.youtube.com",
                 "youtube.com",
             ]:
-                queryParams = parse_qs(parsedUrl.query)
-                return "list" in queryParams
+                if "playlist" in url:
+                    queryParams = parse_qs(parsedUrl.query)
+                    return "list" in queryParams
+                else:
+                    return False
             return False
         except Exception as e:
             print(f"Error: {e}")
