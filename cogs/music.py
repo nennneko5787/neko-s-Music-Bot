@@ -43,7 +43,6 @@ class MusicCog(commands.Cog):
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: asyncio.Queue = self.queue[guild.id]
-
         async def get():
             if not queue.empty():
                 info: dict = await queue.get()
@@ -51,17 +50,15 @@ class MusicCog(commands.Cog):
                     self.source[guild.id] = await NicoNicoSource.from_url(
                         info["url"], self.niconico, info["volume"]
                     )
-                    print("a")
                 else:
                     self.source[guild.id] = await YTDLSource.from_url(
                         info["url"], info["volume"]
                     )
-                    print("b")
-
-        await get()
 
         while not queue.empty():
             if guild.voice_client:
+                if not guild.id in self.source:
+                    await get()
                 source: YTDLSource | NicoNicoSource = self.source[guild.id]
 
                 embed = (
