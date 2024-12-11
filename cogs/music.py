@@ -130,7 +130,6 @@ class MusicCog(commands.Cog):
         if not guild.voice_client:
             await user.voice.channel.connect()
         self.queue[guild.id] = asyncio.Queue()
-        self.playing[guild.id] = False
         queue: asyncio.Queue = self.queue[guild.id]
         if "nicovideo" in url:
             await queue.put({"url": url, "volume": volume})
