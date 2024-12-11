@@ -242,7 +242,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         cookies = niconico.client.cookies
 
         FFMPEG_OPTIONS = {
-            "before_options": f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in cookies.items())}\r\n' -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+            "before_options": f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in cookies.items())}' -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": "-vn",
         }
 
