@@ -38,8 +38,8 @@ class MusicCog(commands.Cog):
             activity=discord.Game(f"{len(playing)} / {len(self.bot.guilds)} サーバー")
         )
 
-    def setToNotPlaying(self, guild_id: int):
-        self.playing[guild_id] = False
+    def setToNotPlaying(self, guildId: int):
+        self.playing[guildId] = False
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: asyncio.Queue = self.queue[guild.id]
@@ -129,7 +129,10 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect()
-        self.queue[guild.id] = asyncio.Queue()
+        if not guild.id in self.playing:
+            self.playing[guild.id] = False
+        if not guild.id in self.queue:
+            self.queue[guild.id] = asyncio.Queue()
         queue: asyncio.Queue = self.queue[guild.id]
         if "nicovideo" in url:
             await queue.put({"url": url, "volume": volume})
