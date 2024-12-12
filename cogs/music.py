@@ -1,6 +1,7 @@
 import asyncio
 import os
 import time
+from datetime import timedelta
 
 import discord
 from discord import app_commands
@@ -15,7 +16,7 @@ dotenv.load_dotenv()
 
 
 class MusicActionPanelIfPaused(discord.ui.View):
-    @discord.ui.button(emoji="▶", custom_id="resume")
+    @discord.ui.button(emoji="▶", style=discord.ButtonStyle.blurple, custom_id="resume")
     async def resume(
         self, interaction: discord.Interaction, button: discord.Button
     ) -> None:
@@ -34,7 +35,7 @@ class MusicActionPanelIfPaused(discord.ui.View):
 
 
 class MusicActionPanelIfNotPause(discord.ui.View):
-    @discord.ui.button(emoji="⏸", custom_id="pause")
+    @discord.ui.button(emoji="⏸", style=discord.ButtonStyle.blurple, custom_id="pause")
     async def pause(
         self, interaction: discord.Interaction, button: discord.Button
     ) -> None:
@@ -62,6 +63,7 @@ class MusicCog(commands.Cog):
         self.source: dict[YTDLSource] = {}
         self.queue: dict[asyncio.Queue] = {}
         self.playing: dict[bool] = {}
+        self.alarm: dict[bool] = {}
         self.youtube = YoutubeAPI()
         self.niconico = NicoNicoAPI()
 
@@ -163,6 +165,68 @@ class MusicCog(commands.Cog):
             del self.source[guild.id]
         await guild.voice_client.disconnect()
 
+    @app_commands.command(name="alarm", description="アラームをセットします。")
+    async def alarmCommand(
+        self,
+        interaction: discord.Interaction,
+        delay: app_commands.Range[int, 0],
+        url: str,
+        volume: float = 0.5,
+    ):
+        user = interaction.user
+        guild = interaction.guild
+        channel = interaction.channel
+        if not user.voice:
+            await interaction.response.send_message(
+                "ボイスチャンネルに接続してください。", ephemeral=True
+            )
+            return
+        if "spotify" in url:
+            await interaction.response.send_message(
+                "まだSpotifyには対応していません。すみません。", ephemeral=True
+            )
+            return
+        await interaction.response.defer()
+        if not guild.voice_client:
+            await user.voice.channel.connect()
+        if not guild.id in self.playing:
+            self.playing[guild.id] = False
+        if not guild.id in self.queue:
+            self.queue[guild.id] = asyncio.Queue()
+        queue: asyncio.Queue = self.queue[guild.id]
+        result = await isPlayList(url)
+        if not result:
+            await queue.put({"url": url, "volume": volume})
+            await interaction.followup.send(f"**{url}** をキューに追加しました。")
+        else:
+            await asyncio.gather(
+                *[
+                    queue.put(
+                        {
+                            "url": video,
+                            "volume": volume,
+                        }
+                    )
+                    for video in result
+                ]
+            )
+            await interaction.followup.send(
+                f"**{len(result)}個の動画**をキューに追加しました。"
+            )
+
+        self.alarm[guild.id] = True
+
+        embed = discord.Embed(
+            title="アラームをセットしました！",
+            description=f"{discord.utils.format_dt(discord.utils.utcnow()+timedelta(seconds=delay), "R")} 秒後に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
+            colour=discord.Colour.green(),
+        )
+        await interaction.followup.send(embed=embed)
+
+        await asyncio.sleep(delay)
+        del self.alarm[guild.id]
+        await self.playNext(guild, channel)
+
     @app_commands.command(name="play", description="曲を再生します。")
     async def playMusic(
         self, interaction: discord.Interaction, url: str, volume: float = 0.5
@@ -178,6 +242,11 @@ class MusicCog(commands.Cog):
         if "spotify" in url:
             await interaction.response.send_message(
                 "まだSpotifyには対応していません。すみません。", ephemeral=True
+            )
+            return
+        if self.alarm.get(guild.id, False):
+            await interaction.response.send_message(
+                "アラームをセット中です！曲の再生はできません！", ephemeral=True
             )
             return
         await interaction.response.defer()
