@@ -14,6 +14,44 @@ from .niconico import NicoNicoAPI, NicoNicoSource
 dotenv.load_dotenv()
 
 
+class MusicActionPanelIfPaused(discord.ui.View):
+    @discord.ui.button(emoji="▶", custom_id="resume")
+    async def resume(
+        self, interaction: discord.Interaction, button: discord.Button
+    ) -> None:
+        if not interaction.guild.voice_client:
+            embed = discord.Embed(
+                title="音楽を再生していません。", colour=discord.Colour.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        interaction.guild.voice_client.resume()
+        embed = interaction.message.embeds[0]
+        await interaction.edit_original_response(
+            embed=embed, view=MusicActionPanelIfNotPause(timeout=None)
+        )
+
+
+class MusicActionPanelIfNotPause(discord.ui.View):
+    @discord.ui.button(emoji="⏸", custom_id="pause")
+    async def pause(
+        self, interaction: discord.Interaction, button: discord.Button
+    ) -> None:
+        if not interaction.guild.voice_client:
+            embed = discord.Embed(
+                title="音楽を再生していません。", colour=discord.Colour.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        interaction.guild.voice_client.pause()
+        embed = interaction.message.embeds[0]
+        await interaction.edit_original_response(
+            embed=embed, view=MusicActionPanelIfPaused(timeout=None)
+        )
+
+
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -63,7 +101,9 @@ class MusicCog(commands.Cog):
                 source: YTDLSource | NicoNicoSource = self.source[guild.id]
 
                 embed = (
-                    discord.Embed(title=source.info["title"])
+                    discord.Embed(
+                        title=source.info["title"], colour=discord.Colour.purple()
+                    )
                     .set_author(name="再生準備中")
                     .add_field(
                         name="再生時間",
@@ -71,7 +111,9 @@ class MusicCog(commands.Cog):
                     )
                 )
 
-                message = await channel.send(embed=embed)
+                message = await channel.send(
+                    embed=embed, view=MusicActionPanelIfNotPause(timeout=None)
+                )
                 voiceClient: discord.VoiceClient = guild.voice_client
 
                 if isinstance(source, NicoNicoSource):
@@ -95,7 +137,14 @@ class MusicCog(commands.Cog):
                             value=f'{time.strftime("%H:%M:%S", time.gmtime(source.progress))} / {source.info["duration_string"]}',
                         )
                     )
-                    await message.edit(embed=embed)
+                    await message.edit(
+                        embed=embed,
+                        view=(
+                            MusicActionPanelIfNotPause(timeout=None)
+                            if not voiceClient.is_paused()
+                            else MusicActionPanelIfPaused(timeout=None)
+                        ),
+                    )
                     await asyncio.sleep(5)
                 embed = (
                     discord.Embed(title=source.info["title"])
@@ -110,7 +159,8 @@ class MusicCog(commands.Cog):
             else:
                 break
         self.playing[guild.id] = False
-        del self.source[guild.id]
+        if guild.id in self.source:
+            del self.source[guild.id]
         await guild.voice_client.disconnect()
 
     @app_commands.command(name="play", description="曲を再生します。")
