@@ -156,7 +156,7 @@ class MusicCog(commands.Cog):
                         value=f'{time.strftime("%H:%M:%S", time.gmtime(source.progress))} / {source.info["duration_string"]}',
                     )
                 )
-                await message.edit(embed=embed)
+                await message.edit(embed=embed, view=None)
                 voiceClient.stop()
             else:
                 break
