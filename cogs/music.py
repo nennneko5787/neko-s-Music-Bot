@@ -218,7 +218,7 @@ class MusicCog(commands.Cog):
 
         embed = discord.Embed(
             title="アラームをセットしました！",
-            description=f"{discord.utils.format_dt(discord.utils.utcnow()+timedelta(seconds=delay), "R")} 秒後に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
+            description=f"{discord.utils.format_dt(discord.utils.utcnow()+timedelta(seconds=delay), "R")} に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
             colour=discord.Colour.green(),
         )
         await interaction.followup.send(embed=embed)
