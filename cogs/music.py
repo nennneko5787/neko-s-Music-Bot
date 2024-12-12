@@ -52,8 +52,8 @@ class MusicActionPanelIfNotPause(discord.ui.View):
         )
 
 
-pausedView = MusicActionPanelIfPaused()
-notPausedView = MusicActionPanelIfNotPause()
+pausedView = MusicActionPanelIfPaused(timeout=None)
+notPausedView = MusicActionPanelIfNotPause(timeout=None)
 
 
 class MusicCog(commands.Cog):
