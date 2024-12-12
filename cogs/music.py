@@ -107,7 +107,8 @@ class MusicCog(commands.Cog):
                 )
                 await message.edit(embed=embed)
                 voiceClient.stop()
-
+            else:
+                break
         self.playing[guild.id] = False
         del self.source[guild.id]
         await guild.voice_client.disconnect()
