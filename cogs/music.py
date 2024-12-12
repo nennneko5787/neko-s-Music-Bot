@@ -52,6 +52,10 @@ class MusicActionPanelIfNotPause(discord.ui.View):
         )
 
 
+pausedView = MusicActionPanelIfPaused()
+notPausedView = MusicActionPanelIfNotPause()
+
+
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -111,9 +115,7 @@ class MusicCog(commands.Cog):
                     )
                 )
 
-                message = await channel.send(
-                    embed=embed, view=MusicActionPanelIfNotPause(timeout=None)
-                )
+                message = await channel.send(embed=embed, view=notPausedView)
                 voiceClient: discord.VoiceClient = guild.voice_client
 
                 if isinstance(source, NicoNicoSource):
@@ -140,9 +142,7 @@ class MusicCog(commands.Cog):
                     await message.edit(
                         embed=embed,
                         view=(
-                            MusicActionPanelIfNotPause(timeout=None)
-                            if not voiceClient.is_paused()
-                            else MusicActionPanelIfPaused(timeout=None)
+                            notPausedView if not voiceClient.is_paused() else pausedView
                         ),
                     )
                     await asyncio.sleep(5)
@@ -276,3 +276,5 @@ class MusicCog(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(MusicCog(bot))
+    await bot.add_view(pausedView)
+    await bot.add_view(notPausedView)
