@@ -134,7 +134,7 @@ class MusicCog(commands.Cog):
                     if isinstance(source, NicoNicoSource):
                         await source.sendHeartBeat()
                     embed = (
-                        discord.Embed(title=source.info["title"])
+                        discord.Embed(title=source.info["title"], colour=discord.Colour.purple())
                         .set_author(name="再生中")
                         .add_field(
                             name="再生時間",
