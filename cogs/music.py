@@ -275,6 +275,6 @@ class MusicCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
+    bot.add_view(pausedView)
+    bot.add_view(notPausedView)
     await bot.add_cog(MusicCog(bot))
-    await bot.add_view(pausedView)
-    await bot.add_view(notPausedView)
