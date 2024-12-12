@@ -12,6 +12,29 @@ class FetchVideoInfoFailed(Exception):
     pass
 
 
+async def isPlayList(url) -> list[str] | bool:
+    process = await asyncio.create_subprocess_shell(
+        f'yt-dlp -j -f bestaudio/best --cookies ./cookies.txt --flat-playlist --no-playlist --no-download -i "{url}"',
+        stderr=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+    )
+
+    stdout, stderr = await process.communicate()
+
+    if process.returncode == 0:
+        json = f"[{','.join(stdout.decode('utf-8').strip().splitlines())}]"
+        videoInfo: list = orjson.loads(json)
+        if len(videoInfo) > 1:
+            urls = []
+            for info in videoInfo:
+                urls.append(info["url"])
+            return urls
+        else:
+            return False
+    else:
+        raise FetchVideoInfoFailed(f"download failed: {url}")
+
+
 class YTDLSource(discord.PCMVolumeTransformer):
     """yt-dlpとうまく連携できるAudioSourceを提供します。クラスを直接作るのではなく、from_url関数を使用してAudioSourceを作成してください。"""
 
@@ -41,8 +64,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
         stdout, stderr = await process.communicate()
 
         if process.returncode == 0:
-            video_info = orjson.loads(stdout.decode("utf-8"))
-            return video_info
+            videoInfo = orjson.loads(stdout.decode("utf-8"))
+            return videoInfo
         else:
             raise FetchVideoInfoFailed(f"download failed: {url}")
 

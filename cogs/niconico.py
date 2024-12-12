@@ -76,8 +76,6 @@ class NicoNicoAPI:
             headers=headers,
         )
 
-        print(response.status_code)
-        print(response.text)
         if response.status_code == 201:
             self.domandBid = response.cookies.get("domand_bid", None)
             jsonData = response.json()
@@ -237,13 +235,11 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         domand = niconico.client.cookies["domand_bid"]
         nicosid = niconico.client.cookies["nicosid"]
 
-        print(domand)
-
         cookies = niconico.client.cookies
 
         FFMPEG_OPTIONS = {
             "before_options": f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in cookies.items())}' -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            "options": "-vn",
+            "options": "-vn -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
         }
 
         info = {

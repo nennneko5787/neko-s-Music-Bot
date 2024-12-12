@@ -8,7 +8,7 @@ import dotenv
 from discord.ext import commands, tasks
 
 from .youtube import YoutubeAPI
-from .source import YTDLSource
+from .source import YTDLSource, isPlayList
 from .niconico import NicoNicoAPI, NicoNicoSource
 
 dotenv.load_dotenv()
@@ -43,6 +43,7 @@ class MusicCog(commands.Cog):
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: asyncio.Queue = self.queue[guild.id]
+
         async def get():
             if not queue.empty():
                 info: dict = await queue.get()
@@ -63,7 +64,7 @@ class MusicCog(commands.Cog):
 
                 embed = (
                     discord.Embed(title=source.info["title"])
-                    .set_author(name="再生中")
+                    .set_author(name="再生準備中")
                     .add_field(
                         name="再生時間",
                         value=f'0:00 / {source.info["duration_string"]}',
@@ -136,32 +137,25 @@ class MusicCog(commands.Cog):
         if not guild.id in self.queue:
             self.queue[guild.id] = asyncio.Queue()
         queue: asyncio.Queue = self.queue[guild.id]
-        if "nicovideo" in url:
+        result = await isPlayList(url)
+        if not result:
             await queue.put({"url": url, "volume": volume})
             await interaction.followup.send(f"**{url}** をキューに追加しました。")
         else:
-            if not self.youtube.isYoutubePlayList(url):
-                await queue.put({"url": url, "volume": volume})
-                await interaction.followup.send(f"**{url}** をキューに追加しました。")
-            else:
-                videos: list[dict] = await self.youtube.fetchPlaylistItems(
-                    self.youtube.extractPlaylistId(url)
-                )
-
-                await asyncio.gather(
-                    *[
-                        queue.put(
-                            {
-                                "url": video["snippet"]["resourceId"]["videoId"],
-                                "volume": volume,
-                            }
-                        )
-                        for video in videos
-                    ]
-                )
-                await interaction.followup.send(
-                    f"**{len(videos)}個の動画**をキューに追加しました。"
-                )
+            await asyncio.gather(
+                *[
+                    queue.put(
+                        {
+                            "url": video,
+                            "volume": volume,
+                        }
+                    )
+                    for video in result
+                ]
+            )
+            await interaction.followup.send(
+                f"**{len(result)}個の動画**をキューに追加しました。"
+            )
         if not self.playing[guild.id]:
             await self.playNext(guild, channel)
 
@@ -172,6 +166,7 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(
                 "現在曲を再生していません。", ephemeral=True
             )
+            return
         await interaction.response.defer()
         self.playing[guild.id] = False
         guild.voice_client.stop()
@@ -185,12 +180,47 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(
                 "現在曲を再生していません。", ephemeral=True
             )
+            return
         await interaction.response.defer()
         await guild.voice_client.disconnect()
         while not queue.empty():
             await queue.get()
         self.playing[guild.id] = False
         await interaction.followup.send("停止しました。")
+
+    @app_commands.command(name="pause", description="曲を一時停止します。")
+    async def pauseMusic(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        if not guild.voice_client:
+            await interaction.response.send_message(
+                "現在曲を再生していません。", ephemeral=True
+            )
+            return
+        if guild.voice_client.is_paused():
+            await interaction.response.send_message(
+                "すでに一時停止しています。", ephemeral=True
+            )
+            return
+        await interaction.response.defer()
+        await guild.voice_client.pause()
+        await interaction.followup.send("一時停止しました。")
+
+    @app_commands.command(name="resume", description="曲を一時停止します。")
+    async def resumeMusic(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        if not guild.voice_client:
+            await interaction.response.send_message(
+                "現在曲を再生していません。", ephemeral=True
+            )
+            return
+        if not guild.voice_client.is_paused():
+            await interaction.response.send_message(
+                "一時停止していません。", ephemeral=True
+            )
+            return
+        await interaction.response.defer()
+        await guild.voice_client.resume()
+        await interaction.followup.send("一時停止しました。")
 
 
 async def setup(bot: commands.Bot):

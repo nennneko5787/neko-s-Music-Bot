@@ -28,7 +28,7 @@ async def on_ready():
 @bot.event
 async def setup_hook():
     await bot.load_extension("cogs.music")
-    # await bot.tree.sync()
+    await bot.tree.sync()
 
 
 bot.run(os.getenv("discord"))
