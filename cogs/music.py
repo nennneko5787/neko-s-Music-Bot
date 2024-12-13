@@ -102,11 +102,12 @@ class MusicCog(commands.Cog):
 
         while True:
             if guild.voice_client:
-                if queue.empty() and not guild.id in self.source:
-                    break
-
                 if not guild.id in self.source:
                     await get()
+                    
+                if queue.empty() and not guild.id in self.source:
+                    break
+                    
                 source: YTDLSource | NicoNicoSource = self.source[guild.id]
 
                 embed = (
