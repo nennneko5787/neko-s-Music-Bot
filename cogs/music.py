@@ -95,7 +95,7 @@ class MusicCog(commands.Cog):
                     self.source[guild.id] = await NicoNicoSource.from_url(
                         info["url"], self.niconico, info["volume"]
                     )
-                else:
+                else:=
                     self.source[guild.id] = await YTDLSource.from_url(
                         info["url"], info["volume"]
                     )
