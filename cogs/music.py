@@ -30,7 +30,7 @@ class MusicActionPanelIfPaused(discord.ui.View):
         interaction.guild.voice_client.resume()
         embed = interaction.message.embeds[0]
         await interaction.edit_original_response(
-            embed=embed, view=MusicActionPanelIfNotPause(timeout=None)
+            embed=embed, view=notPausedView
         )
 
 
@@ -49,7 +49,7 @@ class MusicActionPanelIfNotPause(discord.ui.View):
         interaction.guild.voice_client.pause()
         embed = interaction.message.embeds[0]
         await interaction.edit_original_response(
-            embed=embed, view=MusicActionPanelIfPaused(timeout=None)
+            embed=embed, view=pausedView
         )
 
 
@@ -100,16 +100,20 @@ class MusicCog(commands.Cog):
                         info["url"], info["volume"]
                     )
 
-        while not queue.empty():
+        while True:
             if guild.voice_client:
+                if queue.empty() and not guild.id in self.source:
+                    break
+
                 if not guild.id in self.source:
                     await get()
                 source: YTDLSource | NicoNicoSource = self.source[guild.id]
 
                 embed = (
                     discord.Embed(
-                        title=source.info["title"], colour=discord.Colour.purple()
+                        title=source.info["title"], colour=discord.Colour.purple(), url=source.info["webpage_url"]
                     )
+                    .set_image(url=source.info["thumbnail"])
                     .set_author(name="再生準備中")
                     .add_field(
                         name="再生時間",
@@ -134,7 +138,8 @@ class MusicCog(commands.Cog):
                     if isinstance(source, NicoNicoSource):
                         await source.sendHeartBeat()
                     embed = (
-                        discord.Embed(title=source.info["title"], colour=discord.Colour.purple())
+                        discord.Embed(title=source.info["title"], colour=discord.Colour.purple(), url=source.info["webpage_url"])
+                        .set_image(url=source.info["thumbnail"])
                         .set_author(name="再生中")
                         .add_field(
                             name="再生時間",
@@ -149,7 +154,8 @@ class MusicCog(commands.Cog):
                     )
                     await asyncio.sleep(5)
                 embed = (
-                    discord.Embed(title=source.info["title"])
+                    discord.Embed(title=source.info["title"], url=source.info["webpage_url"])
+                    .set_image(url=source.info["thumbnail"])
                     .set_author(name="再生終了")
                     .add_field(
                         name="再生時間",
@@ -244,11 +250,6 @@ class MusicCog(commands.Cog):
                 "まだSpotifyには対応していません。すみません。", ephemeral=True
             )
             return
-        if self.alarm.get(guild.id, False):
-            await interaction.response.send_message(
-                "アラームをセット中です！曲の再生はできません！", ephemeral=True
-            )
-            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect()
@@ -276,7 +277,7 @@ class MusicCog(commands.Cog):
             await interaction.followup.send(
                 f"**{len(result)}個の動画**をキューに追加しました。"
             )
-        if not self.playing[guild.id]:
+        if not self.playing[guild.id] and not self.alarm.get(guild.id, True):
             await self.playNext(guild, channel)
 
     @app_commands.command(name="skip", description="曲をスキップします。")
