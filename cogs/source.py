@@ -14,7 +14,7 @@ class FetchVideoInfoFailed(Exception):
 
 async def isPlayList(url) -> list[str] | bool:
     process = await asyncio.create_subprocess_shell(
-        f'yt-dlp -j -f bestaudio/best --flat-playlist --no-playlist --no-download -i "{url}"',
+        f'yt-dlp -j -f bestaudio/best --flat-playlist --cookies ./cookies.txt --no-playlist --no-download -i "{url}"',
         stderr=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
     )
@@ -59,7 +59,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
     async def getVideoInfo(cls, url) -> dict:
         process = await asyncio.create_subprocess_shell(
-            f'yt-dlp -j -f bestaudio/best --no-playlist "{url}"',
+            f'yt-dlp -j -f bestaudio/best --cookies ./cookies.txt --no-playlist "{url}"',
             stderr=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
         )
