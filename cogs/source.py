@@ -32,6 +32,7 @@ async def isPlayList(url) -> list[str] | bool:
         else:
             return False
     else:
+        print(stdout)
         raise FetchVideoInfoFailed(f"download failed: {url}")
 
 
