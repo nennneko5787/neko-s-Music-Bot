@@ -14,7 +14,7 @@ class FetchVideoInfoFailed(Exception):
 
 async def isPlayList(url) -> list[str] | bool:
     process = await asyncio.create_subprocess_shell(
-        f'yt-dlp -j -f bestaudio/best --cookies ./cookies.txt --flat-playlist --no-playlist --no-download -i "{url}"',
+        f'yt-dlp -j -f bestaudio/best --flat-playlist --cookies ./cookies.txt --no-playlist --no-download -i "{url}"',
         stderr=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
     )
@@ -32,7 +32,10 @@ async def isPlayList(url) -> list[str] | bool:
         else:
             return False
     else:
-        raise FetchVideoInfoFailed(f"download failed: {url}")
+        print(process.returncode)
+        print(stdout.decode("utf-8"))
+        print(stderr.decode("utf-8"))
+        raise FetchVideoInfoFailed(f"download failed: {url} {process.returncode} {stdout} {stderr}")
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -67,7 +70,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
             videoInfo = orjson.loads(stdout.decode("utf-8"))
             return videoInfo
         else:
-            raise FetchVideoInfoFailed(f"download failed: {url}")
+            raise FetchVideoInfoFailed(f"download failed: {url} {process.returncode} {stdout} {stderr}")
 
     @classmethod
     async def from_url(cls, url, volume: float = 0.5):
