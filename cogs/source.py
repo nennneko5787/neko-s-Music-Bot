@@ -35,7 +35,7 @@ async def isPlayList(url) -> list[str] | bool:
         print(process.returncode)
         print(stdout.decode("utf-8"))
         print(stderr.decode("utf-8"))
-        raise FetchVideoInfoFailed(f"download failed: {url}")
+        raise FetchVideoInfoFailed(f"download failed: {url} {process.returncode} {stdout} {stderr}")
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
