@@ -105,7 +105,8 @@ class MusicCog(commands.Cog):
                 if not guild.id in self.source:
                     await get()
                     
-                if queue.empty() and not guild.id in self.source:
+                if (queue.empty()) and (not guild.id in self.source):
+                    print("break")
                     break
                     
                 source: YTDLSource | NicoNicoSource = self.source[guild.id]
