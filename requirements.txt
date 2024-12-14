@@ -2,6 +2,6 @@ git+https://github.com/yt-dlp/yt-dlp.git
 discord.py[voice]
 python-dotenv
 orjson
-niconico.py
 httpx
 tzdata
+spotdl

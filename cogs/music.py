@@ -7,6 +7,10 @@ import discord
 from discord import app_commands
 import dotenv
 from discord.ext import commands, tasks
+from spotdl import Spotdl
+from spotdl.types.song import Song
+from spotdl.types.album import Album
+from spotdl.types.playlist import Playlist
 
 from .youtube import YoutubeAPI
 from .source import YTDLSource, isPlayList
@@ -66,6 +70,10 @@ class MusicCog(commands.Cog):
         self.alarm: dict[bool] = {}
         self.youtube = YoutubeAPI()
         self.niconico = NicoNicoAPI()
+        self.spotify = Spotdl(
+            client_id=os.getenv("spotify_clientid"),
+            client_secret=os.getenv("spotify_clientsecret"),
+        )
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -247,11 +255,6 @@ class MusicCog(commands.Cog):
                 "ボイスチャンネルに接続してください。", ephemeral=True
             )
             return
-        if "spotify" in url:
-            await interaction.response.send_message(
-                "まだSpotifyには対応していません。すみません。", ephemeral=True
-            )
-            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect()
@@ -260,25 +263,54 @@ class MusicCog(commands.Cog):
         if not guild.id in self.queue:
             self.queue[guild.id] = asyncio.Queue()
         queue: asyncio.Queue = self.queue[guild.id]
-        result = await isPlayList(url)
-        if not result:
-            await queue.put({"url": url, "volume": volume})
-            await interaction.followup.send(f"**{url}** をキューに追加しました。")
-        else:
+        if "spotify" in url:
+            if "track" in url:
+                song: Song = await asyncio.to_thread(Song.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(self.spotify.get_download_urls, [song])
+            elif "album" in url:
+                album = await asyncio.to_thread(Album.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(self.spotify.get_download_urls, album.songs)
+            elif "playlist" in url:
+                playlist = await asyncio.to_thread(Playlist.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(self.spotify.get_download_urls, playlist.songs)
+            else:
+                await interaction.followup.send("無効なSpotify URL")
+                return
+            
             await asyncio.gather(
                 *[
                     queue.put(
                         {
-                            "url": video,
+                            "url": music,
                             "volume": volume,
                         }
                     )
-                    for video in result
+                    for music in urls
                 ]
             )
             await interaction.followup.send(
-                f"**{len(result)}個の動画**をキューに追加しました。"
+                f"**{len(urls)}個の曲**をキューに追加しました。"
             )
+        else:
+            result = await isPlayList(url)
+            if not result:
+                await queue.put({"url": url, "volume": volume})
+                await interaction.followup.send(f"**{url}** をキューに追加しました。")
+            else:
+                await asyncio.gather(
+                    *[
+                        queue.put(
+                            {
+                                "url": video,
+                                "volume": volume,
+                            }
+                        )
+                        for video in result
+                    ]
+                )
+                await interaction.followup.send(
+                    f"**{len(result)}個の動画**をキューに追加しました。"
+                )
         if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
             await self.playNext(guild, channel)
 
