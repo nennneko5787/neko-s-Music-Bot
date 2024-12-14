@@ -70,7 +70,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
             videoInfo = orjson.loads(stdout.decode("utf-8"))
             return videoInfo
         else:
-            raise FetchVideoInfoFailed(f"download failed: {url}")
+            raise FetchVideoInfoFailed(f"download failed: {url} {process.returncode} {stdout} {stderr}")
 
     @classmethod
     async def from_url(cls, url, volume: float = 0.5):
