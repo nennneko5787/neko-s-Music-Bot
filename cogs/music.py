@@ -279,7 +279,7 @@ class MusicCog(commands.Cog):
             await interaction.followup.send(
                 f"**{len(result)}個の動画**をキューに追加しました。"
             )
-        if not self.playing[guild.id] and not self.alarm.get(guild.id, True):
+        if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
             await self.playNext(guild, channel)
 
     @app_commands.command(name="skip", description="曲をスキップします。")
