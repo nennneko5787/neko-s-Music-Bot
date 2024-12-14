@@ -248,6 +248,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
                 "%H:%M:%S",
                 time.gmtime(float(data["data"]["response"]["video"]["duration"])),
             ),
+            "duration": int(data["data"]["response"]["video"]["duration"]),
             "webpage_url": f'https://www.nicovideo.jp/watch/{data["data"]["response"]["video"]["id"]}',
             "thumbnail": data["data"]["response"]["video"]["thumbnail"]["ogp"],
         }

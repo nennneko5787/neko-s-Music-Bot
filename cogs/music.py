@@ -57,6 +57,15 @@ pausedView = MusicActionPanelIfPaused(timeout=None)
 notPausedView = MusicActionPanelIfNotPause(timeout=None)
 
 
+def formatTime(seconds):
+    if seconds < 3600:
+        return time.strftime("%M:%S", time.gmtime(seconds))
+    elif seconds < 86400:
+        return time.strftime("%H:%M:%S", time.gmtime(seconds))
+    else:
+        return time.strftime("%d:%H:%M:%S", time.gmtime(seconds))
+
+
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -125,7 +134,7 @@ class MusicCog(commands.Cog):
                     .set_author(name="再生準備中")
                     .add_field(
                         name="再生時間",
-                        value=f'0:00 / {source.info["duration_string"]}',
+                        value=f'{formatTime(source.progress)} / {formatTime(source.info["duration"])}',
                     )
                 )
 
@@ -155,7 +164,7 @@ class MusicCog(commands.Cog):
                         .set_author(name="再生中")
                         .add_field(
                             name="再生時間",
-                            value=f'{time.strftime("%H:%M:%S", time.gmtime(source.progress))} / {source.info["duration_string"]}',
+                            value=f'{formatTime(source.progress)} / {formatTime(source.info["duration"])}',
                         )
                     )
                     await message.edit(
@@ -173,13 +182,14 @@ class MusicCog(commands.Cog):
                     .set_author(name="再生終了")
                     .add_field(
                         name="再生時間",
-                        value=f'{time.strftime("%H:%M:%S", time.gmtime(source.progress))} / {source.info["duration_string"]}',
+                        value=f'{formatTime(source.progress)} / {formatTime(source.info["duration"])}',
                     )
                 )
                 await message.edit(embed=embed, view=None)
                 voiceClient.stop()
             else:
                 break
+        await channel.send("再生終了")
         self.playing[guild.id] = False
         if guild.id in self.source:
             del self.source[guild.id]
@@ -201,11 +211,6 @@ class MusicCog(commands.Cog):
                 "ボイスチャンネルに接続してください。", ephemeral=True
             )
             return
-        if "spotify" in url:
-            await interaction.response.send_message(
-                "まだSpotifyには対応していません。すみません。", ephemeral=True
-            )
-            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect()
@@ -214,25 +219,62 @@ class MusicCog(commands.Cog):
         if not guild.id in self.queue:
             self.queue[guild.id] = asyncio.Queue()
         queue: asyncio.Queue = self.queue[guild.id]
-        result = await isPlayList(url)
-        if not result:
-            await queue.put({"url": url, "volume": volume})
-            await interaction.followup.send(f"**{url}** をキューに追加しました。")
-        else:
+        if "spotify" in url:
+            if "track" in url:
+                song: Song = await asyncio.to_thread(Song.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, [song]
+                )
+            elif "album" in url:
+                album = await asyncio.to_thread(Album.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, album.songs
+                )
+            elif "playlist" in url:
+                playlist = await asyncio.to_thread(Playlist.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, playlist.songs
+                )
+            else:
+                await interaction.followup.send("無効なSpotify URL")
+                return
+
             await asyncio.gather(
                 *[
                     queue.put(
                         {
-                            "url": video,
+                            "url": music,
                             "volume": volume,
                         }
                     )
-                    for video in result
+                    for music in urls
                 ]
             )
             await interaction.followup.send(
-                f"**{len(result)}個の動画**をキューに追加しました。"
+                f"**{len(urls)}個の曲**をキューに追加しました。"
             )
+        else:
+            result = await isPlayList(url)
+            if not result:
+                await queue.put({"url": url, "volume": volume})
+                await interaction.followup.send(f"**{url}** をキューに追加しました。")
+            else:
+                await asyncio.gather(
+                    *[
+                        queue.put(
+                            {
+                                "url": video,
+                                "volume": volume,
+                            }
+                        )
+                        for video in result
+                    ]
+                )
+                await interaction.followup.send(
+                    f"**{len(result)}個の動画**をキューに追加しました。"
+                )
+        if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+            await self.playNext(guild, channel)
 
         self.alarm[guild.id] = True
 
