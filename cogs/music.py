@@ -33,9 +33,7 @@ class MusicActionPanelIfPaused(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
         interaction.guild.voice_client.resume()
         embed = interaction.message.embeds[0]
-        await interaction.edit_original_response(
-            embed=embed, view=notPausedView
-        )
+        await interaction.edit_original_response(embed=embed, view=notPausedView)
 
 
 class MusicActionPanelIfNotPause(discord.ui.View):
@@ -52,9 +50,7 @@ class MusicActionPanelIfNotPause(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
         interaction.guild.voice_client.pause()
         embed = interaction.message.embeds[0]
-        await interaction.edit_original_response(
-            embed=embed, view=pausedView
-        )
+        await interaction.edit_original_response(embed=embed, view=pausedView)
 
 
 pausedView = MusicActionPanelIfPaused(timeout=None)
@@ -112,16 +108,18 @@ class MusicCog(commands.Cog):
             if guild.voice_client:
                 if not guild.id in self.source:
                     await get()
-                    
+
                 if (queue.empty()) and (not guild.id in self.source):
                     print("break")
                     break
-                    
+
                 source: YTDLSource | NicoNicoSource = self.source[guild.id]
 
                 embed = (
                     discord.Embed(
-                        title=source.info["title"], colour=discord.Colour.purple(), url=source.info["webpage_url"]
+                        title=source.info["title"],
+                        colour=discord.Colour.purple(),
+                        url=source.info["webpage_url"],
                     )
                     .set_image(url=source.info["thumbnail"])
                     .set_author(name="再生準備中")
@@ -148,7 +146,11 @@ class MusicCog(commands.Cog):
                     if isinstance(source, NicoNicoSource):
                         await source.sendHeartBeat()
                     embed = (
-                        discord.Embed(title=source.info["title"], colour=discord.Colour.purple(), url=source.info["webpage_url"])
+                        discord.Embed(
+                            title=source.info["title"],
+                            colour=discord.Colour.purple(),
+                            url=source.info["webpage_url"],
+                        )
                         .set_image(url=source.info["thumbnail"])
                         .set_author(name="再生中")
                         .add_field(
@@ -164,7 +166,9 @@ class MusicCog(commands.Cog):
                     )
                     await asyncio.sleep(5)
                 embed = (
-                    discord.Embed(title=source.info["title"], url=source.info["webpage_url"])
+                    discord.Embed(
+                        title=source.info["title"], url=source.info["webpage_url"]
+                    )
                     .set_image(url=source.info["thumbnail"])
                     .set_author(name="再生終了")
                     .add_field(
@@ -234,7 +238,7 @@ class MusicCog(commands.Cog):
 
         embed = discord.Embed(
             title="アラームをセットしました！",
-            description=f"{discord.utils.format_dt(discord.utils.utcnow()+timedelta(seconds=delay), "R")} に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
+            description=f"{discord.utils.format_dt(discord.utils.utcnow()+timedelta(seconds=delay), 'R')} に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
             colour=discord.Colour.green(),
         )
         await interaction.followup.send(embed=embed)
@@ -266,17 +270,23 @@ class MusicCog(commands.Cog):
         if "spotify" in url:
             if "track" in url:
                 song: Song = await asyncio.to_thread(Song.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(self.spotify.get_download_urls, [song])
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, [song]
+                )
             elif "album" in url:
                 album = await asyncio.to_thread(Album.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(self.spotify.get_download_urls, album.songs)
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, album.songs
+                )
             elif "playlist" in url:
                 playlist = await asyncio.to_thread(Playlist.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(self.spotify.get_download_urls, playlist.songs)
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, playlist.songs
+                )
             else:
                 await interaction.followup.send("無効なSpotify URL")
                 return
-            
+
             await asyncio.gather(
                 *[
                     queue.put(
