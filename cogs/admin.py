@@ -7,7 +7,7 @@ class AdminCog(commands.Cog):
         
     @commands.command(name="guild")
     async def guildCommand(self, ctx: commands.Context, guildId: int):
-        guild = self.bot.get_guild(guildId)
+        guild = await self.bot.fetch_guild(guildId)
         await ctx.reply(guild.name)
         
 async def setup(bot: commands.Bot):
