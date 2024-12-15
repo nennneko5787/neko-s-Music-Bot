@@ -1,6 +1,6 @@
 import asyncio
 import discord
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
 from yt_dlp import YoutubeDL
 
@@ -34,7 +34,7 @@ def _isPlayList(url) -> list[str] | bool:
 
 async def isPlayList(url: str) -> list[str] | bool:
     loop = asyncio.get_event_loop()
-    with ThreadPoolExecutor() as executor:
+    with ProcessPoolExecutor() as executor:
         return await loop.run_in_executor(executor, _isPlayList, url)
 
 
@@ -74,7 +74,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
     async def getVideoInfo(self, url: str) -> dict:
         loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as executor:
+        with ProcessPoolExecutor() as executor:
             return await loop.run_in_executor(executor, self._getVideoInfo, url)
 
     @classmethod
