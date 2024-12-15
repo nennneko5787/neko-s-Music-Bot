@@ -92,7 +92,9 @@ class MusicCog(commands.Cog):
                 playing.append(p)
 
         await self.bot.change_presence(
-            activity=discord.Game(f"{len(playing)} / {len(self.bot.guilds)} サーバー")
+            activity=discord.Game(
+                f"脆弱性対策済みver / {len(playing)} / {len(self.bot.guilds)} サーバー"
+            )
         )
 
     def setToNotPlaying(self, guildId: int):

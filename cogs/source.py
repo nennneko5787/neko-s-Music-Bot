@@ -1,6 +1,8 @@
 import asyncio
 import discord
-import orjson
+from concurrent.futures import ThreadPoolExecutor
+
+from yt_dlp import YoutubeDL
 
 FFMPEG_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
@@ -12,42 +14,28 @@ class FetchVideoInfoFailed(Exception):
     pass
 
 
-async def isPlayList(url) -> list[str] | bool:
-    process = await asyncio.create_subprocess_exec(
-        "yt-dlp",
-        "-j",
-        "-f",
-        "bestaudio/best",
-        "--flat-playlist",
-        "--cookies",
-        "./cookies.txt",
-        "--no-playlist",
-        "--no-download",
-        "-i",
-        url,
-        stderr=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-    )
-
-    stdout, stderr = await process.communicate()
-
-    if process.returncode == 0:
-        json = f"[{','.join(stdout.decode('utf-8').strip().splitlines())}]"
-        videoInfo: list = orjson.loads(json)
-        if len(videoInfo) > 1:
-            urls = []
-            for info in videoInfo:
-                urls.append(info["url"])
+def _isPlayList(url) -> list[str] | bool:
+    try:
+        ydlOpts = {
+            "quiet": True,
+            "extract_flat": True,
+            "cookies": "./cookies.txt",
+        }
+        ydl = YoutubeDL(ydlOpts)
+        info = ydl.extract_info(url, download=False)
+        if "entries" in info and len(info["entries"]) > 1:
+            urls = [entry["url"] for entry in info["entries"]]
             return urls
         else:
             return False
-    else:
-        print(process.returncode)
-        print(stdout.decode("utf-8"))
-        print(stderr.decode("utf-8"))
-        raise FetchVideoInfoFailed(
-            f"download failed: {url} {process.returncode} {stdout} {stderr}"
-        )
+    except Exception as e:
+        raise FetchVideoInfoFailed(f"Failed to fetch video info: {url}, {str(e)}")
+
+
+async def isPlayList(url: str) -> list[str] | bool:
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as executor:
+        return await loop.run_in_executor(executor, _isPlayList, url)
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -69,30 +57,25 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return data
 
     @classmethod
-    async def getVideoInfo(cls, url) -> dict:
-        process = await asyncio.create_subprocess_exec(
-            "yt-dlp",
-            "-j",
-            "-f",
-            "bestaudio/best",
-            "--cookies",
-            "./cookies.txt",
-            "--no-playlist",
-            "--no-download",
-            url,
-            stderr=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-        )
+    def _getVideoInfo(cls, url) -> dict:
+        try:
+            ydlOpts = {
+                "quiet": True,
+                "format": "bestaudio/best",
+                "no-playlist": True,
+                "cookies": "./cookies.txt",
+            }
+            ydl = YoutubeDL(ydlOpts)
+            info = ydl.extract_info(url, download=False)
+            return info
+        except Exception as e:
+            raise FetchVideoInfoFailed(f"Failed to fetch video info: {url}, {str(e)}")
 
-        stdout, stderr = await process.communicate()
-
-        if process.returncode == 0:
-            videoInfo = orjson.loads(stdout.decode("utf-8"))
-            return videoInfo
-        else:
-            raise FetchVideoInfoFailed(
-                f"download failed: {url} {process.returncode} {stdout} {stderr}"
-            )
+    @classmethod
+    async def getVideoInfo(self, url: str) -> dict:
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as executor:
+            return await loop.run_in_executor(executor, self._getVideoInfo, url)
 
     @classmethod
     async def from_url(cls, url, volume: float = 0.5):
