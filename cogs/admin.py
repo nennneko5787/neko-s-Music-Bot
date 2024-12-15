@@ -6,9 +6,9 @@ class AdminCog(commands.Cog):
         self.bot = bot
         
     @commands.command(name="guild")
-    async def guildCommand(self, ctx: commands.Context, guildId: int):
-        guild = await self.bot.fetch_guild(guildId)
-        await ctx.reply(guild.name)
+    async def guildCommand(self, ctx: commands.Context, channelId: int):
+        guild = self.bot.get_channel(channelId)
+        await ctx.reply(channel.guild.name)
         
 async def setup(bot: commands.Bot):
     await bot.add_cog(AdminCog(bot))
