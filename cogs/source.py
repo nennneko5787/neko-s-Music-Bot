@@ -19,7 +19,7 @@ def _isPlayList(url) -> list[str] | bool:
         ydlOpts = {
             "quiet": True,
             "extract_flat": True,
-            "cookies": "./cookies.txt",
+            "cookiefile": "./cookies.txt",
         }
         ydl = YoutubeDL(ydlOpts)
         info = ydl.extract_info(url, download=False)
@@ -62,8 +62,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
             ydlOpts = {
                 "quiet": True,
                 "format": "bestaudio/best",
-                "no-playlist": True,
-                "cookies": "./cookies.txt",
+                "noplaylist": True,
+                "cookiefile": "./cookies.txt",
             }
             ydl = YoutubeDL(ydlOpts)
             info = ydl.extract_info(url, download=False)
