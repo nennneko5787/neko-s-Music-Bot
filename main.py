@@ -14,7 +14,6 @@ bot = commands.Bot(
     intents=intents,
     member_cache_flags=discord.MemberCacheFlags.none(),
     max_message=None,
-    chunk_guilds_at_startup=False,
 )
 
 
