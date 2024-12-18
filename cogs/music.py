@@ -305,7 +305,7 @@ class MusicCog(commands.Cog):
             embed.set_author(name="再生終了")
         elif voiceClient.is_playing():
             percentage = source.progress / source.info["duration"]
-            barLength = 10
+            barLength = 30
             filledLength = int(barLength * percentage)
             progressBar = "■" * (filledLength - 1) + "-" * (barLength - filledLength)
 
