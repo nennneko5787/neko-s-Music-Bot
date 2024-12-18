@@ -103,6 +103,7 @@ class MusicCog(commands.Cog):
         self.queue: dict[Queue] = {}
         self.playing: dict[bool] = {}
         self.alarm: dict[bool] = {}
+        self.seeking: dict[bool] = {}
         self.spotify = Spotdl(
             client_id=os.getenv("spotify_clientid"),
             client_secret=os.getenv("spotify_clientsecret"),
@@ -200,6 +201,9 @@ class MusicCog(commands.Cog):
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
                 await interaction.response.defer(ephemeral=True)
+                if self.seeking.get(interaction.guild.id, False) is True:
+                    return
+                self.seeking[interaction.guild.id] = True
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
@@ -231,6 +235,7 @@ class MusicCog(commands.Cog):
                         volume=source.volume,
                         progress=(source.progress - 10) / 0.02,
                     )
+                self.seeking[interaction.guild.id] = False
             case "forward":
                 if not interaction.guild.voice_client:
                     embed = discord.Embed(
@@ -239,6 +244,9 @@ class MusicCog(commands.Cog):
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
                 await interaction.response.defer(ephemeral=True)
+                if self.seeking.get(interaction.guild.id, False) is True:
+                    return
+                self.seeking[interaction.guild.id] = True
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
@@ -270,6 +278,7 @@ class MusicCog(commands.Cog):
                         volume=source.volume,
                         progress=(source.progress + 10) / 0.02,
                     )
+                self.seeking[interaction.guild.id] = False
 
     def setToNotPlaying(self, guildId: int):
         self.playing[guildId] = False
