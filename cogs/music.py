@@ -292,6 +292,8 @@ class MusicCog(commands.Cog):
         finished: bool = False,
     ):
         if source is None:
+            if voiceClient.source is None:
+                return None
             source: YTDLSource | NicoNicoSource = voiceClient.source
         embed = discord.Embed(
             title=source.info["title"],
@@ -369,14 +371,15 @@ class MusicCog(commands.Cog):
                     if isinstance(source, NicoNicoSource):
                         await source.sendHeartBeat()
                     await message.edit(
-                        embed=self.embedPanel(voiceClient),
+                        embed=self.embedPanel(voiceClient, source=source),
                         view=(
                             notPausedView if not voiceClient.is_paused() else pausedView
                         ),
                     )
                     await asyncio.sleep(5)
                 await message.edit(
-                    embed=self.embedPanel(voiceClient, finished=True), view=None
+                    embed=self.embedPanel(voiceClient, source=source, finished=True),
+                    view=None,
                 )
                 voiceClient.stop()
             else:
