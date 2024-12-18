@@ -321,7 +321,12 @@ class MusicCog(commands.Cog):
             embed.add_field(
                 name="再生時間",
                 value=f'\\|{progressBar}\\|\n`{formatTime(source.progress)} / {formatTime(source.info["duration"])}`',
-            ).add_field(name="リクエストしたユーザー", value=f"{source.user.mention}")
+                inline=False,
+            ).add_field(
+                name="リクエストしたユーザー",
+                value=f"{source.user.mention}",
+                inline=False,
+            )
         else:
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生準備中")
