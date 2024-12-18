@@ -203,7 +203,7 @@ class MusicCog(commands.Cog):
                     interaction.guild.voice_client.source
                 )
                 options = {
-                    "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress()-10}",
+                    "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress-10}",
                     "options": "-vn",
                 }
 
