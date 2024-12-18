@@ -209,6 +209,9 @@ class MusicCog(commands.Cog):
                 }
 
                 if isinstance(source, NicoNicoSource):
+                    options["before_options"] = (
+                        f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}' {options['before_options']}"
+                    )
                     interaction.guild.voice_client.source = NicoNicoSource(
                         discord.FFmpegPCMAudio(source.hslContentUrl, **options),
                         info=source.info,
@@ -237,11 +240,14 @@ class MusicCog(commands.Cog):
                     interaction.guild.voice_client.source
                 )
                 options = {
-                    "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress()+10}",
+                    "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress+10}",
                     "options": "-vn",
                 }
 
                 if isinstance(source, NicoNicoSource):
+                    options["before_options"] = (
+                        f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}' {options['before_options']}"
+                    )
                     interaction.guild.voice_client.source = NicoNicoSource(
                         discord.FFmpegPCMAudio(source.hslContentUrl, **options),
                         info=source.info,
