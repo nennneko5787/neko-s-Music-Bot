@@ -96,8 +96,8 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         watchid: str,
         trackid: str,
         outputs: str,
-        domand: str,
         nicosid: str,
+        niconico: NicoNicoAPI,
         volume: float = 0.5,
     ):
         super().__init__(source, volume=volume)
@@ -105,20 +105,10 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         self.watchid = watchid
         self.trackid = trackid
         self.outputs = outputs
-        self.domand = domand
         self.nicosid = nicosid
+        self.niconico = niconico
         self._count = 0
-        self.client = httpx.AsyncClient(
-            headers={
-                "User-Agent": "neko-s-music-bot",
-                "X-Frontend-Id": "6",
-                "X-Frontend-Version": "0",
-                "X-Niconico-Language": "ja-jp",
-                "X-Client-Os-Type": "others",
-                "X-Request-With": "https://www.nicovideo.jp",
-                "Referer": "https://www.nicovideo.jp/",
-            }
-        )
+        self.client = niconico.client
 
     @property
     def progress(self) -> float:
@@ -191,7 +181,6 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
                     },
                 },
             },
-            cookies={"domand_bid": self.domand},
         )
         if response.status_code == 200:
             return True
@@ -202,20 +191,20 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
     async def from_url(
         cls,
         url,
-        niconico: NicoNicoAPI,
         volume: float = 0.5,
     ):
         """urlからAudioSourceを作成します。
 
         Args:
             url (str): ニコニコの動画URL。
-            niconico (NicoNicoAPI): ニコニコAPIクラス。
             volume (float, optional): AudioSourceの音量。デフォルトは0.5です。
 
         Returns:
             NicoNicoSource: 完成したAudioSource。
         """
         print(f"loading {url}")
+
+        niconico = NicoNicoAPI()
 
         parsed_url: ParseResult = urlparse(url)
         path_parts = parsed_url.path.split("/")
@@ -232,7 +221,6 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         watchid = data["data"]["response"]["client"]["watchId"]
         trackid = data["data"]["response"]["client"]["watchTrackId"]
         _outputs = [outputs[outputLabel]]
-        domand = niconico.client.cookies["domand_bid"]
         nicosid = niconico.client.cookies["nicosid"]
 
         cookies = niconico.client.cookies
@@ -260,7 +248,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
             watchid=watchid,
             trackid=trackid,
             outputs=_outputs,
-            domand=domand,
             nicosid=nicosid,
+            niconico=niconico,
             volume=volume,
         )

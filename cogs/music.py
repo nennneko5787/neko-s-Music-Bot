@@ -12,9 +12,8 @@ from spotdl.types.song import Song
 from spotdl.types.album import Album
 from spotdl.types.playlist import Playlist
 
-from .youtube import YoutubeAPI
 from .source import YTDLSource, isPlayList
-from .niconico import NicoNicoAPI, NicoNicoSource
+from .niconico import NicoNicoSource
 
 dotenv.load_dotenv()
 
@@ -73,8 +72,6 @@ class MusicCog(commands.Cog):
         self.queue: dict[asyncio.Queue] = {}
         self.playing: dict[bool] = {}
         self.alarm: dict[bool] = {}
-        self.youtube = YoutubeAPI()
-        self.niconico = NicoNicoAPI()
         self.spotify = Spotdl(
             client_id=os.getenv("spotify_clientid"),
             client_secret=os.getenv("spotify_clientsecret"),
@@ -108,7 +105,7 @@ class MusicCog(commands.Cog):
                 info: dict = await queue.get()
                 if "nicovideo" in info["url"]:
                     self.source[guild.id] = await NicoNicoSource.from_url(
-                        info["url"], self.niconico, info["volume"]
+                        info["url"], info["volume"]
                     )
                 else:
                     self.source[guild.id] = await YTDLSource.from_url(
