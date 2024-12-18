@@ -21,8 +21,8 @@ def _isPlayList(url) -> list[str] | bool:
             "extract_flat": True,
             "cookiefile": "./cookies.txt",
         }
-        ydl = YoutubeDL(ydlOpts)
-        info = ydl.sanitize_info(ydl.extract_info(url, download=False))
+        with YoutubeDL(ydlOpts) as ydl:
+            info = ydl.sanitize_info(ydl.extract_info(url, download=False))
         if "entries" in info and len(info["entries"]) > 1:
             urls = [entry["url"] for entry in info["entries"]]
             return urls
@@ -72,10 +72,10 @@ class YTDLSource(discord.PCMVolumeTransformer):
             raise FetchVideoInfoFailed(f"Failed to fetch video info: {url}, {str(e)}")
 
     @classmethod
-    async def getVideoInfo(self, url: str) -> dict:
+    async def getVideoInfo(cls, url: str) -> dict:
         loop = asyncio.get_event_loop()
         with ProcessPoolExecutor() as executor:
-            return await loop.run_in_executor(executor, self._getVideoInfo, url)
+            return await loop.run_in_executor(executor, cls._getVideoInfo, url)
 
     @classmethod
     async def from_url(cls, url, volume: float = 0.5):

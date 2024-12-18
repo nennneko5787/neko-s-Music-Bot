@@ -1,10 +1,15 @@
+import asyncio
 import os
+import sys
 
 import discord
 import dotenv
 from discord.ext import commands
 
 dotenv.load_dotenv()
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 intents = discord.Intents.default()
 

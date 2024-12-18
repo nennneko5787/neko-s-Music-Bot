@@ -15,46 +15,76 @@ from spotdl.types.playlist import Playlist
 
 from .source import YTDLSource, isPlayList
 from .niconico import NicoNicoSource
+from .queue import Queue
 
 dotenv.load_dotenv()
 
-
-class MusicActionPanelIfPaused(discord.ui.View):
-    @discord.ui.button(emoji="▶", style=discord.ButtonStyle.blurple, custom_id="resume")
-    async def resume(
-        self, interaction: discord.Interaction, button: discord.Button
-    ) -> None:
-        if not interaction.guild.voice_client:
-            embed = discord.Embed(
-                title="音楽を再生していません。", colour=discord.Colour.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        await interaction.response.defer(ephemeral=True)
-        interaction.guild.voice_client.resume()
-        embed = interaction.message.embeds[0]
-        await interaction.edit_original_response(embed=embed, view=notPausedView)
-
-
-class MusicActionPanelIfNotPause(discord.ui.View):
-    @discord.ui.button(emoji="⏸", style=discord.ButtonStyle.blurple, custom_id="pause")
-    async def pause(
-        self, interaction: discord.Interaction, button: discord.Button
-    ) -> None:
-        if not interaction.guild.voice_client:
-            embed = discord.Embed(
-                title="音楽を再生していません。", colour=discord.Colour.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        await interaction.response.defer(ephemeral=True)
-        interaction.guild.voice_client.pause()
-        embed = interaction.message.embeds[0]
-        await interaction.edit_original_response(embed=embed, view=pausedView)
-
-
-pausedView = MusicActionPanelIfPaused(timeout=None)
-notPausedView = MusicActionPanelIfNotPause(timeout=None)
+pausedView = (
+    discord.ui.View(timeout=None)
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏪", custom_id="reverse", row=0
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="▶", custom_id="resume", row=0
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏩", custom_id="forward", row=0
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏮", custom_id="prev", row=1
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏹", custom_id="stop", row=1
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏭", custom_id="next", row=1
+        )
+    )
+)
+notPausedView = (
+    discord.ui.View(timeout=None)
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏪", custom_id="reverse", row=0
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏸", custom_id="pause", row=0
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏩", custom_id="forward", row=0
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏮", custom_id="prev", row=1
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏹", custom_id="stop", row=1
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, emoji="⏭", custom_id="next", row=1
+        )
+    )
+)
 
 
 def formatTime(seconds):
@@ -70,7 +100,7 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.source: dict[YTDLSource] = {}
-        self.queue: dict[asyncio.Queue] = {}
+        self.queue: dict[Queue] = {}
         self.playing: dict[bool] = {}
         self.alarm: dict[bool] = {}
         self.spotify = Spotdl(
@@ -91,19 +121,184 @@ class MusicCog(commands.Cog):
 
         await self.bot.change_presence(
             activity=discord.Game(
-                f"脆弱性対策済みver / {len(playing)} / {len(self.bot.guilds)} サーバー"
+                f"{len(playing)} 再生中 / {len(self.alarm.keys())} アラーム / {len(self.bot.guilds)} サーバー"
             )
         )
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        try:
+            if interaction.data["component_type"] == 2:
+                await self.onButtonClick(interaction)
+            elif interaction.data["component_type"] == 3:
+                pass
+        except KeyError:
+            pass
+
+    async def onButtonClick(self, interaction: discord.Interaction):
+        customId = interaction.data["custom_id"]
+        match (customId):
+            case "prev":
+                if not interaction.guild.voice_client:
+                    await interaction.response.send_message(
+                        "現在曲を再生していません。", ephemeral=True
+                    )
+                    return
+                await interaction.response.defer(ephemeral=True)
+                self.queue[interaction.guild.id].prev()
+                self.playing[interaction.guild.id] = False
+                interaction.guild.voice_client.stop()
+            case "next":
+                if not interaction.guild.voice_client:
+                    await interaction.response.send_message(
+                        "現在曲を再生していません。", ephemeral=True
+                    )
+                    return
+                await interaction.response.defer(ephemeral=True)
+                self.playing[interaction.guild.id] = False
+                interaction.guild.voice_client.stop()
+            case "stop":
+                if not interaction.guild.voice_client:
+                    await interaction.response.send_message(
+                        "現在曲を再生していません。", ephemeral=True
+                    )
+                    return
+                await interaction.response.defer()
+                await interaction.guild.voice_client.disconnect()
+                del self.queue[interaction.guild.id]
+                self.playing[interaction.guild.id] = False
+                await interaction.followup.send("停止しました。")
+            case "resume":
+                if not interaction.guild.voice_client:
+                    embed = discord.Embed(
+                        title="音楽を再生していません。", colour=discord.Colour.red()
+                    )
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                    return
+                await interaction.response.defer(ephemeral=True)
+                interaction.guild.voice_client.resume()
+                embed = interaction.message.embeds[0]
+                await interaction.edit_original_response(
+                    embed=embed, view=notPausedView
+                )
+            case "pause":
+                if not interaction.guild.voice_client:
+                    embed = discord.Embed(
+                        title="音楽を再生していません。", colour=discord.Colour.red()
+                    )
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                    return
+                await interaction.response.defer(ephemeral=True)
+                interaction.guild.voice_client.pause()
+                embed = interaction.message.embeds[0]
+                await interaction.edit_original_response(embed=embed, view=pausedView)
+            case "reverse":
+                if not interaction.guild.voice_client:
+                    embed = discord.Embed(
+                        title="音楽を再生していません。", colour=discord.Colour.red()
+                    )
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                    return
+                source: YTDLSource | NicoNicoSource = (
+                    interaction.guild.voice_client.source
+                )
+                options = {
+                    "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress()-10}",
+                    "options": "-vn",
+                }
+
+                if isinstance(source, NicoNicoSource):
+                    interaction.guild.voice_client.source = NicoNicoSource(
+                        discord.FFmpegPCMAudio(source.hslContentUrl, **options),
+                        info=source.info,
+                        hslContentUrl=source.hslContentUrl,
+                        watchid=source.watchid,
+                        trackid=source.trackid,
+                        outputs=source.outputs,
+                        nicosid=source.nicosid,
+                        niconico=source.niconico,
+                        volume=source.volume,
+                    )
+                else:
+                    interaction.guild.voice_client.source = YTDLSource(
+                        discord.FFmpegPCMAudio(source.info["url"], **options),
+                        info=source.info,
+                        volume=source.volume,
+                    )
+            case "forward":
+                if not interaction.guild.voice_client:
+                    embed = discord.Embed(
+                        title="音楽を再生していません。", colour=discord.Colour.red()
+                    )
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                    return
+                source: YTDLSource | NicoNicoSource = (
+                    interaction.guild.voice_client.source
+                )
+                options = {
+                    "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress()+10}",
+                    "options": "-vn",
+                }
+
+                if isinstance(source, NicoNicoSource):
+                    interaction.guild.voice_client.source = NicoNicoSource(
+                        discord.FFmpegPCMAudio(source.hslContentUrl, **options),
+                        info=source.info,
+                        hslContentUrl=source.hslContentUrl,
+                        watchid=source.watchid,
+                        trackid=source.trackid,
+                        outputs=source.outputs,
+                        nicosid=source.nicosid,
+                        niconico=source.niconico,
+                        volume=source.volume,
+                    )
+                else:
+                    interaction.guild.voice_client.source = YTDLSource(
+                        discord.FFmpegPCMAudio(source.info["url"], **options),
+                        info=source.info,
+                        volume=source.volume,
+                    )
 
     def setToNotPlaying(self, guildId: int):
         self.playing[guildId] = False
 
+    def embedPanel(
+        self,
+        voiceClient: discord.VoiceClient,
+        *,
+        source: YTDLSource | NicoNicoSource = None,
+        finished: bool = False,
+    ):
+        if source is None:
+            source: YTDLSource | NicoNicoSource = voiceClient.source
+        embed = discord.Embed(
+            title=source.info["title"],
+            url=source.info["webpage_url"],
+        ).set_image(url=source.info["thumbnail"])
+
+        if finished:
+            embed.colour = discord.Colour.greyple()
+            embed.set_author(name="再生終了")
+        elif voiceClient.is_playing():
+            embed.colour = discord.Colour.purple()
+            if voiceClient.is_paused():
+                embed.set_author(name="一時停止中")
+            else:
+                embed.set_author(name="再生中")
+            embed.add_field(
+                name="再生時間",
+                value=f'{formatTime(source.progress)} / {formatTime(source.info["duration"])}',
+            )
+        else:
+            embed.colour = discord.Colour.greyple()
+            embed.set_author(name="再生準備中")
+
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
-        queue: asyncio.Queue = self.queue[guild.id]
+        queue: Queue = self.queue[guild.id]
 
         async def get():
             if not queue.empty():
-                info: dict = await queue.get()
+                info: dict = queue.get()
                 if "nicovideo" in info["url"]:
                     self.source[guild.id] = await NicoNicoSource.from_url(
                         info["url"], info["volume"]
@@ -124,29 +319,18 @@ class MusicCog(commands.Cog):
 
                 if (queue.empty()) and (not guild.id in self.source):
                     break
-                
+
                 try:
                     source: YTDLSource | NicoNicoSource = self.source[guild.id]
                 except:
                     traceback.print_exc()
                     continue
 
-                embed = (
-                    discord.Embed(
-                        title=source.info["title"],
-                        colour=discord.Colour.purple(),
-                        url=source.info["webpage_url"],
-                    )
-                    .set_image(url=source.info["thumbnail"])
-                    .set_author(name="再生準備中")
-                    .add_field(
-                        name="再生時間",
-                        value=f'{formatTime(source.progress)} / {formatTime(source.info["duration"])}',
-                    )
-                )
-
-                message = await channel.send(embed=embed, view=notPausedView)
                 voiceClient: discord.VoiceClient = guild.voice_client
+                message = await channel.send(
+                    embed=self.embedPanel(voiceClient, source=source),
+                    view=notPausedView,
+                )
 
                 if isinstance(source, NicoNicoSource):
                     await source.sendHeartBeat()
@@ -161,38 +345,16 @@ class MusicCog(commands.Cog):
                 while self.playing[guild.id]:
                     if isinstance(source, NicoNicoSource):
                         await source.sendHeartBeat()
-                    embed = (
-                        discord.Embed(
-                            title=source.info["title"],
-                            colour=discord.Colour.purple(),
-                            url=source.info["webpage_url"],
-                        )
-                        .set_image(url=source.info["thumbnail"])
-                        .set_author(name="再生中")
-                        .add_field(
-                            name="再生時間",
-                            value=f'{formatTime(source.progress)} / {formatTime(source.info["duration"])}',
-                        )
-                    )
                     await message.edit(
-                        embed=embed,
+                        embed=self.embedPanel(voiceClient),
                         view=(
                             notPausedView if not voiceClient.is_paused() else pausedView
                         ),
                     )
                     await asyncio.sleep(5)
-                embed = (
-                    discord.Embed(
-                        title=source.info["title"], url=source.info["webpage_url"]
-                    )
-                    .set_image(url=source.info["thumbnail"])
-                    .set_author(name="再生終了")
-                    .add_field(
-                        name="再生時間",
-                        value=f'{formatTime(source.progress)} / {formatTime(source.info["duration"])}',
-                    )
+                await message.edit(
+                    embed=self.embedPanel(voiceClient, finished=True), view=None
                 )
-                await message.edit(embed=embed, view=None)
                 voiceClient.stop()
             else:
                 break
@@ -202,6 +364,55 @@ class MusicCog(commands.Cog):
             del self.source[guild.id]
         if guild.voice_client:
             await guild.voice_client.disconnect()
+
+    async def putQueue(self, interaction: discord.Interaction, url: str, volume: float):
+        queue: Queue = self.queue[interaction.guild.id]
+        if "spotify" in url:
+            if "track" in url:
+                song: Song = await asyncio.to_thread(Song.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, [song]
+                )
+            elif "album" in url:
+                album = await asyncio.to_thread(Album.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, album.songs
+                )
+            elif "playlist" in url:
+                playlist = await asyncio.to_thread(Playlist.from_url, url)
+                urls: list[str | None] = await asyncio.to_thread(
+                    self.spotify.get_download_urls, playlist.songs
+                )
+            else:
+                await interaction.followup.send("無効なSpotify URL")
+                return
+
+            for music in urls:
+                queue.put(
+                    {
+                        "url": music,
+                        "volume": volume,
+                    }
+                )
+            await interaction.followup.send(
+                f"**{len(urls)}個の曲**をキューに追加しました。"
+            )
+        else:
+            result = await isPlayList(url)
+            if not result:
+                queue.put({"url": url, "volume": volume})
+                await interaction.followup.send(f"**{url}** をキューに追加しました。")
+            else:
+                for video in result:
+                    queue.put(
+                        {
+                            "url": video,
+                            "volume": volume,
+                        }
+                    )
+                await interaction.followup.send(
+                    f"**{len(result)}個の動画**をキューに追加しました。"
+                )
 
     @app_commands.command(name="alarm", description="アラームをセットします。")
     async def alarmCommand(
@@ -225,64 +436,8 @@ class MusicCog(commands.Cog):
         if not guild.id in self.playing:
             self.playing[guild.id] = False
         if not guild.id in self.queue:
-            self.queue[guild.id] = asyncio.Queue()
-        queue: asyncio.Queue = self.queue[guild.id]
-        if "spotify" in url:
-            if "track" in url:
-                song: Song = await asyncio.to_thread(Song.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, [song]
-                )
-            elif "album" in url:
-                album = await asyncio.to_thread(Album.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, album.songs
-                )
-            elif "playlist" in url:
-                playlist = await asyncio.to_thread(Playlist.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, playlist.songs
-                )
-            else:
-                await interaction.followup.send("無効なSpotify URL")
-                return
-
-            await asyncio.gather(
-                *[
-                    queue.put(
-                        {
-                            "url": music,
-                            "volume": volume,
-                        }
-                    )
-                    for music in urls
-                ]
-            )
-            await interaction.followup.send(
-                f"**{len(urls)}個の曲**をキューに追加しました。"
-            )
-        else:
-            result = await isPlayList(url)
-            if not result:
-                await queue.put({"url": url, "volume": volume})
-                await interaction.followup.send(f"**{url}** をキューに追加しました。")
-            else:
-                await asyncio.gather(
-                    *[
-                        queue.put(
-                            {
-                                "url": video,
-                                "volume": volume,
-                            }
-                        )
-                        for video in result
-                    ]
-                )
-                await interaction.followup.send(
-                    f"**{len(result)}個の動画**をキューに追加しました。"
-                )
-        if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
-            await self.playNext(guild, channel)
+            self.queue[guild.id] = Queue()
+        await self.putQueue(interaction, url, volume)
 
         self.alarm[guild.id] = True
 
@@ -315,62 +470,10 @@ class MusicCog(commands.Cog):
         if not guild.id in self.playing:
             self.playing[guild.id] = False
         if not guild.id in self.queue:
-            self.queue[guild.id] = asyncio.Queue()
-        queue: asyncio.Queue = self.queue[guild.id]
-        if "spotify" in url:
-            if "track" in url:
-                song: Song = await asyncio.to_thread(Song.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, [song]
-                )
-            elif "album" in url:
-                album = await asyncio.to_thread(Album.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, album.songs
-                )
-            elif "playlist" in url:
-                playlist = await asyncio.to_thread(Playlist.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, playlist.songs
-                )
-            else:
-                await interaction.followup.send("無効なSpotify URL")
-                return
-
-            await asyncio.gather(
-                *[
-                    queue.put(
-                        {
-                            "url": music,
-                            "volume": volume,
-                        }
-                    )
-                    for music in urls
-                ]
-            )
-            await interaction.followup.send(
-                f"**{len(urls)}個の曲**をキューに追加しました。"
-            )
-        else:
-            result = await isPlayList(url)
-            if not result:
-                await queue.put({"url": url, "volume": volume})
-                await interaction.followup.send(f"**{url}** をキューに追加しました。")
-            else:
-                await asyncio.gather(
-                    *[
-                        queue.put(
-                            {
-                                "url": video,
-                                "volume": volume,
-                            }
-                        )
-                        for video in result
-                    ]
-                )
-                await interaction.followup.send(
-                    f"**{len(result)}個の動画**をキューに追加しました。"
-                )
+            self.queue[guild.id] = Queue()
+        print("a")
+        await self.putQueue(interaction, url, volume)
+        print("a")
         if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
             await self.playNext(guild, channel)
 
@@ -390,7 +493,6 @@ class MusicCog(commands.Cog):
     @app_commands.command(name="stop", description="曲を停止します。")
     async def stopMusic(self, interaction: discord.Interaction):
         guild = interaction.guild
-        queue: asyncio.Queue = self.queue[guild.id]
         if not guild.voice_client:
             await interaction.response.send_message(
                 "現在曲を再生していません。", ephemeral=True
@@ -398,8 +500,7 @@ class MusicCog(commands.Cog):
             return
         await interaction.response.defer()
         await guild.voice_client.disconnect()
-        while not queue.empty():
-            await queue.get()
+        del self.queue[guild.id]
         self.playing[guild.id] = False
         await interaction.followup.send("停止しました。")
 
@@ -439,6 +540,4 @@ class MusicCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
-    bot.add_view(pausedView)
-    bot.add_view(notPausedView)
     await bot.add_cog(MusicCog(bot))

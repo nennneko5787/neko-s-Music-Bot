@@ -93,6 +93,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         source,
         *,
         info: dict,
+        hslContentUrl: str,
         watchid: str,
         trackid: str,
         outputs: str,
@@ -102,6 +103,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
     ):
         super().__init__(source, volume=volume)
         self.info: dict = info
+        self.hslContentUrl = hslContentUrl
         self.watchid = watchid
         self.trackid = trackid
         self.outputs = outputs
@@ -245,6 +247,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         return cls(
             discord.FFmpegPCMAudio(hslContentUrl, **FFMPEG_OPTIONS),
             info=info,
+            hslContentUrl=hslContentUrl,
             watchid=watchid,
             trackid=trackid,
             outputs=_outputs,
