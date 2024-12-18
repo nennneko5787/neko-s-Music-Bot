@@ -22,7 +22,7 @@ def _isPlayList(url) -> list[str] | bool:
             "cookiefile": "./cookies.txt",
         }
         ydl = YoutubeDL(ydlOpts)
-        info = ydl.extract_info(url, download=False)
+        info = ydl.sanitize_info(ydl.extract_info(url, download=False))
         if "entries" in info and len(info["entries"]) > 1:
             urls = [entry["url"] for entry in info["entries"]]
             return urls
@@ -66,7 +66,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 "cookiefile": "./cookies.txt",
             }
             ydl = YoutubeDL(ydlOpts)
-            info = ydl.extract_info(url, download=False)
+            info = ydl.sanitize_info(ydl.extract_info(url, download=False))
             return info
         except Exception as e:
             raise FetchVideoInfoFailed(f"Failed to fetch video info: {url}, {str(e)}")

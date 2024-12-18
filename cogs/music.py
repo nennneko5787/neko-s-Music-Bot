@@ -1,6 +1,7 @@
 import asyncio
 import os
 import time
+import traceback
 from datetime import timedelta
 
 import discord
@@ -114,14 +115,21 @@ class MusicCog(commands.Cog):
 
         while True:
             if guild.voice_client:
-                if not guild.id in self.source:
-                    await get()
+                try:
+                    if not guild.id in self.source:
+                        await get()
+                except:
+                    traceback.print_exc()
+                    continue
 
                 if (queue.empty()) and (not guild.id in self.source):
-                    print("break")
                     break
-
-                source: YTDLSource | NicoNicoSource = self.source[guild.id]
+                
+                try:
+                    source: YTDLSource | NicoNicoSource = self.source[guild.id]
+                except:
+                    traceback.print_exc()
+                    continue
 
                 embed = (
                     discord.Embed(
@@ -192,7 +200,8 @@ class MusicCog(commands.Cog):
         self.playing[guild.id] = False
         if guild.id in self.source:
             del self.source[guild.id]
-        await guild.voice_client.disconnect()
+        if guild.voice_client:
+            await guild.voice_client.disconnect()
 
     @app_commands.command(name="alarm", description="アラームをセットします。")
     async def alarmCommand(
