@@ -293,6 +293,7 @@ class MusicCog(commands.Cog):
         else:
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生準備中")
+        return embed
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: Queue = self.queue[guild.id]
