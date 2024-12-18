@@ -199,6 +199,7 @@ class MusicCog(commands.Cog):
                     )
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
+                await interaction.response.defer(ephemeral=True)
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
