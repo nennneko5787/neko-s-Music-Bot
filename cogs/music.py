@@ -316,7 +316,7 @@ class MusicCog(commands.Cog):
                 embed.set_author(name="再生中")
             embed.add_field(
                 name="再生時間",
-                value=f'\|{progressBar}\|\n`{formatTime(source.progress)} / {formatTime(source.info["duration"])}`',
+                value=f'\\|{progressBar}\\|\n`{formatTime(source.progress)} / {formatTime(source.info["duration"])}`',
             )
         else:
             embed.colour = discord.Colour.greyple()
