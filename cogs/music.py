@@ -306,7 +306,7 @@ class MusicCog(commands.Cog):
         elif voiceClient.is_playing():
             percentage = source.progress / source.info["duration"]
             barLength = 10
-            filledLength = int(barLength * percentage // 100)
+            filledLength = int(barLength * percentage)
             progressBar = "█" * (filledLength - 1) + "-" * (barLength - filledLength)
 
             embed.colour = discord.Colour.purple()
