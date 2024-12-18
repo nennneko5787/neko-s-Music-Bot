@@ -169,7 +169,6 @@ class MusicCog(commands.Cog):
                 await interaction.guild.voice_client.disconnect()
                 del self.queue[interaction.guild.id]
                 self.playing[interaction.guild.id] = False
-                await interaction.followup.send("停止しました。")
             case "resume":
                 if not interaction.guild.voice_client:
                     embed = discord.Embed(
