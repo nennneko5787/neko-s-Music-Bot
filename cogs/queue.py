@@ -36,7 +36,7 @@ class Queue:
 
     def get(self):
         if self.empty():
-            raise QueueEmpty()
+            return None
         value = self.__list[self.__index]
         self.__index += 1
         return value

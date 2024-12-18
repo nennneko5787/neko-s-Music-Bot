@@ -204,8 +204,8 @@ class MusicCog(commands.Cog):
                     interaction.guild.voice_client.source
                 )
                 options = {
-                    "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress-10}",
-                    "options": f"-vn -to {source.info['duration']} -c copy",
+                    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                    "options": f"-vn -ss {source.progress+1} -c copy",
                 }
 
                 if isinstance(source, NicoNicoSource):
@@ -238,12 +238,13 @@ class MusicCog(commands.Cog):
                     )
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
+                await interaction.response.defer(ephemeral=True)
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
                 options = {
-                    "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress+10}",
-                    "options": f"-vn -to {source.info['duration']} -c copy",
+                    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                    "options": f"-vn -ss {source.progress+10} -c copy",
                 }
 
                 if isinstance(source, NicoNicoSource):
