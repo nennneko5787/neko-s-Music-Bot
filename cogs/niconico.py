@@ -100,6 +100,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         nicosid: str,
         niconico: NicoNicoAPI,
         volume: float = 0.5,
+        progress: float = 0,
     ):
         super().__init__(source, volume=volume)
         self.info: dict = info
@@ -109,7 +110,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         self.outputs = outputs
         self.nicosid = nicosid
         self.niconico = niconico
-        self._count = 0
+        self._count = progress
         self.client = niconico.client
 
     @property

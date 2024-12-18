@@ -41,10 +41,10 @@ async def isPlayList(url: str) -> list[str] | bool:
 class YTDLSource(discord.PCMVolumeTransformer):
     """yt-dlpとうまく連携できるAudioSourceを提供します。クラスを直接作るのではなく、from_url関数を使用してAudioSourceを作成してください。"""
 
-    def __init__(self, source, *, info: dict, volume: float = 0.5):
+    def __init__(self, source, *, info: dict, volume: float = 0.5, progress: float = 0):
         super().__init__(source, volume=volume)
         self.info: dict = info
-        self._count = 0
+        self._count = progress
 
     @property
     def progress(self) -> float:

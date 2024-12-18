@@ -205,7 +205,7 @@ class MusicCog(commands.Cog):
                 )
                 options = {
                     "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress-10}",
-                    "options": "-vn -c copy",
+                    "options": f"-vn -to {source.info['duration']} -c copy",
                 }
 
                 if isinstance(source, NicoNicoSource):
@@ -222,12 +222,14 @@ class MusicCog(commands.Cog):
                         nicosid=source.nicosid,
                         niconico=source.niconico,
                         volume=source.volume,
+                        progress=source.progress / 0.02,
                     )
                 else:
                     interaction.guild.voice_client.source = YTDLSource(
                         discord.FFmpegPCMAudio(source.info["url"], **options),
                         info=source.info,
                         volume=source.volume,
+                        progress=source.progress / 0.02,
                     )
             case "forward":
                 if not interaction.guild.voice_client:
@@ -241,7 +243,7 @@ class MusicCog(commands.Cog):
                 )
                 options = {
                     "before_options": f"-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {source.progress+10}",
-                    "options": "-vn -c copy",
+                    "options": f"-vn -to {source.info['duration']} -c copy",
                 }
 
                 if isinstance(source, NicoNicoSource):
@@ -258,12 +260,14 @@ class MusicCog(commands.Cog):
                         nicosid=source.nicosid,
                         niconico=source.niconico,
                         volume=source.volume,
+                        progress=source.progress / 0.02,
                     )
                 else:
                     interaction.guild.voice_client.source = YTDLSource(
                         discord.FFmpegPCMAudio(source.info["url"], **options),
                         info=source.info,
                         volume=source.volume,
+                        progress=source.progress / 0.02,
                     )
 
     def setToNotPlaying(self, guildId: int):
