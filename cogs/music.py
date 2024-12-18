@@ -147,6 +147,7 @@ class MusicCog(commands.Cog):
                     return
                 await interaction.response.defer(ephemeral=True)
                 self.queue[interaction.guild.id].prev()
+                del self.source[interaction.guild.id]
                 self.playing[interaction.guild.id] = False
                 interaction.guild.voice_client.stop()
             case "next":
@@ -384,6 +385,8 @@ class MusicCog(commands.Cog):
         self.playing[guild.id] = False
         if guild.id in self.source:
             del self.source[guild.id]
+        if guild.id in self.seeking:
+            del self.seeking[guild.id]
         if guild.voice_client:
             await guild.voice_client.disconnect()
 
