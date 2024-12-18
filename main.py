@@ -32,7 +32,7 @@ async def setup_hook():
     await bot.load_extension("cogs.music")
     await bot.load_extension("cogs.admin")
     await bot.load_extension("cogs.ping")
-    await bot.tree.sync()
+    # await bot.tree.sync()
 
 
 bot.run(os.getenv("discord"))
