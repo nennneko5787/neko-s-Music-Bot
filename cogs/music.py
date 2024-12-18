@@ -304,6 +304,11 @@ class MusicCog(commands.Cog):
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生終了")
         elif voiceClient.is_playing():
+            percentage = source.progress / source.info["duration"]
+            barLength = 10
+            filledLength = int(barLength * percentage // 100)
+            progressBar = "█" * (filledLength - 1) + "-" * (barLength - filledLength)
+
             embed.colour = discord.Colour.purple()
             if voiceClient.is_paused():
                 embed.set_author(name="一時停止中")
@@ -311,7 +316,7 @@ class MusicCog(commands.Cog):
                 embed.set_author(name="再生中")
             embed.add_field(
                 name="再生時間",
-                value=f'{formatTime(source.progress)} / {formatTime(source.info["duration"])}',
+                value=f'\|{progressBar}\|\n`{formatTime(source.progress)} / {formatTime(source.info["duration"])}`',
             )
         else:
             embed.colour = discord.Colour.greyple()
