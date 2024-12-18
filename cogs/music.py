@@ -222,14 +222,14 @@ class MusicCog(commands.Cog):
                         nicosid=source.nicosid,
                         niconico=source.niconico,
                         volume=source.volume,
-                        progress=source.progress / 0.02,
+                        progress=(source.progress - 10) / 0.02,
                     )
                 else:
                     interaction.guild.voice_client.source = YTDLSource(
                         discord.FFmpegPCMAudio(source.info["url"], **options),
                         info=source.info,
                         volume=source.volume,
-                        progress=source.progress / 0.02,
+                        progress=(source.progress - 10) / 0.02,
                     )
             case "forward":
                 if not interaction.guild.voice_client:
@@ -261,14 +261,14 @@ class MusicCog(commands.Cog):
                         nicosid=source.nicosid,
                         niconico=source.niconico,
                         volume=source.volume,
-                        progress=source.progress / 0.02,
+                        progress=(source.progress + 10) / 0.02,
                     )
                 else:
                     interaction.guild.voice_client.source = YTDLSource(
                         discord.FFmpegPCMAudio(source.info["url"], **options),
                         info=source.info,
                         volume=source.volume,
-                        progress=source.progress / 0.02,
+                        progress=(source.progress + 10) / 0.02,
                     )
 
     def setToNotPlaying(self, guildId: int):
