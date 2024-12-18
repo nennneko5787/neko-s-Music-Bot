@@ -383,6 +383,8 @@ class MusicCog(commands.Cog):
                 while self.playing[guild.id]:
                     if isinstance(source, NicoNicoSource):
                         await source.sendHeartBeat()
+                    if voiceClient.source is not None:
+                        source = voiceClient.source
                     await message.edit(
                         embed=self.embedPanel(voiceClient, source=source),
                         view=(
