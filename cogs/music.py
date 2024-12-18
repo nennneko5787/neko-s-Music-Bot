@@ -205,7 +205,7 @@ class MusicCog(commands.Cog):
                 )
                 options = {
                     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                    "options": f"-vn -ss {source.progress+1} -c copy",
+                    "options": f"-vn -ss {formatTime(source.progress-10)} -c copy",
                 }
 
                 if isinstance(source, NicoNicoSource):
@@ -244,7 +244,7 @@ class MusicCog(commands.Cog):
                 )
                 options = {
                     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                    "options": f"-vn -ss {source.progress+10} -c copy",
+                    "options": f"-vn -ss {formatTime(source.progress+10)} -c copy",
                 }
 
                 if isinstance(source, NicoNicoSource):
