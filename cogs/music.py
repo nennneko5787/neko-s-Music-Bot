@@ -481,7 +481,7 @@ class MusicCog(commands.Cog):
             return
         await interaction.response.defer()
         if not guild.voice_client:
-            await user.voice.channel.connect()
+            await user.voice.channel.connect(self_deaf=True)
         if not guild.id in self.playing:
             self.playing[guild.id] = False
         if not guild.id in self.queue:
@@ -515,7 +515,7 @@ class MusicCog(commands.Cog):
             return
         await interaction.response.defer()
         if not guild.voice_client:
-            await user.voice.channel.connect()
+            await user.voice.channel.connect(self_deaf=True)
         if not guild.id in self.playing:
             self.playing[guild.id] = False
         if not guild.id in self.queue:
