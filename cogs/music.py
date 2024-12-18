@@ -228,6 +228,7 @@ class MusicCog(commands.Cog):
                         niconico=source.niconico,
                         volume=source.volume,
                         progress=(source.progress - 10) / 0.02,
+                        user=source.user,
                     )
                 else:
                     interaction.guild.voice_client.source = YTDLSource(
@@ -235,6 +236,7 @@ class MusicCog(commands.Cog):
                         info=source.info,
                         volume=source.volume,
                         progress=(source.progress - 10) / 0.02,
+                        user=source.user,
                     )
                 self.seeking[interaction.guild.id] = False
             case "forward":
@@ -271,6 +273,7 @@ class MusicCog(commands.Cog):
                         niconico=source.niconico,
                         volume=source.volume,
                         progress=(source.progress + 10) / 0.02,
+                        user=source.user,
                     )
                 else:
                     interaction.guild.voice_client.source = YTDLSource(
@@ -278,6 +281,7 @@ class MusicCog(commands.Cog):
                         info=source.info,
                         volume=source.volume,
                         progress=(source.progress + 10) / 0.02,
+                        user=source.user,
                     )
                 self.seeking[interaction.guild.id] = False
 
@@ -317,7 +321,7 @@ class MusicCog(commands.Cog):
             embed.add_field(
                 name="再生時間",
                 value=f'\\|{progressBar}\\|\n`{formatTime(source.progress)} / {formatTime(source.info["duration"])}`',
-            )
+            ).add_field(name="リクエストしたユーザー", value=f"{source.user.mention}")
         else:
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生準備中")
@@ -331,11 +335,11 @@ class MusicCog(commands.Cog):
                 info: dict = queue.get()
                 if "nicovideo" in info["url"]:
                     self.source[guild.id] = await NicoNicoSource.from_url(
-                        info["url"], info["volume"]
+                        info["url"], info["volume"], info["user"]
                     )
                 else:
                     self.source[guild.id] = await YTDLSource.from_url(
-                        info["url"], info["volume"]
+                        info["url"], info["volume"], info["user"]
                     )
 
         while True:
@@ -400,6 +404,10 @@ class MusicCog(commands.Cog):
 
     async def putQueue(self, interaction: discord.Interaction, url: str, volume: float):
         queue: Queue = self.queue[interaction.guild.id]
+        if "music.apple.com" in url:
+            await interaction.response.send_message("Apple Musicには対応していません。")
+            return
+
         if "spotify" in url:
             if "track" in url:
                 song: Song = await asyncio.to_thread(Song.from_url, url)
@@ -425,6 +433,7 @@ class MusicCog(commands.Cog):
                     {
                         "url": music,
                         "volume": volume,
+                        "user": interaction.user,
                     }
                 )
             await interaction.followup.send(
@@ -433,7 +442,7 @@ class MusicCog(commands.Cog):
         else:
             result = await isPlayList(url)
             if not result:
-                queue.put({"url": url, "volume": volume})
+                queue.put({"url": url, "volume": volume, "user": interaction.user})
                 await interaction.followup.send(f"**{url}** をキューに追加しました。")
             else:
                 for video in result:
@@ -441,6 +450,7 @@ class MusicCog(commands.Cog):
                         {
                             "url": video,
                             "volume": volume,
+                            "user": interaction.user,
                         }
                     )
                 await interaction.followup.send(

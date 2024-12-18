@@ -101,6 +101,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         niconico: NicoNicoAPI,
         volume: float = 0.5,
         progress: float = 0,
+        user: discord.Member = None,
     ):
         super().__init__(source, volume=volume)
         self.info: dict = info
@@ -110,6 +111,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         self.outputs = outputs
         self.nicosid = nicosid
         self.niconico = niconico
+        self.user = user
         self._count = progress
         self.client = niconico.client
 
@@ -191,11 +193,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
             return False
 
     @classmethod
-    async def from_url(
-        cls,
-        url,
-        volume: float = 0.5,
-    ):
+    async def from_url(cls, url, volume: float = 0.5, user: discord.Member = None):
         """urlからAudioSourceを作成します。
 
         Args:
@@ -255,4 +253,5 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
             nicosid=nicosid,
             niconico=niconico,
             volume=volume,
+            user=user,
         )
