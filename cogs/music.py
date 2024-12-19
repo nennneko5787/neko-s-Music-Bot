@@ -231,6 +231,14 @@ class MusicCog(commands.Cog):
                         progress=(source.progress - 10) / 0.02,
                         user=source.user,
                     )
+                elif isinstance(source, DiscordFileSource):
+                    interaction.guild.voice_client.source = DiscordFileSource(
+                        discord.FFmpegPCMAudio(source.info["url"], **options),
+                        info=source.info,
+                        volume=source.volume,
+                        progress=(source.progress - 10) / 0.02,
+                        user=source.user,
+                    )
                 else:
                     interaction.guild.voice_client.source = YTDLSource(
                         discord.FFmpegPCMAudio(source.info["url"], **options),
