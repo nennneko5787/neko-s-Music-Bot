@@ -557,7 +557,7 @@ class MusicCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         view = discord.ui.View(timeout=None)
         select = discord.ui.Select(custom_id="ytsearch")
-        videos = searchYoutube(keyword)
+        videos = await searchYoutube(keyword)
         for video in videos:
             select.add_option(
                 label=video["title"],
