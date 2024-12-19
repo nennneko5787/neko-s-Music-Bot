@@ -324,7 +324,7 @@ class MusicCog(commands.Cog):
         if finished:
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生終了")
-        elif voiceClient.is_playing():
+        elif voiceClient.is_playing() or voiceClient.is_paused():
             percentage = source.progress / source.info["duration"]
             barLength = 30
             filledLength = int(barLength * percentage)
