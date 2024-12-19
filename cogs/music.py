@@ -559,7 +559,7 @@ class MusicCog(commands.Cog):
             user = interaction.user
             guild = interaction.guild
             channel = interaction.channel
-
+            await interaction.response.defer()
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)
             if not guild.id in self.playing:
