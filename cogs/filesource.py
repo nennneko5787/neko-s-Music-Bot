@@ -82,7 +82,7 @@ class DiscordFileSource(discord.PCMVolumeTransformer):
             "title": attachment.filename,
             "duration_string": time.strftime(
                 "%H:%M:%S",
-                time.gmtime(probeData["streams"][0]["duration"]),
+                time.gmtime(float(probeData["streams"][0]["duration"])),
             ),
             "duration": int(probeData["streams"][0]["duration"]),
             "url": attachment.url,
