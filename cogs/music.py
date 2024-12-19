@@ -340,25 +340,23 @@ class MusicCog(commands.Cog):
             embed.set_author(name="再生準備中")
         return embed
 
+    async def getSourceFromQueue(self, queue: Queue):
+        info: dict = queue.get()
+        if (info["url"] is None) and (info.get("attachment")):
+            return await DiscordFileSource.from_attachment(
+                info["attachment"], info["volume"], info["user"]
+            )
+        elif "nicovideo" in info["url"]:
+            return await NicoNicoSource.from_url(
+                info["url"], info["volume"], info["user"]
+            )
+        else:
+            return await YTDLSource.from_url(
+                info["url"], info["volume"], info["user"]
+            )
+
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: Queue = self.queue[guild.id]
-
-        async def get():
-            if not queue.empty():
-                info: dict = queue.get()
-                if (info["url"] is None) and (info.get("attachment")):
-                    return await DiscordFileSource.from_attachment(
-                        info["attachment"], info["volume"], info["user"]
-                    )
-                elif "nicovideo" in info["url"]:
-                    return await NicoNicoSource.from_url(
-                        info["url"], info["volume"], info["user"]
-                    )
-                else:
-                    return = await YTDLSource.from_url(
-                        info["url"], info["volume"], info["user"]
-                    )
-
         while True:
             if guild.voice_client:
                 if queue.empty():
@@ -366,7 +364,7 @@ class MusicCog(commands.Cog):
 
                 try:
                     source: YTDLSource | NicoNicoSource | DiscordFileSource = (
-                        await get()
+                        await self.getSourceFromQueue(queue)
                     )
                 except:
                     traceback.print_exc()
