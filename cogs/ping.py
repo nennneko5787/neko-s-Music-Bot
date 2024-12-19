@@ -21,7 +21,10 @@ class PingCog(commands.Cog):
             voiceClient: discord.VoiceClient = voiceClient
             _totalPing += voiceClient.average_latency
             _count += 1
-        voicePing = _totalPing / _count
+        if _count != 0:
+            voicePing = _totalPing / _count
+        else:
+            voicePing = 0
 
         cpu_percent = psutil.cpu_percent()
         mem = psutil.virtual_memory()

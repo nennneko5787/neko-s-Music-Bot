@@ -541,35 +541,35 @@ class MusicCog(commands.Cog):
         if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
             await self.playNext(guild, channel)
 
-    @app_commands.guild_only()
-    class SearchCommandGroup(
-        app_commands.Group, name="search", description="曲を検索して再生します。"
-    ):
-        @app_commands.command(
-            name="youtube", description="Youtubeから動画を検索して再生します。"
-        )
-        async def searchYoutubeCommand(
-            self,
-            interaction: discord.Interaction,
-            keyword: str,
-            volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
-        ) -> None:
-            await interaction.response.defer(ephemeral=True)
-            view = discord.ui.View(timeout=None)
-            select = discord.ui.Select(custom_id="ytsearch")
-            videos = searchYoutube(keyword)
-            for video in videos:
-                select.add_option(
-                    label=video["title"],
-                    description=video["uploader"],
-                    value=f"{video['url']}|{volume}",
-                )
-            view.add_item(select)
-            embed = discord.Embed(
-                title=f"{len(videos)}本の動画がヒットしました。",
-                description="動画を選択して、キューに追加します。",
+    searchCommandGroup = app_commands.Group(
+        name="search", description="曲を検索して再生します。", guild_only=True
+    )
+
+    @searchCommandGroup.command(
+        name="youtube", description="Youtubeから動画を検索して再生します。"
+    )
+    async def searchYoutubeCommand(
+        self,
+        interaction: discord.Interaction,
+        keyword: str,
+        volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        view = discord.ui.View(timeout=None)
+        select = discord.ui.Select(custom_id="ytsearch")
+        videos = searchYoutube(keyword)
+        for video in videos:
+            select.add_option(
+                label=video["title"],
+                description=video["uploader"],
+                value=f"{video['url']}|{volume}",
             )
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        view.add_item(select)
+        embed = discord.Embed(
+            title=f"{len(videos)}本の動画がヒットしました。",
+            description="動画を選択して、キューに追加します。",
+        )
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @app_commands.command(name="skip", description="曲をスキップします。")
     @app_commands.guild_only()
