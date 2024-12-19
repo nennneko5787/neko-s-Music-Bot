@@ -16,6 +16,7 @@ from spotdl.types.playlist import Playlist
 from .source import YTDLSource, isPlayList
 from .niconico import NicoNicoSource
 from .queue import Queue
+from .search import searchYoutube
 
 dotenv.load_dotenv()
 
@@ -132,9 +133,20 @@ class MusicCog(commands.Cog):
             if interaction.data["component_type"] == 2:
                 await self.onButtonClick(interaction)
             elif interaction.data["component_type"] == 3:
-                pass
+                await self.onSelect(interaction)
         except KeyError:
             pass
+
+    async def onSelect(self, interaction: discord.Interaction):
+        customId = interaction.data["custom_id"]
+        if customId == "ytsearch":
+            url, volume = interaction.data["values"][0].split("|")
+            guild = interaction.guild
+            channel = interaction.channel
+
+            await self.putQueue(interaction, url, float(volume))
+            if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+                await self.playNext(guild, channel)
 
     async def onButtonClick(self, interaction: discord.Interaction):
         customId = interaction.data["custom_id"]
@@ -464,12 +476,13 @@ class MusicCog(commands.Cog):
                 )
 
     @app_commands.command(name="alarm", description="アラームをセットします。")
+    @app_commands.guild_only()
     async def alarmCommand(
         self,
         interaction: discord.Interaction,
         delay: app_commands.Range[int, 0],
         url: str,
-        volume: float = 0.5,
+        volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
     ):
         user = interaction.user
         guild = interaction.guild
@@ -502,8 +515,12 @@ class MusicCog(commands.Cog):
         await self.playNext(guild, channel)
 
     @app_commands.command(name="play", description="曲を再生します。")
+    @app_commands.guild_only()
     async def playMusic(
-        self, interaction: discord.Interaction, url: str, volume: float = 0.5
+        self,
+        interaction: discord.Interaction,
+        url: str,
+        volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
     ):
         user = interaction.user
         guild = interaction.guild
@@ -520,13 +537,42 @@ class MusicCog(commands.Cog):
             self.playing[guild.id] = False
         if not guild.id in self.queue:
             self.queue[guild.id] = Queue()
-        print("a")
         await self.putQueue(interaction, url, volume)
-        print("a")
         if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
             await self.playNext(guild, channel)
 
+    @app_commands.guild_only()
+    class SearchCommandGroup(
+        app_commands.Group, name="search", description="曲を検索して再生します。"
+    ):
+        @app_commands.command(
+            name="youtube", description="Youtubeから動画を検索して再生します。"
+        )
+        async def searchYoutubeCommand(
+            self,
+            interaction: discord.Interaction,
+            keyword: str,
+            volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+        ) -> None:
+            await interaction.response.defer(ephemeral=True)
+            view = discord.ui.View(timeout=None)
+            select = discord.ui.Select(custom_id="ytsearch")
+            videos = searchYoutube(keyword)
+            for video in videos:
+                select.add_option(
+                    label=video["title"],
+                    description=video["uploader"],
+                    value=f"{video['url']}|{volume}",
+                )
+            view.add_item(select)
+            embed = discord.Embed(
+                title=f"{len(videos)}本の動画がヒットしました。",
+                description="動画を選択して、キューに追加します。",
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
     @app_commands.command(name="skip", description="曲をスキップします。")
+    @app_commands.guild_only()
     async def skipMusic(self, interaction: discord.Interaction):
         guild = interaction.guild
         if not guild.voice_client:
@@ -540,6 +586,7 @@ class MusicCog(commands.Cog):
         await interaction.followup.send("スキップしました。")
 
     @app_commands.command(name="stop", description="曲を停止します。")
+    @app_commands.guild_only()
     async def stopMusic(self, interaction: discord.Interaction):
         guild = interaction.guild
         if not guild.voice_client:
@@ -554,6 +601,7 @@ class MusicCog(commands.Cog):
         await interaction.followup.send("停止しました。")
 
     @app_commands.command(name="pause", description="曲を一時停止します。")
+    @app_commands.guild_only()
     async def pauseMusic(self, interaction: discord.Interaction):
         guild = interaction.guild
         if not guild.voice_client:
@@ -571,6 +619,7 @@ class MusicCog(commands.Cog):
         await interaction.followup.send("一時停止しました。")
 
     @app_commands.command(name="resume", description="曲を一時停止します。")
+    @app_commands.guild_only()
     async def resumeMusic(self, interaction: discord.Interaction):
         guild = interaction.guild
         if not guild.voice_client:

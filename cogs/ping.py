@@ -13,11 +13,21 @@ class PingCog(commands.Cog):
     )
     async def pingCommand(self, interaction: discord.Interaction):
         ping = self.bot.latency
+
+        _count = 0
+        _totalPing = 0
+        voicePing = 0
+        for voiceClient in self.bot.voice_clients:
+            voiceClient: discord.VoiceClient = voiceClient
+            _totalPing += voiceClient.average_latency
+            _count += 1
+        voicePing = _totalPing / _count
+
         cpu_percent = psutil.cpu_percent()
         mem = psutil.virtual_memory()
         embed = discord.Embed(
             title="Ping",
-            description=f"Ping : {ping*1000}ms\nCPU : {cpu_percent}%\nMemory : {mem.percent}%",
+            description=f"(Bot)Ping : `{int(ping*1000)}ms`\n(VoiceClient, Total)Ping: `{int(voicePing*1000)}ms`\nCPU : {cpu_percent}%\nMemory : {mem.percent}%",
             color=discord.Colour.purple(),
         )
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
