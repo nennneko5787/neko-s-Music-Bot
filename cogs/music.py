@@ -763,7 +763,7 @@ class MusicCog(commands.Cog):
             )
             return
         await interaction.response.defer()
-        await guild.voice_client.pause()
+        guild.voice_client.pause()
         await interaction.followup.send("一時停止しました。")
 
     @app_commands.command(name="resume", description="曲を一時停止します。")
