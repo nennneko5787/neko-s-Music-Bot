@@ -14,6 +14,7 @@ from spotdl.types.album import Album
 from spotdl.types.playlist import Playlist
 
 from .source import YTDLSource, isPlayList
+from .filesource import DiscordFileSource
 from .niconico import NicoNicoSource
 from .queue import Queue
 from .search import searchYoutube
@@ -275,6 +276,14 @@ class MusicCog(commands.Cog):
                         progress=(source.progress + 10) / 0.02,
                         user=source.user,
                     )
+                elif isinstance(source, DiscordFileSource):
+                    interaction.guild.voice_client.source = DiscordFileSource(
+                        discord.FFmpegPCMAudio(source.info["url"], **options),
+                        info=source.info,
+                        volume=source.volume,
+                        progress=(source.progress + 10) / 0.02,
+                        user=source.user,
+                    )
                 else:
                     interaction.guild.voice_client.source = YTDLSource(
                         discord.FFmpegPCMAudio(source.info["url"], **options),
@@ -298,7 +307,7 @@ class MusicCog(commands.Cog):
         if source is None:
             if voiceClient.source is None:
                 return None
-            source: YTDLSource | NicoNicoSource = voiceClient.source
+            source: YTDLSource | NicoNicoSource | DiscordFileSource = voiceClient.source
         embed = discord.Embed(
             title=source.info["title"],
             url=source.info["webpage_url"],
@@ -338,7 +347,11 @@ class MusicCog(commands.Cog):
         async def get():
             if not queue.empty():
                 info: dict = queue.get()
-                if "nicovideo" in info["url"]:
+                if (info["url"] is None) and (info.get("attachment")):
+                    self.source[guild.id] = await DiscordFileSource.from_attachment(
+                        info["attachment"], info["volume"], info["user"]
+                    )
+                elif "nicovideo" in info["url"]:
                     self.source[guild.id] = await NicoNicoSource.from_url(
                         info["url"], info["volume"], info["user"]
                     )
@@ -360,7 +373,9 @@ class MusicCog(commands.Cog):
                     break
 
                 try:
-                    source: YTDLSource | NicoNicoSource = self.source[guild.id]
+                    source: YTDLSource | NicoNicoSource | DiscordFileSource = (
+                        self.source[guild.id]
+                    )
                 except:
                     traceback.print_exc()
                     continue
@@ -481,6 +496,12 @@ class MusicCog(commands.Cog):
                 "ボイスチャンネルに接続してください。", ephemeral=True
             )
             return
+        if self.playing.get(guild.id, False) is True:
+            await interaction.response.send_message(
+                "現在曲を再生中です。停止してからアラームをセットしてください。",
+                ephemeral=True,
+            )
+            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
@@ -530,6 +551,102 @@ class MusicCog(commands.Cog):
         if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
             await self.playNext(guild, channel)
 
+    @app_commands.command(
+        name="playfile",
+        description="Discordのファイルを再生します。動画ファイルか音声ファイルでなければなりません。",
+    )
+    @app_commands.guild_only()
+    async def playFile(
+        self,
+        interaction: discord.Interaction,
+        attachment: discord.Attachment,
+        volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+    ):
+        user = interaction.user
+        guild = interaction.guild
+        channel = interaction.channel
+        if not user.voice:
+            await interaction.response.send_message(
+                "ボイスチャンネルに接続してください。", ephemeral=True
+            )
+            return
+        await interaction.response.defer()
+        if not guild.voice_client:
+            await user.voice.channel.connect(self_deaf=True)
+        if not guild.id in self.playing:
+            self.playing[guild.id] = False
+        if not guild.id in self.queue:
+            self.queue[guild.id] = Queue()
+        queue: Queue = self.queue[guild.id]
+        queue.put(
+            {
+                "url": None,
+                "attachment": attachment,
+                "volume": volume,
+                "user": interaction.user,
+            }
+        )
+        await interaction.followup.send(
+            f"**{attachment.filename}**をキューに追加しました。"
+        )
+        if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+            await self.playNext(guild, channel)
+
+    @app_commands.command(
+        name="alarmfile", description="Discordのファイルのアラームをセットします。"
+    )
+    @app_commands.guild_only()
+    async def alarmFileCommand(
+        self,
+        interaction: discord.Interaction,
+        delay: app_commands.Range[int, 0],
+        attachment: discord.Attachment,
+        volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+    ):
+        user = interaction.user
+        guild = interaction.guild
+        channel = interaction.channel
+        if not user.voice:
+            await interaction.response.send_message(
+                "ボイスチャンネルに接続してください。", ephemeral=True
+            )
+            return
+        if self.playing.get(guild.id, False) is True:
+            await interaction.response.send_message(
+                "現在曲を再生中です。停止してからアラームをセットしてください。",
+                ephemeral=True,
+            )
+            return
+        await interaction.response.defer()
+        if not guild.voice_client:
+            await user.voice.channel.connect(self_deaf=True)
+        if not guild.id in self.playing:
+            self.playing[guild.id] = False
+        if not guild.id in self.queue:
+            self.queue[guild.id] = Queue()
+        queue: Queue = self.queue[guild.id]
+        queue.put(
+            {
+                "url": None,
+                "attachment": attachment,
+                "volume": volume,
+                "user": interaction.user,
+            }
+        )
+
+        self.alarm[guild.id] = True
+
+        embed = discord.Embed(
+            title="アラームをセットしました！",
+            description=f"{discord.utils.format_dt(discord.utils.utcnow()+timedelta(seconds=delay), 'R')} に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
+            colour=discord.Colour.green(),
+        )
+        await interaction.followup.send(embed=embed)
+
+        await asyncio.sleep(delay)
+        del self.alarm[guild.id]
+        await self.playNext(guild, channel)
+
     searchCommandGroup = app_commands.Group(
         name="search", description="曲を検索して再生します。", guild_only=True
     )
@@ -557,6 +674,11 @@ class MusicCog(commands.Cog):
         async def selectCallBack(interaction: discord.Interaction):
             url, volume = interaction.data["values"][0].split("|")
             user = interaction.user
+            if not user.voice:
+                await interaction.response.send_message(
+                    "ボイスチャンネルに接続してください。", ephemeral=True
+                )
+                return
             guild = interaction.guild
             channel = interaction.channel
             await interaction.response.defer()
