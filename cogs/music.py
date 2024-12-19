@@ -133,20 +133,9 @@ class MusicCog(commands.Cog):
             if interaction.data["component_type"] == 2:
                 await self.onButtonClick(interaction)
             elif interaction.data["component_type"] == 3:
-                await self.onSelect(interaction)
+                pass
         except KeyError:
             pass
-
-    async def onSelect(self, interaction: discord.Interaction):
-        customId = interaction.data["custom_id"]
-        if customId == "ytsearch":
-            url, volume = interaction.data["values"][0].split("|")
-            guild = interaction.guild
-            channel = interaction.channel
-
-            await self.putQueue(interaction, url, float(volume))
-            if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
-                await self.playNext(guild, channel)
 
     async def onButtonClick(self, interaction: discord.Interaction):
         customId = interaction.data["custom_id"]
@@ -564,6 +553,18 @@ class MusicCog(commands.Cog):
                 description=video["uploader"],
                 value=f"{video['url']}|{volume}",
             )
+
+        async def selectCallBack(interaction: discord.Interaction):
+            url, volume = interaction.data["values"][0].split("|")
+            guild = interaction.guild
+            channel = interaction.channel
+
+            await self.putQueue(interaction, url, float(volume))
+            if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+                await self.playNext(guild, channel)
+
+        select.callback = selectCallBack
+
         view.add_item(select)
         embed = discord.Embed(
             title=f"{len(videos)}本の動画がヒットしました。",
