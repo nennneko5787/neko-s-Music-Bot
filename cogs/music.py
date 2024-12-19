@@ -556,9 +556,16 @@ class MusicCog(commands.Cog):
 
         async def selectCallBack(interaction: discord.Interaction):
             url, volume = interaction.data["values"][0].split("|")
+            user = interaction.user
             guild = interaction.guild
             channel = interaction.channel
 
+            if not guild.voice_client:
+                await user.voice.channel.connect(self_deaf=True)
+            if not guild.id in self.playing:
+                self.playing[guild.id] = False
+            if not guild.id in self.queue:
+                self.queue[guild.id] = Queue()
             await self.putQueue(interaction, url, float(volume))
             if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
                 await self.playNext(guild, channel)
