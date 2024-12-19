@@ -558,6 +558,22 @@ class MusicCog(commands.Cog):
                 "ボイスチャンネルに接続してください。", ephemeral=True
             )
             return
+        permission = channel.permissions_for(interaction.guild.me)
+        if (not permission.send_messages) or (not permission.embed_links):
+            embed = discord.Embed(
+                title="権限が足りません！",
+                description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        permission = user.voice.channel.permissions_for(interaction.guild.me)
+        if not permission.connect:
+            embed = discord.Embed(
+                title="権限が足りません！",
+                description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
@@ -587,6 +603,22 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(
                 "ボイスチャンネルに接続してください。", ephemeral=True
             )
+            return
+        permission = channel.permissions_for(interaction.guild.me)
+        if (not permission.send_messages) or (not permission.embed_links):
+            embed = discord.Embed(
+                title="権限が足りません！",
+                description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        permission = user.voice.channel.permissions_for(interaction.guild.me)
+        if not permission.connect:
+            embed = discord.Embed(
+                title="権限が足りません！",
+                description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         await interaction.response.defer()
         if not guild.voice_client:
@@ -628,6 +660,22 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(
                 "ボイスチャンネルに接続してください。", ephemeral=True
             )
+            return
+        permission = channel.permissions_for(interaction.guild.me)
+        if (not permission.send_messages) or (not permission.embed_links):
+            embed = discord.Embed(
+                title="権限が足りません！",
+                description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        permission = user.voice.channel.permissions_for(interaction.guild.me)
+        if not permission.connect:
+            embed = discord.Embed(
+                title="権限が足りません！",
+                description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         if self.playing.get(guild.id, False) is True:
             await interaction.response.send_message(
@@ -692,13 +740,29 @@ class MusicCog(commands.Cog):
         async def selectCallBack(interaction: discord.Interaction):
             url, volume = interaction.data["values"][0].split("|")
             user = interaction.user
+            guild = interaction.guild
+            channel = interaction.channel
             if not user.voice:
                 await interaction.response.send_message(
                     "ボイスチャンネルに接続してください。", ephemeral=True
                 )
                 return
-            guild = interaction.guild
-            channel = interaction.channel
+            permission = channel.permissions_for(interaction.guild.me)
+            if (not permission.send_messages) or (not permission.embed_links):
+                embed = discord.Embed(
+                    title="権限が足りません！",
+                    description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+            permission = user.voice.channel.permissions_for(interaction.guild.me)
+            if not permission.connect:
+                embed = discord.Embed(
+                    title="権限が足りません！",
+                    description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
             await interaction.response.defer()
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)
