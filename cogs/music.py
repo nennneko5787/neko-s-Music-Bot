@@ -101,11 +101,9 @@ def formatTime(seconds):
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.source: dict[YTDLSource] = {}
         self.queue: dict[Queue] = {}
         self.playing: dict[bool] = {}
         self.alarm: dict[bool] = {}
-        self.seeking: dict[bool] = {}
         self.spotify = Spotdl(
             client_id=os.getenv("spotify_clientid"),
             client_secret=os.getenv("spotify_clientsecret"),
@@ -203,9 +201,6 @@ class MusicCog(commands.Cog):
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
                 await interaction.response.defer(ephemeral=True)
-                if self.seeking.get(interaction.guild.id, False) is True:
-                    return
-                self.seeking[interaction.guild.id] = True
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
@@ -247,7 +242,6 @@ class MusicCog(commands.Cog):
                         progress=(source.progress - 10) / 0.02,
                         user=source.user,
                     )
-                self.seeking[interaction.guild.id] = False
             case "forward":
                 if not interaction.guild.voice_client:
                     embed = discord.Embed(
@@ -256,9 +250,6 @@ class MusicCog(commands.Cog):
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
                 await interaction.response.defer(ephemeral=True)
-                if self.seeking.get(interaction.guild.id, False) is True:
-                    return
-                self.seeking[interaction.guild.id] = True
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
@@ -356,33 +347,26 @@ class MusicCog(commands.Cog):
             if not queue.empty():
                 info: dict = queue.get()
                 if (info["url"] is None) and (info.get("attachment")):
-                    self.source[guild.id] = await DiscordFileSource.from_attachment(
+                    return await DiscordFileSource.from_attachment(
                         info["attachment"], info["volume"], info["user"]
                     )
                 elif "nicovideo" in info["url"]:
-                    self.source[guild.id] = await NicoNicoSource.from_url(
+                    return await NicoNicoSource.from_url(
                         info["url"], info["volume"], info["user"]
                     )
                 else:
-                    self.source[guild.id] = await YTDLSource.from_url(
+                    return = await YTDLSource.from_url(
                         info["url"], info["volume"], info["user"]
                     )
 
         while True:
             if guild.voice_client:
-                try:
-                    if not guild.id in self.source:
-                        await get()
-                except:
-                    traceback.print_exc()
-                    continue
-
-                if (queue.empty()) and (not guild.id in self.source):
+                if queue.empty():
                     break
 
                 try:
                     source: YTDLSource | NicoNicoSource | DiscordFileSource = (
-                        self.source[guild.id]
+                        await get()
                     )
                 except:
                     traceback.print_exc()
@@ -399,10 +383,6 @@ class MusicCog(commands.Cog):
 
                 voiceClient.play(source, after=lambda _: self.setToNotPlaying(guild.id))
                 self.playing[guild.id] = True
-
-                del self.source[guild.id]
-
-                asyncio.create_task(get())
 
                 _break = False
                 while self.playing[guild.id]:
@@ -435,10 +415,6 @@ class MusicCog(commands.Cog):
                 break
         await channel.send("再生終了")
         self.playing[guild.id] = False
-        if guild.id in self.source:
-            del self.source[guild.id]
-        if guild.id in self.seeking:
-            del self.seeking[guild.id]
         if guild.voice_client:
             await guild.voice_client.disconnect()
 
