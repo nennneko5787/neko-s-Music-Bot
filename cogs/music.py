@@ -404,18 +404,28 @@ class MusicCog(commands.Cog):
 
                 asyncio.create_task(get())
 
+                _break = False
                 while self.playing[guild.id]:
                     if isinstance(source, NicoNicoSource):
                         await source.sendHeartBeat()
                     if voiceClient.source is not None:
                         source = voiceClient.source
-                    await message.edit(
-                        embed=self.embedPanel(voiceClient, source=source),
-                        view=(
-                            notPausedView if not voiceClient.is_paused() else pausedView
-                        ),
-                    )
-                    await asyncio.sleep(5)
+                    if not voiceClient.is_paused():
+                        await message.edit(
+                            embed=self.embedPanel(voiceClient, source=source),
+                            view=(
+                                notPausedView
+                                if not voiceClient.is_paused()
+                                else pausedView
+                            ),
+                        )
+                    for _ in range(5):
+                        if not self.playing[guild.id]:
+                            _break = True
+                            break
+                        await asyncio.sleep(1)
+                    if _break:
+                        break
                 await message.edit(
                     embed=self.embedPanel(voiceClient, source=source, finished=True),
                     view=None,
