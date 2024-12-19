@@ -1,6 +1,8 @@
 import asyncio
+import ffmpeg
 import discord
 import time
+from concurrent.futures import ProcessPoolExecutor
 
 FFMPEG_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
@@ -10,6 +12,24 @@ FFMPEG_OPTIONS = {
 
 class MimeTypeNotMatch(Exception):
     pass
+
+
+class FileFetchError(Exception):
+    pass
+
+
+def _probe(url: str) -> dict:
+    try:
+        info = ffmpeg.probe(url)
+        return info
+    except Exception as e:
+        raise FileFetchError(f"Failed to fetch video info: {url}, {str(e)}")
+
+
+async def probe(url: str) -> dict:
+    loop = asyncio.get_event_loop()
+    with ProcessPoolExecutor() as executor:
+        return await loop.run_in_executor(executor, _probe, url)
 
 
 class DiscordFileSource(discord.PCMVolumeTransformer):
@@ -56,16 +76,15 @@ class DiscordFileSource(discord.PCMVolumeTransformer):
             DiscordFileSource: 完成したAudioSource。
         """
         print(f"loading {attachment.url}")
-        if attachment.duration is None:
-            raise MimeTypeNotMatch()
+        probeData = await probe(attachment.url)
 
         info = {
             "title": attachment.filename,
             "duration_string": time.strftime(
                 "%H:%M:%S",
-                time.gmtime(attachment.duration),
+                time.gmtime(probeData["streams"][0]["duration"]),
             ),
-            "duration": int(attachment.duration),
+            "duration": int(probeData["streams"][0]["duration"]),
             "url": attachment.url,
             "webpage_url": attachment.url,
             "thumbnail": user.display_avatar,

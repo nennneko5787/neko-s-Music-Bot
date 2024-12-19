@@ -6,3 +6,4 @@ httpx
 tzdata
 spotdl
 psutil
+ffmpeg-python
