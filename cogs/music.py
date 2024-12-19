@@ -578,7 +578,7 @@ class MusicCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         attachment: discord.Attachment,
-        volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+        volume: app_commands.Range[float, 0.0, 2.0] = 2.0,
     ):
         user = interaction.user
         guild = interaction.guild
@@ -619,7 +619,7 @@ class MusicCog(commands.Cog):
         interaction: discord.Interaction,
         delay: app_commands.Range[int, 0],
         attachment: discord.Attachment,
-        volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+        volume: app_commands.Range[float, 0.0, 2.0] = 2.0,
     ):
         user = interaction.user
         guild = interaction.guild
