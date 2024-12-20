@@ -10,6 +10,8 @@ class QueueEmpty(Exception):
 
 
 class Queue:
+    __slots__ = ("__list", "__index",)
+    
     def __init__(self):
         self.__list = list()
         self.__index = 0
