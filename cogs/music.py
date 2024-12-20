@@ -118,7 +118,7 @@ class MusicCog(commands.Cog):
     async def presenceLoop(self):
         if self.presenceCount == 0:
             await self.bot.change_presence(
-                discord.Activity(
+                activity=discord.Activity(
                     name=f"{len(self.bot.guilds)} サーバー",
                     type=discord.ActivityType.competing,
                 )
