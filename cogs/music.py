@@ -104,6 +104,7 @@ class MusicCog(commands.Cog):
         self.queue: dict[Queue] = {}
         self.playing: dict[bool] = {}
         self.alarm: dict[bool] = {}
+        self.presenceCount = 0
         self.spotify = Spotdl(
             client_id=os.getenv("spotify_clientid"),
             client_secret=os.getenv("spotify_clientsecret"),
@@ -115,16 +116,24 @@ class MusicCog(commands.Cog):
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
-        playing = []
-        for p in self.playing.values():
-            if p:
-                playing.append(p)
-
-        await self.bot.change_presence(
-            activity=discord.Game(
-                f"{len(playing)} 再生中 / {len(self.alarm.keys())} アラーム / {len(self.bot.guilds)} サーバー"
+        if self.presenceCount == 0:
+            await self.bot.change_presence(
+                discord.Activity(
+                    name=f"{len(self.bot.guilds)} サーバー",
+                    type=discord.ActivityType.competing,
+                )
             )
-        )
+            self.presenceCount = 1
+        elif self.presenceCount == 1:
+            await self.bot.change_presence(
+                activity=discord.Game(f"{len(self.queue.keys())} サーバーで音楽")
+            )
+            self.presenceCount = 2
+        elif self.presenceCount == 2:
+            await self.bot.change_presence(
+                activity=discord.Game(f"{len(self.alarm.keys())} サーバーでアラーム")
+            )
+            self.presenceCount = 0
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
@@ -135,6 +144,48 @@ class MusicCog(commands.Cog):
                 pass
         except KeyError:
             pass
+
+    def seekMusic(
+        self, source: YTDLSource | NicoNicoSource | DiscordFileSource, seconds: float
+    ) -> YTDLSource | NicoNicoSource | DiscordFileSource:
+        options = {
+            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+            "options": f"-vn -ss {formatTime(seconds)} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
+        }
+
+        if isinstance(source, NicoNicoSource):
+            options["before_options"] = (
+                f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}' {options['before_options']}"
+            )
+            return NicoNicoSource(
+                discord.FFmpegPCMAudio(source.hslContentUrl, **options),
+                info=source.info,
+                hslContentUrl=source.hslContentUrl,
+                watchid=source.watchid,
+                trackid=source.trackid,
+                outputs=source.outputs,
+                nicosid=source.nicosid,
+                niconico=source.niconico,
+                volume=source.volume,
+                progress=seconds / 0.02,
+                user=source.user,
+            )
+        elif isinstance(source, DiscordFileSource):
+            return DiscordFileSource(
+                discord.FFmpegPCMAudio(source.info["url"], **options),
+                info=source.info,
+                volume=source.volume,
+                progress=seconds / 0.02,
+                user=source.user,
+            )
+        else:
+            return YTDLSource(
+                discord.FFmpegPCMAudio(source.info["url"], **options),
+                info=source.info,
+                volume=source.volume,
+                progress=seconds / 0.02,
+                user=source.user,
+            )
 
     async def onButtonClick(self, interaction: discord.Interaction):
         customId = interaction.data["custom_id"]
@@ -204,44 +255,9 @@ class MusicCog(commands.Cog):
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
-                options = {
-                    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                    "options": f"-vn -ss {formatTime(source.progress-10)}",
-                }
-
-                if isinstance(source, NicoNicoSource):
-                    options["before_options"] = (
-                        f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}' {options['before_options']}"
-                    )
-                    interaction.guild.voice_client.source = NicoNicoSource(
-                        discord.FFmpegPCMAudio(source.hslContentUrl, **options),
-                        info=source.info,
-                        hslContentUrl=source.hslContentUrl,
-                        watchid=source.watchid,
-                        trackid=source.trackid,
-                        outputs=source.outputs,
-                        nicosid=source.nicosid,
-                        niconico=source.niconico,
-                        volume=source.volume,
-                        progress=(source.progress - 10) / 0.02,
-                        user=source.user,
-                    )
-                elif isinstance(source, DiscordFileSource):
-                    interaction.guild.voice_client.source = DiscordFileSource(
-                        discord.FFmpegPCMAudio(source.info["url"], **options),
-                        info=source.info,
-                        volume=source.volume,
-                        progress=(source.progress - 10) / 0.02,
-                        user=source.user,
-                    )
-                else:
-                    interaction.guild.voice_client.source = YTDLSource(
-                        discord.FFmpegPCMAudio(source.info["url"], **options),
-                        info=source.info,
-                        volume=source.volume,
-                        progress=(source.progress - 10) / 0.02,
-                        user=source.user,
-                    )
+                interaction.guild.voice_client.source = self.seekMusic(
+                    source, source.progress - 10
+                )
             case "forward":
                 if not interaction.guild.voice_client:
                     embed = discord.Embed(
@@ -253,45 +269,9 @@ class MusicCog(commands.Cog):
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
-                options = {
-                    "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                    "options": f"-vn -ss {formatTime(source.progress+10)}",
-                }
-
-                if isinstance(source, NicoNicoSource):
-                    options["before_options"] = (
-                        f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}' {options['before_options']}"
-                    )
-                    interaction.guild.voice_client.source = NicoNicoSource(
-                        discord.FFmpegPCMAudio(source.hslContentUrl, **options),
-                        info=source.info,
-                        hslContentUrl=source.hslContentUrl,
-                        watchid=source.watchid,
-                        trackid=source.trackid,
-                        outputs=source.outputs,
-                        nicosid=source.nicosid,
-                        niconico=source.niconico,
-                        volume=source.volume,
-                        progress=(source.progress + 10) / 0.02,
-                        user=source.user,
-                    )
-                elif isinstance(source, DiscordFileSource):
-                    interaction.guild.voice_client.source = DiscordFileSource(
-                        discord.FFmpegPCMAudio(source.info["url"], **options),
-                        info=source.info,
-                        volume=source.volume,
-                        progress=(source.progress + 10) / 0.02,
-                        user=source.user,
-                    )
-                else:
-                    interaction.guild.voice_client.source = YTDLSource(
-                        discord.FFmpegPCMAudio(source.info["url"], **options),
-                        info=source.info,
-                        volume=source.volume,
-                        progress=(source.progress + 10) / 0.02,
-                        user=source.user,
-                    )
-                self.seeking[interaction.guild.id] = False
+                interaction.guild.voice_client.source = self.seekMusic(
+                    source, source.progress + 10
+                )
 
     def setToNotPlaying(self, guildId: int):
         self.playing[guildId] = False
@@ -351,9 +331,7 @@ class MusicCog(commands.Cog):
                 info["url"], info["volume"], info["user"]
             )
         else:
-            return await YTDLSource.from_url(
-                info["url"], info["volume"], info["user"]
-            )
+            return await YTDLSource.from_url(info["url"], info["volume"], info["user"])
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: Queue = self.queue[guild.id]

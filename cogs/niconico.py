@@ -228,7 +228,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
 
         FFMPEG_OPTIONS = {
             "before_options": f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in cookies.items())}' -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            "options": "-vn",
+            "options": "-vn -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
         }
 
         info = {
