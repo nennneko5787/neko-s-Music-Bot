@@ -126,7 +126,7 @@ class MusicCog(commands.Cog):
             self.presenceCount = 1
         elif self.presenceCount == 1:
             await self.bot.change_presence(
-                activity=discord.Game(f"{len(self.queue.keys())} サーバーで音楽")
+                activity=discord.Game(f"{len(self.bot.voice_clients)} サーバーで音楽")
             )
             self.presenceCount = 2
         elif self.presenceCount == 2:
