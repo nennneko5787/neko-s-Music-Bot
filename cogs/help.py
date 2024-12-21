@@ -1,9 +1,11 @@
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 
 
 class HelpCog(commands.Cog):
+    __slots__ = ("bot",)
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 

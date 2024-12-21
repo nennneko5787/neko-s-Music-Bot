@@ -1,10 +1,12 @@
-import psutil
 import discord
-from discord.ext import commands
+import psutil
 from discord import app_commands
+from discord.ext import commands
 
 
 class PingCog(commands.Cog):
+    __slots__ = ("bot",)
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 

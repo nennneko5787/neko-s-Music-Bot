@@ -1,12 +1,13 @@
-import asyncio
+import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
+from urllib.parse import ParseResult, parse_qs, urlparse
 from zoneinfo import ZoneInfo
-from urllib.parse import urlparse, parse_qs, ParseResult
 
-import httpx
 import discord
-import aiohttp
+import httpx
+
+_log = logging.getLogger("music")
 
 
 class DownloadFailed(Exception):
@@ -88,6 +89,18 @@ class NicoNicoAPI:
 class NicoNicoSource(discord.PCMVolumeTransformer):
     """ニコニコ動画とうまく連携するAudioSourceを提供します。クラスを直接作るのではなく、from_url関数を使用してAudioSourceを作成してください。"""
 
+    __slots__ = (
+        "info",
+        "hslContentUrl",
+        "watchid",
+        "trackid",
+        "outputs",
+        "nicosid",
+        "niconico",
+        "__count",
+        "user",
+    )
+
     def __init__(
         self,
         source,
@@ -112,17 +125,17 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         self.nicosid = nicosid
         self.niconico = niconico
         self.user = user
-        self._count = progress
+        self.__count = progress
         self.client = niconico.client
 
     @property
     def progress(self) -> float:
-        return self._count * 0.02  # count * 20ms
+        return self.__count * 0.02  # count * 20ms
 
     def read(self) -> bytes:
         data = super().read()
         if data:
-            self._count += 1
+            self.__count += 1
         return data
 
     async def sendHeartBeat(self) -> bool:
@@ -203,7 +216,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         Returns:
             NicoNicoSource: 完成したAudioSource。
         """
-        print(f"loading {url}")
+        _log.info(f"loading {url} with NicoNicoSource now")
 
         niconico = NicoNicoAPI()
 
@@ -241,7 +254,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
             "webpage_url": f'https://www.nicovideo.jp/watch/{data["data"]["response"]["video"]["id"]}',
             "thumbnail": data["data"]["response"]["video"]["thumbnail"]["ogp"],
         }
-        print("ok")
+        _log.info(f"success loading {url}")
 
         return cls(
             discord.FFmpegPCMAudio(hslContentUrl, **FFMPEG_OPTIONS),

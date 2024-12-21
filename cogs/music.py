@@ -5,19 +5,19 @@ import traceback
 from datetime import timedelta
 
 import discord
-from discord import app_commands
 import dotenv
+from discord import app_commands
 from discord.ext import commands, tasks
 from spotdl import Spotdl
-from spotdl.types.song import Song
 from spotdl.types.album import Album
 from spotdl.types.playlist import Playlist
+from spotdl.types.song import Song
 
-from .source import YTDLSource, isPlayList
 from .filesource import DiscordFileSource
 from .niconico import NicoNicoSource
 from .queue import Queue
 from .search import searchYoutube
+from .source import YTDLSource, isPlayList
 
 dotenv.load_dotenv()
 
@@ -99,6 +99,15 @@ def formatTime(seconds):
 
 
 class MusicCog(commands.Cog):
+    __slots__ = (
+        "bot",
+        "queue",
+        "playing",
+        "alarm",
+        "presenceCount",
+        "spotify",
+    )
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.queue: dict[Queue] = {}
@@ -396,10 +405,6 @@ class MusicCog(commands.Cog):
 
     async def putQueue(self, interaction: discord.Interaction, url: str, volume: float):
         queue: Queue = self.queue[interaction.guild.id]
-        if "music.apple.com" in url:
-            await interaction.response.send_message("Apple Musicには対応していません。")
-            return
-
         if "spotify" in url:
             if "track" in url:
                 song: Song = await asyncio.to_thread(Song.from_url, url)
@@ -449,6 +454,39 @@ class MusicCog(commands.Cog):
                     f"**{len(result)}個の動画**をキューに追加しました。"
                 )
 
+    async def checks(self, interaction: discord.Interaction, *, url: str = None):
+        user = interaction.user
+        guild = interaction.guild
+        channel = interaction.channel
+
+        if not user.voice:
+            await interaction.response.send_message(
+                "ボイスチャンネルに接続してください。", ephemeral=True
+            )
+            return False
+        permission = channel.permissions_for(guild.me)
+        if (not permission.send_messages) or (not permission.embed_links):
+            embed = discord.Embed(
+                title="権限が足りません！",
+                description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return False
+        permission = user.voice.channel.permissions_for(guild.me)
+        if not permission.connect:
+            embed = discord.Embed(
+                title="権限が足りません！",
+                description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return False
+        if "music.apple.com" in url:
+            await interaction.response.send_message(
+                "Apple Musicには対応していません。", ephemeral=True
+            )
+            return False
+        return True
+
     @app_commands.command(name="alarm", description="アラームをセットします。")
     @app_commands.guild_only()
     async def alarmCommand(
@@ -458,20 +496,11 @@ class MusicCog(commands.Cog):
         url: str,
         volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
     ):
+        if not await self.checks(interaction, url=url):
+            return
         user = interaction.user
         guild = interaction.guild
         channel = interaction.channel
-        if not user.voice:
-            await interaction.response.send_message(
-                "ボイスチャンネルに接続してください。", ephemeral=True
-            )
-            return
-        if self.playing.get(guild.id, False) is True:
-            await interaction.response.send_message(
-                "現在曲を再生中です。停止してからアラームをセットしてください。",
-                ephemeral=True,
-            )
-            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
@@ -502,30 +531,11 @@ class MusicCog(commands.Cog):
         url: str,
         volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
     ):
+        if not await self.checks(interaction, url=url):
+            return
         user = interaction.user
         guild = interaction.guild
         channel = interaction.channel
-        if not user.voice:
-            await interaction.response.send_message(
-                "ボイスチャンネルに接続してください。", ephemeral=True
-            )
-            return
-        permission = channel.permissions_for(interaction.guild.me)
-        if (not permission.send_messages) or (not permission.embed_links):
-            embed = discord.Embed(
-                title="権限が足りません！",
-                description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        permission = user.voice.channel.permissions_for(interaction.guild.me)
-        if not permission.connect:
-            embed = discord.Embed(
-                title="権限が足りません！",
-                description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
@@ -548,30 +558,11 @@ class MusicCog(commands.Cog):
         attachment: discord.Attachment,
         volume: app_commands.Range[float, 0.0, 2.0] = 2.0,
     ):
+        if not await self.checks(interaction):
+            return
         user = interaction.user
         guild = interaction.guild
         channel = interaction.channel
-        if not user.voice:
-            await interaction.response.send_message(
-                "ボイスチャンネルに接続してください。", ephemeral=True
-            )
-            return
-        permission = channel.permissions_for(interaction.guild.me)
-        if (not permission.send_messages) or (not permission.embed_links):
-            embed = discord.Embed(
-                title="権限が足りません！",
-                description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        permission = user.voice.channel.permissions_for(interaction.guild.me)
-        if not permission.connect:
-            embed = discord.Embed(
-                title="権限が足りません！",
-                description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
@@ -605,36 +596,11 @@ class MusicCog(commands.Cog):
         attachment: discord.Attachment,
         volume: app_commands.Range[float, 0.0, 2.0] = 2.0,
     ):
+        if not await self.checks(interaction):
+            return
         user = interaction.user
         guild = interaction.guild
         channel = interaction.channel
-        if not user.voice:
-            await interaction.response.send_message(
-                "ボイスチャンネルに接続してください。", ephemeral=True
-            )
-            return
-        permission = channel.permissions_for(interaction.guild.me)
-        if (not permission.send_messages) or (not permission.embed_links):
-            embed = discord.Embed(
-                title="権限が足りません！",
-                description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        permission = user.voice.channel.permissions_for(interaction.guild.me)
-        if not permission.connect:
-            embed = discord.Embed(
-                title="権限が足りません！",
-                description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        if self.playing.get(guild.id, False) is True:
-            await interaction.response.send_message(
-                "現在曲を再生中です。停止してからアラームをセットしてください。",
-                ephemeral=True,
-            )
-            return
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
@@ -691,30 +657,11 @@ class MusicCog(commands.Cog):
 
         async def selectCallBack(interaction: discord.Interaction):
             url, volume = interaction.data["values"][0].split("|")
+            if not await self.checks(interaction):
+                return
             user = interaction.user
             guild = interaction.guild
             channel = interaction.channel
-            if not user.voice:
-                await interaction.response.send_message(
-                    "ボイスチャンネルに接続してください。", ephemeral=True
-                )
-                return
-            permission = channel.permissions_for(interaction.guild.me)
-            if (not permission.send_messages) or (not permission.embed_links):
-                embed = discord.Embed(
-                    title="権限が足りません！",
-                    description=f"このチャンネルの`メッセージを送信`権限と`埋め込みリンク`権限を {self.bot.user.mention} に与えてください。",
-                )
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-                return
-            permission = user.voice.channel.permissions_for(interaction.guild.me)
-            if not permission.connect:
-                embed = discord.Embed(
-                    title="権限が足りません！",
-                    description=f"ボイスチャンネルの`接続`権限を {self.bot.user.mention} に与えてください。",
-                )
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-                return
             await interaction.response.defer()
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)

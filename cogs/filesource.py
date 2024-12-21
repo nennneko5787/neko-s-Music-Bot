@@ -1,13 +1,17 @@
 import asyncio
-import ffmpeg
-import discord
+import logging
 import time
 from concurrent.futures import ProcessPoolExecutor
+
+import discord
+import ffmpeg
 
 FFMPEG_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
     "options": "-vn -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
 }
+
+_log = logging.getLogger("music")
 
 
 class MimeTypeNotMatch(Exception):
@@ -35,6 +39,12 @@ async def probe(url: str) -> dict:
 class DiscordFileSource(discord.PCMVolumeTransformer):
     """Discordの添付ファイルとうまく連携できるAudioSourceを提供します。クラスを直接作るのではなく、from_url関数を使用してAudioSourceを作成してください。"""
 
+    __slots__ = (
+        "info",
+        "__count",
+        "user",
+    )
+
     def __init__(
         self,
         source,
@@ -46,17 +56,17 @@ class DiscordFileSource(discord.PCMVolumeTransformer):
     ):
         super().__init__(source, volume=volume)
         self.info: dict = info
-        self._count = progress
+        self.__count = progress
         self.user = user
 
     @property
     def progress(self) -> float:
-        return self._count * 0.02  # count * 20ms
+        return self.__count * 0.02  # count * 20ms
 
     def read(self) -> bytes:
         data = super().read()
         if data:
-            self._count += 1
+            self.__count += 1
         return data
 
     @classmethod
@@ -75,7 +85,7 @@ class DiscordFileSource(discord.PCMVolumeTransformer):
         Returns:
             DiscordFileSource: 完成したAudioSource。
         """
-        print(f"loading {attachment.url}")
+        _log.info(f"loading {attachment.url} with DiscordFileSource now")
         probeData = await probe(attachment.url)
 
         info = {
@@ -89,10 +99,9 @@ class DiscordFileSource(discord.PCMVolumeTransformer):
             "webpage_url": attachment.url,
             "thumbnail": user.display_avatar,
         }
-        fileName = attachment.url
-        print("ok")
+        _log.info(f"success loading {attachment.url}")
         return cls(
-            discord.FFmpegPCMAudio(fileName, **FFMPEG_OPTIONS),
+            discord.FFmpegPCMAudio(attachment.url, **FFMPEG_OPTIONS),
             info=info,
             volume=volume,
             user=user,

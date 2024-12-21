@@ -1,13 +1,16 @@
 import asyncio
-import discord
+import logging
 from concurrent.futures import ProcessPoolExecutor
 
+import discord
 from yt_dlp import YoutubeDL
 
 FFMPEG_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
     "options": "-vn -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
 }
+
+_log = logging.getLogger("music")
 
 
 class FetchVideoInfoFailed(Exception):
@@ -41,6 +44,12 @@ async def isPlayList(url: str) -> list[str] | bool:
 class YTDLSource(discord.PCMVolumeTransformer):
     """yt-dlpとうまく連携できるAudioSourceを提供します。クラスを直接作るのではなく、from_url関数を使用してAudioSourceを作成してください。"""
 
+    __slots__ = (
+        "info",
+        "__count",
+        "user",
+    )
+
     def __init__(
         self,
         source,
@@ -52,17 +61,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
     ):
         super().__init__(source, volume=volume)
         self.info: dict = info
-        self._count = progress
+        self.__count = progress
         self.user = user
 
     @property
     def progress(self) -> float:
-        return self._count * 0.02  # count * 20ms
+        return self.__count * 0.02  # count * 20ms
 
     def read(self) -> bytes:
         data = super().read()
         if data:
-            self._count += 1
+            self.__count += 1
         return data
 
     @classmethod
@@ -97,14 +106,13 @@ class YTDLSource(discord.PCMVolumeTransformer):
         Returns:
             YTDLSource: 完成したAudioSource。
         """
-        print(f"loading {url}")
+        _log.info(f"loading {url} with YTDLSource now")
         info = await cls.getVideoInfo(url)
-        print("ok")
+        _log.info(f"success loading {url}")
         if "entries" in info:
             info = info.get("entries", [])[0]
-        fileName = info.get("url", "")
         return cls(
-            discord.FFmpegPCMAudio(fileName, **FFMPEG_OPTIONS),
+            discord.FFmpegPCMAudio(info.get("url", ""), **FFMPEG_OPTIONS),
             info=info,
             volume=volume,
             user=user,
