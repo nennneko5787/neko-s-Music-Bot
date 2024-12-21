@@ -480,11 +480,12 @@ class MusicCog(commands.Cog):
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return False
-        if "music.apple.com" in url:
-            await interaction.response.send_message(
-                "Apple Musicには対応していません。", ephemeral=True
-            )
-            return False
+        if url:
+            if "music.apple.com" in url:
+                await interaction.response.send_message(
+                    "Apple Musicには対応していません。", ephemeral=True
+                )
+                return False
         return True
 
     @app_commands.command(name="alarm", description="アラームをセットします。")
