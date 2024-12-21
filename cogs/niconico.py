@@ -1,7 +1,7 @@
 import logging
 import time
 from datetime import datetime
-from urllib.parse import ParseResult, parse_qs, urlparse
+from urllib.parse import ParseResult, urlparse
 from zoneinfo import ZoneInfo
 
 import discord
