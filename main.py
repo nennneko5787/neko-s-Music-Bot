@@ -51,7 +51,7 @@ async def setup_hook():
     await bot.load_extension("cogs.music")
     await bot.load_extension("cogs.ping")
     await bot.load_extension("cogs.help")
-    # await bot.tree.sync()
+    await bot.tree.sync()
 
 
 if __name__ == "__main__":

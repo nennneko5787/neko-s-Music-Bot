@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 import traceback
+import random
 from datetime import timedelta
 
 import discord
@@ -403,7 +404,14 @@ class MusicCog(commands.Cog):
         if guild.voice_client:
             await guild.voice_client.disconnect()
 
-    async def putQueue(self, interaction: discord.Interaction, url: str, volume: float):
+    async def putQueue(
+        self,
+        interaction: discord.Interaction,
+        url: str,
+        volume: float,
+        *,
+        shuffle: bool = False,
+    ):
         queue: Queue = self.queue[interaction.guild.id]
         if "spotify" in url:
             if "track" in url:
@@ -425,6 +433,9 @@ class MusicCog(commands.Cog):
                 await interaction.followup.send("無効なSpotify URL")
                 return
 
+            if shuffle:
+                random.shuffle(urls)
+
             for music in urls:
                 queue.put(
                     {
@@ -442,6 +453,9 @@ class MusicCog(commands.Cog):
                 queue.put({"url": url, "volume": volume, "user": interaction.user})
                 await interaction.followup.send(f"**{url}** をキューに追加しました。")
             else:
+                if shuffle:
+                    random.shuffle(result)
+
                 for video in result:
                     queue.put(
                         {
@@ -496,6 +510,7 @@ class MusicCog(commands.Cog):
         delay: app_commands.Range[int, 0],
         url: str,
         volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+        shuffle: bool = False,
     ):
         if not await self.checks(interaction, url=url):
             return
@@ -509,7 +524,7 @@ class MusicCog(commands.Cog):
             self.playing[guild.id] = False
         if not guild.id in self.queue:
             self.queue[guild.id] = Queue()
-        await self.putQueue(interaction, url, volume)
+        await self.putQueue(interaction, url, volume, shuffle=shuffle)
 
         self.alarm[guild.id] = True
 
@@ -531,6 +546,7 @@ class MusicCog(commands.Cog):
         interaction: discord.Interaction,
         url: str,
         volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+        shuffle: bool = False,
     ):
         if not await self.checks(interaction, url=url):
             return
@@ -544,7 +560,7 @@ class MusicCog(commands.Cog):
             self.playing[guild.id] = False
         if not guild.id in self.queue:
             self.queue[guild.id] = Queue()
-        await self.putQueue(interaction, url, volume)
+        await self.putQueue(interaction, url, volume, shuffle=shuffle)
         if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
             await self.playNext(guild, channel)
 
