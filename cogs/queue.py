@@ -19,6 +19,10 @@ class Queue:
         self.__list = list()
         self.__index = 0
 
+    @property
+    def index(self):
+        return self.__index
+
     def __repr__(self):
         return f"<{self.__list}>"
 
@@ -46,11 +50,9 @@ class Queue:
         self.__index += 1
         return value
 
-    def pagenation(self, page: int = None, pageSize: int = 10):
+    def pagenation(self, page: int, *, pageSize: int = 10):
         if self.empty():
             return tuple()
-        if not page:
-            page = (self.__index // pageSize) + 1
 
         startIndex = (page - 1) * pageSize
         endIndex = startIndex + pageSize
