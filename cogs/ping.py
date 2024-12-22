@@ -32,7 +32,7 @@ class PingCog(commands.Cog):
         mem = psutil.virtual_memory()
         embed = discord.Embed(
             title="Ping",
-            description=f"(Bot)Ping : `{int(ping*1000)}ms`\n(VoiceClient, Total)Ping: `{int(voicePing*1000)}ms`\nCPU : `{cpu_percent}%`\nMemory : `{mem.percent}%`",
+            description=f"(Bot)Ping : `{int(ping*1000)}ms`\n(VoiceClient, Average)Ping: `{int(voicePing*1000)}ms`\nCPU : `{cpu_percent}%`\nMemory : `{mem.percent}%`",
             color=discord.Colour.purple(),
         )
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
