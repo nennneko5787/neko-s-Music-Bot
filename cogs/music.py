@@ -420,9 +420,9 @@ class MusicCog(commands.Cog):
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生終了")
         elif voiceClient.is_playing() or voiceClient.is_paused():
-            bar = str(discord.utils.get(self.bot.emojis, name="bar"))
-            circle = str(discord.utils.get(self.bot.emojis, name="circle"))
-            graybar = str(discord.utils.get(self.bot.emojis, name="graybar"))
+            bar = "<:bar:1320712302475083816>"
+            circle = "<:circle:1320712333676515328>"
+            graybar = "<:graybar:1320712319512219648>"
 
             percentage = source.progress / source.info["duration"]
             barLength = 15
