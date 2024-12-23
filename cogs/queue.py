@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 
@@ -7,6 +8,9 @@ class QueueEdge(Exception):
 
 class QueueEmpty(Exception):
     pass
+
+
+_log = logging.getLogger("music")
 
 
 class Queue:
@@ -32,6 +36,9 @@ class Queue:
     def empty(self):
         return self.qsize() == 0
 
+    def asize(self):
+        return len(self.__list)
+
     def qsize(self):
         return len(self.__list) - self.__index
 
@@ -51,14 +58,8 @@ class Queue:
         return value
 
     def pagenation(self, page: int, *, pageSize: int = 10):
-        if self.empty():
-            return tuple()
-
         startIndex = (page - 1) * pageSize
         endIndex = startIndex + pageSize
         if startIndex >= len(self.__list) or page < 1:
             return ()
-        return (
-            tuple(self.__list[startIndex:endIndex]),
-            page,
-        )
+        return tuple(self.__list[startIndex:endIndex])

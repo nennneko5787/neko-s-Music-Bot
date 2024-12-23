@@ -17,7 +17,7 @@ from spotdl.types.song import Song
 from .filesource import DiscordFileSource
 from .niconico import NicoNicoSource
 from .queue import Queue
-from .search import searchYoutube
+from .search import searchYoutube, searchNicoNico
 from .source import YTDLSource, isPlayList
 
 dotenv.load_dotenv()
@@ -41,6 +41,11 @@ pausedView = (
     )
     .add_item(
         discord.ui.Button(
+            style=discord.ButtonStyle.blurple, label="+", custom_id="volumeUp", row=0
+        )
+    )
+    .add_item(
+        discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏮", custom_id="prev", row=1
         )
     )
@@ -52,6 +57,11 @@ pausedView = (
     .add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏭", custom_id="next", row=1
+        )
+    )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, label="-", custom_id="volumeDown", row=1
         )
     )
 )
@@ -74,6 +84,11 @@ notPausedView = (
     )
     .add_item(
         discord.ui.Button(
+            style=discord.ButtonStyle.blurple, label="+", custom_id="volumeUp", row=0
+        )
+    )
+    .add_item(
+        discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏮", custom_id="prev", row=1
         )
     )
@@ -87,6 +102,11 @@ notPausedView = (
             style=discord.ButtonStyle.blurple, emoji="⏭", custom_id="next", row=1
         )
     )
+    .add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.blurple, label="-", custom_id="volumeDown", row=1
+        )
+    )
 )
 
 
@@ -97,6 +117,18 @@ def formatTime(seconds):
         return time.strftime("%H:%M:%S", time.gmtime(seconds))
     else:
         return time.strftime("%d:%H:%M:%S", time.gmtime(seconds))
+
+
+def clamp(value, min_value, max_value):
+    """
+    指定した範囲内に数値を制限する関数。
+
+    :param value: 制限したい数値
+    :param min_value: 最小値
+    :param max_value: 最大値
+    :return: 制限された数値
+    """
+    return max(min_value, min(value, max_value))
 
 
 class MusicCog(commands.Cog):
@@ -143,6 +175,14 @@ class MusicCog(commands.Cog):
             await self.bot.change_presence(
                 activity=discord.Game(f"{len(self.alarm.keys())} サーバーでアラーム")
             )
+            self.presenceCount = 3
+        elif self.presenceCount == 3:
+            await self.bot.change_presence(activity=discord.Game("/help"))
+            self.presenceCount = 4
+        elif self.presenceCount == 4:
+            await self.bot.change_presence(
+                activity=discord.Game("Powered by nennneko5787")
+            )
             self.presenceCount = 0
 
     @commands.Cog.listener()
@@ -160,7 +200,7 @@ class MusicCog(commands.Cog):
     ) -> YTDLSource | NicoNicoSource | DiscordFileSource:
         options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            "options": f"-vn -ss {formatTime(seconds)} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
+            "options": f"-vn -ss {formatTime(clamp(seconds, 0, int(source.info['duration'])))} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
         }
 
         if isinstance(source, NicoNicoSource):
@@ -282,6 +322,26 @@ class MusicCog(commands.Cog):
                 interaction.guild.voice_client.source = self.seekMusic(
                     source, source.progress + 10
                 )
+            case "volumeUp":
+                if not interaction.guild.voice_client:
+                    embed = discord.Embed(
+                        title="音楽を再生していません。", colour=discord.Colour.red()
+                    )
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                    return
+                await interaction.response.defer(ephemeral=True)
+                if interaction.guild.voice_client.source.volume < 2.0:
+                    interaction.guild.voice_client.source.volume += 0.1
+            case "volumeDown":
+                if not interaction.guild.voice_client:
+                    embed = discord.Embed(
+                        title="音楽を再生していません。", colour=discord.Colour.red()
+                    )
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                    return
+                await interaction.response.defer(ephemeral=True)
+                if interaction.guild.voice_client.source.volume > 0.0:
+                    interaction.guild.voice_client.source.volume -= 0.1
             case "queuePagenation":
                 guild = interaction.guild
                 if not guild.voice_client or (not guild.id in self.queue):
@@ -300,9 +360,11 @@ class MusicCog(commands.Cog):
 
                 for i, song in enumerate(songList):
                     if startIndex + i == index - 1:
-                        songs += f"{song['url']} ({song['user'].mention})(現在再生中)"
+                        songs += (
+                            f"{song['url']} by {song['user'].mention} (現在再生中)\n"
+                        )
                     else:
-                        songs += f"{song['url']} ({song['user'].mention})"
+                        songs += f"{song['url']} by {song['user'].mention}\n"
 
                 view = (
                     discord.ui.View(timeout=None)
@@ -317,8 +379,9 @@ class MusicCog(commands.Cog):
                     .add_item(
                         discord.ui.Button(
                             style=discord.ButtonStyle.gray,
-                            label=f"ページ {page} / {(queue.index // pageSize) + 1}",
-                            disabled=True,
+                            emoji="🔄",
+                            label=f"ページ {page} / {(queue.asize() // pageSize) + 1}",
+                            custom_id=f"queuePagenation,{page}",
                             row=0,
                         )
                     )
@@ -331,10 +394,8 @@ class MusicCog(commands.Cog):
                         )
                     )
                 )
-                embed = discord.Embed(
-                    title=f"キュー ({queue.qsize()})", description=songs
-                )
-                await interaction.followup.send(embed=embed, view=view)
+                embed = discord.Embed(title=f"キュー", description=songs)
+                await interaction.edit_original_response(embed=embed, view=view)
 
     def setToNotPlaying(self, guildId: int):
         self.playing[guildId] = False
@@ -360,9 +421,22 @@ class MusicCog(commands.Cog):
             embed.set_author(name="再生終了")
         elif voiceClient.is_playing() or voiceClient.is_paused():
             percentage = source.progress / source.info["duration"]
-            barLength = 30
+            barLength = 15
             filledLength = int(barLength * percentage)
-            progressBar = "･" * filledLength + "-" * (barLength - filledLength)
+            progressBar = (
+                "<:bar:1320682048985235526>" * filledLength
+                + "<:circle:1320682077775073311>"
+                + "<:graybar:1320682063401320448>" * (barLength - filledLength - 1)
+            )
+
+            percentage = source.volume / 2.0
+            barLength = 15
+            filledLength = int(barLength * percentage)
+            volumeProgressBar = (
+                "<:bar:1320682048985235526>" * filledLength
+                + "<:circle:1320682077775073311>"
+                + "<:graybar:1320682063401320448>" * (barLength - filledLength - 1)
+            )
 
             embed.colour = discord.Colour.purple()
             if voiceClient.is_paused():
@@ -371,11 +445,15 @@ class MusicCog(commands.Cog):
                 embed.set_author(name="再生中")
             embed.add_field(
                 name="再生時間",
-                value=f'\\|{progressBar}\\|\n`{formatTime(source.progress)} / {formatTime(source.info["duration"])}`',
+                value=f'{progressBar}\n`{formatTime(source.progress)} / {formatTime(source.info["duration"])}`',
                 inline=False,
             ).add_field(
                 name="リクエストしたユーザー",
                 value=f"{source.user.mention}",
+                inline=False,
+            ).add_field(
+                name="ボリューム",
+                value=f"{volumeProgressBar}\n`{source.volume} / 2.0`",
                 inline=False,
             )
         else:
@@ -752,6 +830,53 @@ class MusicCog(commands.Cog):
         )
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
+    @searchCommandGroup.command(
+        name="niconico", description="ニコニコ動画から動画を検索して再生します。"
+    )
+    async def searchNiconicoCommand(
+        self,
+        interaction: discord.Interaction,
+        keyword: str,
+        volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        view = discord.ui.View(timeout=None)
+        select = discord.ui.Select(custom_id="nicosearch")
+        videos = await searchNicoNico(keyword)
+        for video in videos:
+            select.add_option(
+                label=video["title"],
+                description=video["uploader"],
+                value=f"{video['url']}|{volume}",
+            )
+
+        async def selectCallBack(interaction: discord.Interaction):
+            url, volume = interaction.data["values"][0].split("|")
+            if not await self.checks(interaction):
+                return
+            user = interaction.user
+            guild = interaction.guild
+            channel = interaction.channel
+            await interaction.response.defer()
+            if not guild.voice_client:
+                await user.voice.channel.connect(self_deaf=True)
+            if not guild.id in self.playing:
+                self.playing[guild.id] = False
+            if not guild.id in self.queue:
+                self.queue[guild.id] = Queue()
+            await self.putQueue(interaction, url, float(volume))
+            if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+                await self.playNext(guild, channel)
+
+        select.callback = selectCallBack
+
+        view.add_item(select)
+        embed = discord.Embed(
+            title=f"{len(videos)}本の動画がヒットしました。",
+            description="動画を選択して、キューに追加します。",
+        )
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
     @app_commands.command(
         name="queue", description="キューに入っている曲の一覧を取得します。"
     )
@@ -774,9 +899,9 @@ class MusicCog(commands.Cog):
 
         for i, song in enumerate(songList):
             if startIndex + i == index - 1:
-                songs += f"{song['url']} ({song['user'].mention})(現在再生中)"
+                songs += f"{song['url']} by {song['user'].mention} (現在再生中)\n"
             else:
-                songs += f"{song['url']} ({song['user'].mention})"
+                songs += f"{song['url']} by {song['user'].mention}\n"
 
         view = (
             discord.ui.View(timeout=None)
@@ -791,8 +916,9 @@ class MusicCog(commands.Cog):
             .add_item(
                 discord.ui.Button(
                     style=discord.ButtonStyle.gray,
-                    label=f"ページ {page} / {(queue.index // pageSize) + 1}",
-                    disabled=True,
+                    emoji="🔄",
+                    label=f"ページ {page} / {(queue.asize() // pageSize) + 1}",
+                    custom_id=f"queuePagenation,{page}",
                     row=0,
                 )
             )
@@ -805,7 +931,7 @@ class MusicCog(commands.Cog):
                 )
             )
         )
-        embed = discord.Embed(title=f"キュー ({queue.qsize()})", description=songs)
+        embed = discord.Embed(title=f"キュー", description=songs)
         await interaction.followup.send(embed=embed, view=view)
 
     # Non-support commands
