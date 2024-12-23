@@ -45,7 +45,6 @@ _log.addHandler(handler)
 @bot.event
 async def on_ready():
     _log.info(f"Logined as {bot.user.name}")
-    _log.info(f"{bot.emojis}")
 
 
 @bot.event
