@@ -15,6 +15,7 @@ if sys.platform == "win32":
 intents = discord.Intents.none()
 intents.guilds = True
 intents.voice_states = True
+intents.emojis = True
 
 
 bot = commands.Bot(
