@@ -42,6 +42,10 @@ class Queue:
     def qsize(self):
         return len(self.__list) - self.__index
 
+    def clear(self):
+        self.__index = 0
+        self.__list.clear()
+
     def put(self, value: Any):
         self.__list.append(value)
 

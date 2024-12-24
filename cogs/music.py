@@ -2,7 +2,6 @@ import asyncio
 import math
 import os
 import random
-import time
 import traceback
 from datetime import timedelta
 
@@ -15,121 +14,67 @@ from spotdl.types.album import Album
 from spotdl.types.playlist import Playlist
 from spotdl.types.song import Song
 
-from .filesource import DiscordFileSource
-from .niconico import NicoNicoSource
-from .queue import Queue
-from .search import searchNicoNico, searchYoutube
-from .source import YTDLSource, isPlayList
+from objects.queue import Queue
+from objects.state import GuildState
+from source.filesource import DiscordFileSource
+from source.niconico import NicoNicoSource
+from source.source import YTDLSource, isPlayList
+from utils.func import clamp, formatTime
+from utils.search import searchNicoNico, searchYoutube
 
 dotenv.load_dotenv()
 
-pausedView = (
-    discord.ui.View(timeout=None)
-    .add_item(
+
+def createView(isPaused: bool):
+    view = discord.ui.View(timeout=None)
+    view.add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏪", custom_id="reverse", row=0
         )
     )
-    .add_item(
+    view.add_item(
         discord.ui.Button(
-            style=discord.ButtonStyle.blurple, emoji="▶", custom_id="resume", row=0
+            style=discord.ButtonStyle.blurple,
+            emoji="▶" if isPaused else "⏸",
+            custom_id="resume" if isPaused else "pause",
+            row=0,
         )
     )
-    .add_item(
-        discord.ui.Button(
-            style=discord.ButtonStyle.blurple, emoji="⏩", custom_id="forward", row=0
-        )
-    )
-    .add_item(
-        discord.ui.Button(
-            style=discord.ButtonStyle.blurple, label="+", custom_id="volumeUp", row=0
-        )
-    )
-    .add_item(
-        discord.ui.Button(
-            style=discord.ButtonStyle.blurple, emoji="⏮", custom_id="prev", row=1
-        )
-    )
-    .add_item(
-        discord.ui.Button(
-            style=discord.ButtonStyle.blurple, emoji="⏹", custom_id="stop", row=1
-        )
-    )
-    .add_item(
-        discord.ui.Button(
-            style=discord.ButtonStyle.blurple, emoji="⏭", custom_id="next", row=1
-        )
-    )
-    .add_item(
-        discord.ui.Button(
-            style=discord.ButtonStyle.blurple, label="-", custom_id="volumeDown", row=1
-        )
-    )
-)
-notPausedView = (
-    discord.ui.View(timeout=None)
-    .add_item(
-        discord.ui.Button(
-            style=discord.ButtonStyle.blurple, emoji="⏪", custom_id="reverse", row=0
-        )
-    )
-    .add_item(
-        discord.ui.Button(
-            style=discord.ButtonStyle.blurple, emoji="⏸", custom_id="pause", row=0
-        )
-    )
-    .add_item(
+    view.add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏩", custom_id="forward", row=0
         )
     )
-    .add_item(
+    view.add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.blurple, label="+", custom_id="volumeUp", row=0
         )
     )
-    .add_item(
+    view.add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏮", custom_id="prev", row=1
         )
     )
-    .add_item(
+    view.add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏹", custom_id="stop", row=1
         )
     )
-    .add_item(
+    view.add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏭", custom_id="next", row=1
         )
     )
-    .add_item(
+    view.add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.blurple, label="-", custom_id="volumeDown", row=1
         )
     )
-)
+    return view
 
 
-def formatTime(seconds):
-    if seconds < 3600:
-        return time.strftime("%M:%S", time.gmtime(seconds))
-    elif seconds < 86400:
-        return time.strftime("%H:%M:%S", time.gmtime(seconds))
-    else:
-        return time.strftime("%d:%H:%M:%S", time.gmtime(seconds))
-
-
-def clamp(value, min_value, max_value):
-    """
-    指定した範囲内に数値を制限する関数。
-
-    :param value: 制限したい数値
-    :param min_value: 最小値
-    :param max_value: 最大値
-    :return: 制限された数値
-    """
-    return max(min_value, min(value, max_value))
+pausedView = createView(isPaused=True)
+notPausedView = createView(isPaused=False)
 
 
 class MusicCog(commands.Cog):
@@ -144,18 +89,21 @@ class MusicCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.queue: dict[Queue] = {}
-        self.playing: dict[bool] = {}
-        self.alarm: dict[bool] = {}
+        self.guildStates: dict[int, GuildState] = {}
         self.presenceCount = 0
         self.spotify = Spotdl(
             client_id=os.getenv("spotify_clientid"),
             client_secret=os.getenv("spotify_clientsecret"),
         )
+        self.isFirstReady: bool = True
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.presenceLoop.start()
+        if self.isFirstReady:
+            for guild in self.bot.guilds:
+                self.guildStates[guild.id] = GuildState()
+            self.presenceLoop.start()
+            self.isFirstReady = False
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
@@ -177,6 +125,15 @@ class MusicCog(commands.Cog):
             self.presenceCount = 0
 
     @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild):
+        self.guildStates[guild.id] = GuildState()
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild: discord.Guild):
+        await asyncio.sleep(2)
+        del self.guildStates[guild.id]
+
+    @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
         try:
             if interaction.data["component_type"] == 2:
@@ -186,53 +143,29 @@ class MusicCog(commands.Cog):
         except KeyError:
             pass
 
-    def seekMusic(
-        self, source: YTDLSource | NicoNicoSource | DiscordFileSource, seconds: float
-    ) -> YTDLSource | NicoNicoSource | DiscordFileSource:
+    def seekMusic(source, seconds: float):
         options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": f"-vn -ss {formatTime(clamp(seconds, 0, int(source.info['duration'])))} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
         }
 
         if isinstance(source, NicoNicoSource):
-            options["before_options"] = (
-                f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}' {options['before_options']}"
-            )
-            return NicoNicoSource(
-                discord.FFmpegPCMAudio(source.hslContentUrl, **options),
-                info=source.info,
-                hslContentUrl=source.hslContentUrl,
-                watchid=source.watchid,
-                trackid=source.trackid,
-                outputs=source.outputs,
-                nicosid=source.nicosid,
-                niconico=source.niconico,
-                volume=source.volume,
-                progress=seconds / 0.02,
-                user=source.user,
-            )
-        elif isinstance(source, DiscordFileSource):
-            return DiscordFileSource(
-                discord.FFmpegPCMAudio(source.info["url"], **options),
-                info=source.info,
-                volume=source.volume,
-                progress=seconds / 0.02,
-                user=source.user,
-            )
-        else:
-            return YTDLSource(
-                discord.FFmpegPCMAudio(source.info["url"], **options),
-                info=source.info,
-                volume=source.volume,
-                progress=seconds / 0.02,
-                user=source.user,
-            )
+            options[
+                "before_options"
+            ] += f" -headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}'"
+
+        return type(source)(
+            discord.FFmpegPCMAudio(
+                source.info.get("url", source.hslContentUrl), **options
+            ),
+            **{k: v for k, v in vars(source).items() if k != "info"},
+        )
 
     async def queuePagenation(
         self, interaction: discord.Interaction, page: int = None, *, edit: bool = False
     ):
         await interaction.response.defer()
-        queue: Queue = self.queue[interaction.guild.id]
+        queue: Queue = self.guildStates[interaction.guild.id].queue
         pageSize = 10
         index = queue.index
         if page is None:
@@ -291,9 +224,7 @@ class MusicCog(commands.Cog):
                     )
                     return
                 await interaction.response.defer(ephemeral=True)
-                self.queue[interaction.guild.id].prev()
-                if self.source.get(interaction.guild.id):
-                    del self.source[interaction.guild.id]
+                self.guildStates[interaction.guild.id].queue.prev()
                 interaction.guild.voice_client.stop()
             case "next":
                 if not interaction.guild.voice_client:
@@ -302,7 +233,7 @@ class MusicCog(commands.Cog):
                     )
                     return
                 await interaction.response.defer(ephemeral=True)
-                self.playing[interaction.guild.id] = False
+                self.guildStates[interaction.guild.id].playing = False
                 interaction.guild.voice_client.stop()
             case "stop":
                 if not interaction.guild.voice_client:
@@ -313,7 +244,7 @@ class MusicCog(commands.Cog):
                 await interaction.response.defer()
                 await interaction.guild.voice_client.disconnect()
                 del self.queue[interaction.guild.id]
-                self.playing[interaction.guild.id] = False
+                self.guildStates[interaction.guild.id].playing = False
             case "resume":
                 if not interaction.guild.voice_client:
                     embed = discord.Embed(
@@ -398,7 +329,7 @@ class MusicCog(commands.Cog):
                     )
             case "queuePagenation":
                 if not interaction.guild.voice_client or (
-                    not interaction.guild.id in self.queue
+                    self.guildStates[interaction.guild.id].queue.qsize() <= 0
                 ):
                     await interaction.response.send_message(
                         "現在曲を再生していません。", ephemeral=True
@@ -407,7 +338,7 @@ class MusicCog(commands.Cog):
                 await self.queuePagenation(interaction, int(customField[1]), edit=True)
 
     def setToNotPlaying(self, guildId: int):
-        self.playing[guildId] = False
+        self.guildStates[guildId].playing = False
 
     def embedPanel(
         self,
@@ -484,7 +415,7 @@ class MusicCog(commands.Cog):
             return await YTDLSource.from_url(info["url"], info["volume"], info["user"])
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
-        queue: Queue = self.queue[guild.id]
+        queue: Queue = self.guildStates[guild.id].queue
         while True:
             if guild.voice_client:
                 if queue.empty():
@@ -499,7 +430,7 @@ class MusicCog(commands.Cog):
                     continue
 
                 voiceClient: discord.VoiceClient = guild.voice_client
-                message = await channel.send(
+                message: discord.Message = await channel.send(
                     embed=self.embedPanel(voiceClient, source=source),
                     view=notPausedView,
                 )
@@ -508,10 +439,10 @@ class MusicCog(commands.Cog):
                     await source.sendHeartBeat()
 
                 voiceClient.play(source, after=lambda _: self.setToNotPlaying(guild.id))
-                self.playing[guild.id] = True
+                self.guildStates[guild.id].playing = True
 
                 _break = False
-                while self.playing[guild.id]:
+                while self.guildStates[guild.id].playing:
                     if isinstance(source, NicoNicoSource):
                         await source.sendHeartBeat()
                     if voiceClient.source is not None:
@@ -526,7 +457,7 @@ class MusicCog(commands.Cog):
                             ),
                         )
                     for _ in range(5):
-                        if not self.playing[guild.id]:
+                        if not self.guildStates[guild.id].playing:
                             _break = True
                             break
                         await asyncio.sleep(1)
@@ -540,8 +471,8 @@ class MusicCog(commands.Cog):
             else:
                 break
         await channel.send("再生終了")
-        del self.queue[guild.id]
-        self.playing[guild.id] = False
+        self.guildStates[guild.id].queue.clear()
+        self.guildStates[guild.id].playing = False
         if guild.voice_client:
             await guild.voice_client.disconnect()
 
@@ -553,7 +484,7 @@ class MusicCog(commands.Cog):
         *,
         shuffle: bool = False,
     ):
-        queue: Queue = self.queue[interaction.guild.id]
+        queue: Queue = self.guildStates[interaction.guild.id].queue
         if "spotify" in url:
             if "track" in url:
                 song: Song = await asyncio.to_thread(Song.from_url, url)
@@ -661,13 +592,9 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
-        if not guild.id in self.playing:
-            self.playing[guild.id] = False
-        if not guild.id in self.queue:
-            self.queue[guild.id] = Queue()
         await self.putQueue(interaction, url, volume, shuffle=shuffle)
 
-        self.alarm[guild.id] = True
+        self.guildStates[guild.id].alarm = True
 
         embed = discord.Embed(
             title="アラームをセットしました！",
@@ -677,7 +604,7 @@ class MusicCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
         await asyncio.sleep(delay)
-        del self.alarm[guild.id]
+        self.guildStates[guild.id].alarm = False
         await self.playNext(guild, channel)
 
     @app_commands.command(name="play", description="曲を再生します。")
@@ -697,12 +624,10 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
-        if not guild.id in self.playing:
-            self.playing[guild.id] = False
-        if not guild.id in self.queue:
-            self.queue[guild.id] = Queue()
         await self.putQueue(interaction, url, volume, shuffle=shuffle)
-        if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+        if (not self.guildStates[guild.id].playing) and (
+            not self.guildStates[guild.id].alarm
+        ):
             await self.playNext(guild, channel)
 
     @app_commands.command(
@@ -724,23 +649,21 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
-        if not guild.id in self.playing:
-            self.playing[guild.id] = False
-        if not guild.id in self.queue:
-            self.queue[guild.id] = Queue()
-        queue: Queue = self.queue[guild.id]
+        queue: Queue = self.guildStates[guild.id].queue
         queue.put(
             {
                 "url": None,
                 "attachment": attachment,
                 "volume": volume,
-                "user": interaction.user,
+                "user": user,
             }
         )
         await interaction.followup.send(
             f"**{attachment.filename}**をキューに追加しました。"
         )
-        if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+        if (not self.guildStates[guild.id].playing) and (
+            not self.guildStates[guild.id].alarm
+        ):
             await self.playNext(guild, channel)
 
     @app_commands.command(
@@ -762,21 +685,17 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
-        if not guild.id in self.playing:
-            self.playing[guild.id] = False
-        if not guild.id in self.queue:
-            self.queue[guild.id] = Queue()
-        queue: Queue = self.queue[guild.id]
+        queue: Queue = self.guildStates[guild.id].queue
         queue.put(
             {
                 "url": None,
                 "attachment": attachment,
                 "volume": volume,
-                "user": interaction.user,
+                "user": user,
             }
         )
 
-        self.alarm[guild.id] = True
+        self.guildStates[guild.id].alarm = True
 
         embed = discord.Embed(
             title="アラームをセットしました！",
@@ -786,7 +705,7 @@ class MusicCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
         await asyncio.sleep(delay)
-        del self.alarm[guild.id]
+        self.guildStates[guild.id].alarm = False
         await self.playNext(guild, channel)
 
     searchCommandGroup = app_commands.Group(
@@ -823,18 +742,16 @@ class MusicCog(commands.Cog):
             await interaction.response.defer()
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)
-            if not guild.id in self.playing:
-                self.playing[guild.id] = False
-            if not guild.id in self.queue:
-                self.queue[guild.id] = Queue()
-            self.queue[guild.id].put(
+            self.guildStates[guild.id].queue.put(
                 {
                     "url": url,
                     "volume": float(volume),
-                    "user": interaction.user,
+                    "user": user,
                 }
             )
-            if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+            if (not self.guildStates[guild.id].playing) and (
+                not self.guildStates[guild.id].alarm
+            ):
                 await self.playNext(guild, channel)
 
         select.callback = selectCallBack
@@ -876,18 +793,16 @@ class MusicCog(commands.Cog):
             await interaction.response.defer()
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)
-            if not guild.id in self.playing:
-                self.playing[guild.id] = False
-            if not guild.id in self.queue:
-                self.queue[guild.id] = Queue()
-            self.queue[guild.id].put(
+            self.guildStates[guild.id].queue.put(
                 {
                     "url": url,
                     "volume": float(volume),
-                    "user": interaction.user,
+                    "user": user,
                 }
             )
-            if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
+            if (not self.guildStates[guild.id].playing) and (
+                not self.guildStates[guild.id].alarm
+            ):
                 await self.playNext(guild, channel)
 
         select.callback = selectCallBack
@@ -905,7 +820,9 @@ class MusicCog(commands.Cog):
     @app_commands.guild_only()
     async def queueCommand(self, interaction: discord.Interaction):
         guild = interaction.guild
-        if not guild.voice_client or (not guild.id in self.queue):
+        if not guild.voice_client or (
+            not self.guildStates[guild.id].queue.qsize() <= 0
+        ):
             await interaction.response.send_message(
                 "現在曲を再生していません。", ephemeral=True
             )
@@ -924,7 +841,7 @@ class MusicCog(commands.Cog):
             )
             return
         await interaction.response.defer()
-        self.playing[guild.id] = False
+        self.guildStates[guild.id].playing = False
         guild.voice_client.stop()
         await interaction.followup.send("スキップしました。")
 
@@ -939,8 +856,7 @@ class MusicCog(commands.Cog):
             return
         await interaction.response.defer()
         await guild.voice_client.disconnect()
-        del self.queue[guild.id]
-        self.playing[guild.id] = False
+        self.guildStates[guild.id].playing = False
         await interaction.followup.send("停止しました。")
 
     @app_commands.command(name="pause", description="曲を一時停止します。")
