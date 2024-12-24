@@ -574,11 +574,9 @@ class MusicCog(commands.Cog):
                                 not voiceClient.is_connected()
                             ):
                                 _break = True
-                                print("ぶれいく")
                                 break
                             await asyncio.sleep(1)
                         if _break:
-                            print("ぶれいく")
                             break
                     if not self.guildStates[guild.id].loop:
                         break
