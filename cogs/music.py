@@ -536,6 +536,9 @@ class MusicCog(commands.Cog):
                     traceback.print_exc()
                     continue
 
+                if voiceClient.channel.permissions_for(guild.me).value & (1 << 0x0002000000000000):
+                    await voiceClient.channel.edit(status=source.info.get("title"))
+
                 voiceClient: discord.VoiceClient = guild.voice_client
                 message: discord.Message = await channel.send(
                     embed=self.embedPanel(voiceClient, source=source),
@@ -601,6 +604,8 @@ class MusicCog(commands.Cog):
         self.guildStates[guild.id].playing = False
         if guild.voice_client:
             await guild.voice_client.disconnect()
+        if voiceClient.channel.permissions_for(guild.me).value & (1 << 0x0002000000000000):
+            await voiceClient.channel.edit(status=None)
 
     def getDownloadUrls(self, songs: tuple[Song]) -> tuple[
         list[tuple[str, str]],
