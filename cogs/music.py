@@ -1,8 +1,9 @@
 import asyncio
+import math
 import os
+import random
 import time
 import traceback
-import random
 from datetime import timedelta
 
 import discord
@@ -17,7 +18,7 @@ from spotdl.types.song import Song
 from .filesource import DiscordFileSource
 from .niconico import NicoNicoSource
 from .queue import Queue
-from .search import searchYoutube, searchNicoNico
+from .search import searchNicoNico, searchYoutube
 from .source import YTDLSource, isPlayList
 
 dotenv.load_dotenv()
@@ -161,25 +162,15 @@ class MusicCog(commands.Cog):
         if self.presenceCount == 0:
             await self.bot.change_presence(
                 activity=discord.Activity(
-                    name=f"{len(self.bot.guilds)} サーバー",
+                    name=f"{len(self.bot.voice_clients)} / {len(self.bot.guilds)} サーバー",
                     type=discord.ActivityType.competing,
                 )
             )
             self.presenceCount = 1
         elif self.presenceCount == 1:
-            await self.bot.change_presence(
-                activity=discord.Game(f"{len(self.bot.voice_clients)} サーバーで音楽")
-            )
+            await self.bot.change_presence(activity=discord.Game("/help"))
             self.presenceCount = 2
         elif self.presenceCount == 2:
-            await self.bot.change_presence(
-                activity=discord.Game(f"{len(self.alarm.keys())} サーバーでアラーム")
-            )
-            self.presenceCount = 3
-        elif self.presenceCount == 3:
-            await self.bot.change_presence(activity=discord.Game("/help"))
-            self.presenceCount = 4
-        elif self.presenceCount == 4:
             await self.bot.change_presence(
                 activity=discord.Game("Powered by nennneko5787")
             )
@@ -236,6 +227,59 @@ class MusicCog(commands.Cog):
                 progress=seconds / 0.02,
                 user=source.user,
             )
+
+    async def queuePagenation(
+        self, interaction: discord.Interaction, page: int = None, *, edit: bool = False
+    ):
+        await interaction.response.defer()
+        queue: Queue = self.queue[interaction.guild.id]
+        pageSize = 10
+        index = queue.index
+        if page is None:
+            page = (index // pageSize) + 1
+        songList = queue.pagenation(page, pageSize=pageSize)
+        songs = ""
+        startIndex = (page - 1) * pageSize
+
+        for i, song in enumerate(songList):
+            if startIndex + i == index - 1:
+                songs += f"{song['url']} by {song['user'].mention} (現在再生中)\n"
+            else:
+                songs += f"{song['url']} by {song['user'].mention}\n"
+
+        view = (
+            discord.ui.View(timeout=None)
+            .add_item(
+                discord.ui.Button(
+                    style=discord.ButtonStyle.blurple,
+                    emoji="⏪",
+                    custom_id=f"queuePagenation,{page-1}",
+                    row=0,
+                )
+            )
+            .add_item(
+                discord.ui.Button(
+                    style=discord.ButtonStyle.gray,
+                    emoji="🔄",
+                    label=f"ページ {page} / {(queue.asize() // pageSize) + 1}",
+                    custom_id=f"queuePagenation,{page}",
+                    row=0,
+                )
+            )
+            .add_item(
+                discord.ui.Button(
+                    style=discord.ButtonStyle.blurple,
+                    emoji="⏩",
+                    custom_id=f"queuePagenation,{page+1}",
+                    row=0,
+                )
+            )
+        )
+        embed = discord.Embed(title=f"キュー", description=songs)
+        if edit:
+            await interaction.edit_original_response(embed=embed, view=view)
+        else:
+            await interaction.followup.send(embed=embed, view=view)
 
     async def onButtonClick(self, interaction: discord.Interaction):
         customField = interaction.data["custom_id"].split(",")
@@ -331,7 +375,12 @@ class MusicCog(commands.Cog):
                     return
                 await interaction.response.defer(ephemeral=True)
                 if interaction.guild.voice_client.source.volume < 2.0:
-                    interaction.guild.voice_client.source.volume += 0.1
+                    interaction.guild.voice_client.source.volume = (
+                        math.floor(
+                            (interaction.guild.voice_client.source.volume + 0.1) * 100
+                        )
+                        / 100
+                    )
             case "volumeDown":
                 if not interaction.guild.voice_client:
                     embed = discord.Embed(
@@ -341,61 +390,21 @@ class MusicCog(commands.Cog):
                     return
                 await interaction.response.defer(ephemeral=True)
                 if interaction.guild.voice_client.source.volume > 0.0:
-                    interaction.guild.voice_client.source.volume -= 0.1
+                    interaction.guild.voice_client.source.volume = (
+                        math.floor(
+                            (interaction.guild.voice_client.source.volume - 0.1) * 100
+                        )
+                        / 100
+                    )
             case "queuePagenation":
-                guild = interaction.guild
-                if not guild.voice_client or (not guild.id in self.queue):
+                if not interaction.guild.voice_client or (
+                    not interaction.guild.id in self.queue
+                ):
                     await interaction.response.send_message(
                         "現在曲を再生していません。", ephemeral=True
                     )
                     return
-                queue: Queue = self.queue[guild.id]
-                await interaction.response.defer()
-                pageSize = 10
-                index = queue.index
-                page = int(customField[1])
-                songList = queue.pagenation(page, pageSize=pageSize)
-                songs = ""
-                startIndex = (page - 1) * pageSize
-
-                for i, song in enumerate(songList):
-                    if startIndex + i == index - 1:
-                        songs += (
-                            f"{song['url']} by {song['user'].mention} (現在再生中)\n"
-                        )
-                    else:
-                        songs += f"{song['url']} by {song['user'].mention}\n"
-
-                view = (
-                    discord.ui.View(timeout=None)
-                    .add_item(
-                        discord.ui.Button(
-                            style=discord.ButtonStyle.blurple,
-                            emoji="⏪",
-                            custom_id=f"queuePagenation,{page-1}",
-                            row=0,
-                        )
-                    )
-                    .add_item(
-                        discord.ui.Button(
-                            style=discord.ButtonStyle.gray,
-                            emoji="🔄",
-                            label=f"ページ {page} / {(queue.asize() // pageSize) + 1}",
-                            custom_id=f"queuePagenation,{page}",
-                            row=0,
-                        )
-                    )
-                    .add_item(
-                        discord.ui.Button(
-                            style=discord.ButtonStyle.blurple,
-                            emoji="⏩",
-                            custom_id=f"queuePagenation,{page+1}",
-                            row=0,
-                        )
-                    )
-                )
-                embed = discord.Embed(title=f"キュー", description=songs)
-                await interaction.edit_original_response(embed=embed, view=view)
+                await self.queuePagenation(interaction, int(customField[1]), edit=True)
 
     def setToNotPlaying(self, guildId: int):
         self.playing[guildId] = False
@@ -889,51 +898,7 @@ class MusicCog(commands.Cog):
                 "現在曲を再生していません。", ephemeral=True
             )
             return
-        queue: Queue = self.queue[guild.id]
-        await interaction.response.defer()
-        pageSize = 10
-        index = queue.index
-        page = (index // pageSize) + 1
-        songList = queue.pagenation(page, pageSize=pageSize)
-        songs = ""
-        startIndex = (page - 1) * pageSize
-
-        for i, song in enumerate(songList):
-            if startIndex + i == index - 1:
-                songs += f"{song['url']} by {song['user'].mention} (現在再生中)\n"
-            else:
-                songs += f"{song['url']} by {song['user'].mention}\n"
-
-        view = (
-            discord.ui.View(timeout=None)
-            .add_item(
-                discord.ui.Button(
-                    style=discord.ButtonStyle.blurple,
-                    emoji="⏪",
-                    custom_id=f"queuePagenation,{page-1}",
-                    row=0,
-                )
-            )
-            .add_item(
-                discord.ui.Button(
-                    style=discord.ButtonStyle.gray,
-                    emoji="🔄",
-                    label=f"ページ {page} / {(queue.asize() // pageSize) + 1}",
-                    custom_id=f"queuePagenation,{page}",
-                    row=0,
-                )
-            )
-            .add_item(
-                discord.ui.Button(
-                    style=discord.ButtonStyle.blurple,
-                    emoji="⏩",
-                    custom_id=f"queuePagenation,{page+1}",
-                    row=0,
-                )
-            )
-        )
-        embed = discord.Embed(title=f"キュー", description=songs)
-        await interaction.followup.send(embed=embed, view=view)
+        await self.queuePagenation(interaction, None, edit=True)
 
     # Non-support commands
 
