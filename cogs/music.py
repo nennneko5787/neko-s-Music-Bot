@@ -292,7 +292,6 @@ class MusicCog(commands.Cog):
                     return
                 await interaction.response.defer()
                 await interaction.guild.voice_client.disconnect()
-                del self.queue[interaction.guild.id]
                 self.guildStates[interaction.guild.id].playing = False
             case "resume":
                 if not interaction.guild.voice_client:
