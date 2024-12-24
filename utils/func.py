@@ -1,15 +1,16 @@
-def formatTime(seconds: int) -> str:
-    days, seconds = divmod(seconds, 86400)
-    hours, seconds = divmod(seconds, 3600)
-    minutes, seconds = divmod(seconds, 60)
-    return (
-        f"{days}:{hours:02}:{minutes:02}:{seconds:02}"
-        if days
-        else f"{hours}:{minutes:02}:{seconds:02}"
-    )
+import time
 
 
-def clamp(value, min_value, max_value):
+def formatTime(seconds: int):
+    if seconds < 3600:
+        return time.strftime("%M:%S", time.gmtime(seconds))
+    elif seconds < 86400:
+        return time.strftime("%H:%M:%S", time.gmtime(seconds))
+    else:
+        return time.strftime("%d:%H:%M:%S", time.gmtime(seconds))
+
+
+def clamp(value: float | int, min_value: float | int, max_value: float | int):
     """
     指定した範囲内に数値を制限する関数。
 

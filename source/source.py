@@ -17,7 +17,7 @@ class FetchVideoInfoFailed(Exception):
     pass
 
 
-def _isPlayList(url) -> list[str] | bool:
+def _isPlayList(url) -> list[dict] | bool:
     try:
         ydlOpts = {
             "quiet": True,
@@ -27,10 +27,10 @@ def _isPlayList(url) -> list[str] | bool:
         with YoutubeDL(ydlOpts) as ydl:
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
         if "entries" in info and len(info["entries"]) > 1:
-            urls = [entry["url"] for entry in info["entries"]]
-            return urls
+            entries = [entry for entry in info["entries"]]
+            return entries
         else:
-            return False
+            return info
     except Exception as e:
         raise FetchVideoInfoFailed(f"Failed to fetch video info: {url}, {str(e)}")
 

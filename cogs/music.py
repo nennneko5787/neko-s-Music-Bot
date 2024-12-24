@@ -1,9 +1,11 @@
 import asyncio
+import concurrent.futures
 import math
 import os
 import random
 import traceback
 from datetime import timedelta
+import concurrent
 
 import discord
 import dotenv
@@ -14,6 +16,7 @@ from spotdl.types.album import Album
 from spotdl.types.playlist import Playlist
 from spotdl.types.song import Song
 
+from objects.item import Item
 from objects.queue import Queue
 from objects.state import GuildState
 from source.filesource import DiscordFileSource
@@ -170,15 +173,15 @@ class MusicCog(commands.Cog):
         index = queue.index
         if page is None:
             page = (index // pageSize) + 1
-        songList = queue.pagenation(page, pageSize=pageSize)
+        songList: tuple[Item] = queue.pagenation(page, pageSize=pageSize)
         songs = ""
         startIndex = (page - 1) * pageSize
 
         for i, song in enumerate(songList):
             if startIndex + i == index - 1:
-                songs += f"{song['url']} by {song['user'].mention} (現在再生中)\n"
+                songs += f"{song.name} by {song.user.mention} (現在再生中)\n"
             else:
-                songs += f"{song['url']} by {song['user'].mention}\n"
+                songs += f"{song.name} by {song.user.mention}\n"
 
         view = (
             discord.ui.View(timeout=None)
@@ -188,6 +191,7 @@ class MusicCog(commands.Cog):
                     emoji="⏪",
                     custom_id=f"queuePagenation,{page-1}",
                     row=0,
+                    disabled=(page <= 1),
                 )
             )
             .add_item(
@@ -205,6 +209,7 @@ class MusicCog(commands.Cog):
                     emoji="⏩",
                     custom_id=f"queuePagenation,{page+1}",
                     row=0,
+                    disabled=((queue.asize() // pageSize) + 1 == page),
                 )
             )
         )
@@ -402,17 +407,15 @@ class MusicCog(commands.Cog):
         return embed
 
     async def getSourceFromQueue(self, queue: Queue):
-        info: dict = queue.get()
-        if (info["url"] is None) and (info.get("attachment")):
+        info: Item = queue.get()
+        if info.attachment is not None:
             return await DiscordFileSource.from_attachment(
-                info["attachment"], info["volume"], info["user"]
+                info.attachment, info.volume, info.user
             )
-        elif ("nicovideo.jp" in info["url"]) or ("nico.ms" in info["url"]):
-            return await NicoNicoSource.from_url(
-                info["url"], info["volume"], info["user"]
-            )
+        elif ("nicovideo.jp" in info.url) or ("nico.ms" in info.url):
+            return await NicoNicoSource.from_url(info.url, info.volume, info.user)
         else:
-            return await YTDLSource.from_url(info["url"], info["volume"], info["user"])
+            return await YTDLSource.from_url(info.url, info.volume, info.user)
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: Queue = self.guildStates[guild.id].queue
@@ -476,6 +479,47 @@ class MusicCog(commands.Cog):
         if guild.voice_client:
             await guild.voice_client.disconnect()
 
+    def getDownloadUrls(self, songs: tuple[Song]) -> tuple[
+        list[tuple[str, str]],
+        list[str],
+    ]:
+        """
+        Get the download urls for a list of songs.
+
+        ### Arguments
+        - songs: List of Song objects
+
+        ### Returns
+        - A list of urls if successful.
+
+        ### Notes
+        - This function is multi-threaded.
+        """
+
+        urls: list[tuple[str, str]] = []
+        failedSongs: list[int] = []
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.spotify.downloader.settings["threads"]
+        ) as executor:
+            future_to_song = {
+                executor.submit(self.spotify.downloader.search, song): song
+                for song in songs
+            }
+            for i, future in enumerate(concurrent.futures.as_completed(future_to_song)):
+                song = future_to_song[future]
+                try:
+                    data = future.result()
+                    urls.append(
+                        (
+                            data,
+                            song.song_id,
+                        )
+                    )
+                except Exception as exc:
+                    failedSongs.append(song.song_id)
+
+        return urls, failedSongs
+
     async def putQueue(
         self,
         interaction: discord.Interaction,
@@ -486,58 +530,73 @@ class MusicCog(commands.Cog):
     ):
         queue: Queue = self.guildStates[interaction.guild.id].queue
         if "spotify" in url:
+            titles: dict[str] = {}
+
             if "track" in url:
                 song: Song = await asyncio.to_thread(Song.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, [song]
-                )
+                titles[song.song_id] = song.display_name
+                songs = (song,)
             elif "album" in url:
                 album = await asyncio.to_thread(Album.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, album.songs
-                )
+                for song in album.songs:
+                    titles[song.song_id] = song.display_name
+                songs = tuple(song for song in album.songs)
             elif "playlist" in url:
                 playlist = await asyncio.to_thread(Playlist.from_url, url)
-                urls: list[str | None] = await asyncio.to_thread(
-                    self.spotify.get_download_urls, playlist.songs
-                )
+                for song in playlist.songs:
+                    titles[song.song_id] = song.display_name
+                songs = tuple(song for song in playlist.songs)
             else:
                 await interaction.followup.send("無効なSpotify URL")
                 return
 
+            urls, failedSongs = await asyncio.to_thread(self.getDownloadUrls, songs)
+
+            for songId in failedSongs:
+                del titles[songId]
+
             if shuffle:
                 random.shuffle(urls)
 
-            for music in urls:
+            for url, songId in urls:
                 queue.put(
-                    {
-                        "url": music,
-                        "volume": volume,
-                        "user": interaction.user,
-                    }
+                    Item(
+                        url=url,
+                        volume=volume,
+                        user=interaction.user,
+                        title=titles[songId],
+                    )
                 )
             await interaction.followup.send(
                 f"**{len(urls)}個の曲**をキューに追加しました。"
             )
         else:
-            result = await isPlayList(url)
-            if not result:
-                queue.put({"url": url, "volume": volume, "user": interaction.user})
+            results = await isPlayList(url)
+            if not isinstance(results, list):
+                queue.put(
+                    Item(
+                        url=url,
+                        volume=volume,
+                        user=interaction.user,
+                        title=results["title"],
+                    )
+                )
                 await interaction.followup.send(f"**{url}** をキューに追加しました。")
             else:
                 if shuffle:
-                    random.shuffle(result)
+                    random.shuffle(results)
 
-                for video in result:
+                for result in results:
                     queue.put(
-                        {
-                            "url": video,
-                            "volume": volume,
-                            "user": interaction.user,
-                        }
+                        Item(
+                            url=result["title"],
+                            volume=volume,
+                            user=interaction.user,
+                            title=result["title"],
+                        )
                     )
                 await interaction.followup.send(
-                    f"**{len(result)}個の動画**をキューに追加しました。"
+                    f"**{len(results)}個の動画**をキューに追加しました。"
                 )
 
     async def checks(self, interaction: discord.Interaction, *, url: str = None):
@@ -650,14 +709,7 @@ class MusicCog(commands.Cog):
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
         queue: Queue = self.guildStates[guild.id].queue
-        queue.put(
-            {
-                "url": None,
-                "attachment": attachment,
-                "volume": volume,
-                "user": user,
-            }
-        )
+        queue.put(Item(attachment=attachment, volume=volume, user=interaction.user))
         await interaction.followup.send(
             f"**{attachment.filename}**をキューに追加しました。"
         )
@@ -686,14 +738,7 @@ class MusicCog(commands.Cog):
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
         queue: Queue = self.guildStates[guild.id].queue
-        queue.put(
-            {
-                "url": None,
-                "attachment": attachment,
-                "volume": volume,
-                "user": user,
-            }
-        )
+        queue.put(Item(attachment=attachment, volume=volume, user=interaction.user))
 
         self.guildStates[guild.id].alarm = True
 
@@ -729,11 +774,11 @@ class MusicCog(commands.Cog):
             select.add_option(
                 label=video["title"],
                 description=video["uploader"],
-                value=f"{video['url']}|{volume}",
+                value=f"{video['url']}|{volume}|{video['title']}",
             )
 
         async def selectCallBack(interaction: discord.Interaction):
-            url, volume = interaction.data["values"][0].split("|")
+            url, volume, title = interaction.data["values"][0].split("|")
             if not await self.checks(interaction):
                 return
             user = interaction.user
@@ -743,11 +788,7 @@ class MusicCog(commands.Cog):
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)
             self.guildStates[guild.id].queue.put(
-                {
-                    "url": url,
-                    "volume": float(volume),
-                    "user": user,
-                }
+                Item(url=url, volume=float(volume), user=interaction.user, title=title)
             )
             if (not self.guildStates[guild.id].playing) and (
                 not self.guildStates[guild.id].alarm
@@ -780,11 +821,11 @@ class MusicCog(commands.Cog):
             select.add_option(
                 label=video["title"],
                 description=video["uploader"],
-                value=f"{video['url']}|{volume}",
+                value=f"{video['url']}|{volume}|{video['title']}",
             )
 
         async def selectCallBack(interaction: discord.Interaction):
-            url, volume = interaction.data["values"][0].split("|")
+            url, volume, title = interaction.data["values"][0].split("|")
             if not await self.checks(interaction):
                 return
             user = interaction.user
@@ -794,11 +835,7 @@ class MusicCog(commands.Cog):
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)
             self.guildStates[guild.id].queue.put(
-                {
-                    "url": url,
-                    "volume": float(volume),
-                    "user": user,
-                }
+                Item(url=url, volume=float(volume), user=interaction.user, title=title)
             )
             if (not self.guildStates[guild.id].playing) and (
                 not self.guildStates[guild.id].alarm
@@ -820,9 +857,7 @@ class MusicCog(commands.Cog):
     @app_commands.guild_only()
     async def queueCommand(self, interaction: discord.Interaction):
         guild = interaction.guild
-        if not guild.voice_client or (
-            not self.guildStates[guild.id].queue.qsize() <= 0
-        ):
+        if not guild.voice_client:
             await interaction.response.send_message(
                 "現在曲を再生していません。", ephemeral=True
             )
