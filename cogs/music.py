@@ -827,7 +827,13 @@ class MusicCog(commands.Cog):
                 self.playing[guild.id] = False
             if not guild.id in self.queue:
                 self.queue[guild.id] = Queue()
-            await self.putQueue(interaction, url, float(volume))
+            self.queue[guild.id].put(
+                {
+                    "url": url,
+                    "volume": volume,
+                    "user": interaction.user,
+                }
+            )
             if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
                 await self.playNext(guild, channel)
 
@@ -874,7 +880,13 @@ class MusicCog(commands.Cog):
                 self.playing[guild.id] = False
             if not guild.id in self.queue:
                 self.queue[guild.id] = Queue()
-            await self.putQueue(interaction, url, float(volume))
+            self.queue[guild.id].put(
+                {
+                    "url": url,
+                    "volume": volume,
+                    "user": interaction.user,
+                }
+            )
             if (not self.playing[guild.id]) and (not self.alarm.get(guild.id, False)):
                 await self.playNext(guild, channel)
 
