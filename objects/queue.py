@@ -50,7 +50,7 @@ class Queue:
 
     def shuffle(self):
         list1 = self.__list[0 : self.__index - 1]
-        list2 = self.__list[self.__list : self.asize() - 1]
+        list2 = self.__list[self.__index : self.asize() - 1]
         random.shuffle(list2)
         self.__list = list1 + list2
 
