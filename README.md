@@ -3,7 +3,7 @@
 [ボットはここから導入できます。](https://discord.com/oauth2/authorize?client_id=1315990542366281728)  
 
 > [!CAUTION]
-> masterブランチの f15d3f372d42792c83d9632af73ff8b3b189ad62 以前のコードには、任意コード実行による脆弱性が存在します。
+> masterブランチの https://github.com/nennneko5787/neko-s-Music-Bot/commit/f15d3f372d42792c83d9632af73ff8b3b189ad62 以前のコードには、任意コード実行による脆弱性が存在します。
 > できる限り最新のコミットを使用することをおすすめします。
 
 ## ブランチの説明
