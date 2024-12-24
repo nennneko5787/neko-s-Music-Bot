@@ -531,6 +531,7 @@ class MusicCog(commands.Cog):
             else:
                 break
         await channel.send("再生終了")
+        del self.queue[guild.id]
         self.playing[guild.id] = False
         if guild.voice_client:
             await guild.voice_client.disconnect()
