@@ -830,7 +830,7 @@ class MusicCog(commands.Cog):
             self.queue[guild.id].put(
                 {
                     "url": url,
-                    "volume": volume,
+                    "volume": float(volume),
                     "user": interaction.user,
                 }
             )
@@ -883,7 +883,7 @@ class MusicCog(commands.Cog):
             self.queue[guild.id].put(
                 {
                     "url": url,
-                    "volume": volume,
+                    "volume": float(volume),
                     "user": interaction.user,
                 }
             )
