@@ -48,6 +48,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
         "info",
         "__count",
         "user",
+        "original",
+        "_volume",
     )
 
     def __init__(

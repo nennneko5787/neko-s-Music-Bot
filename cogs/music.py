@@ -28,7 +28,7 @@ from utils.search import searchNicoNico, searchYoutube
 dotenv.load_dotenv()
 
 
-def createView(isPaused: bool):
+def createView(isPaused: bool, isLooping: bool, isShuffle: bool):
     view = discord.ui.View(timeout=None)
     view.add_item(
         discord.ui.Button(
@@ -55,6 +55,18 @@ def createView(isPaused: bool):
     )
     view.add_item(
         discord.ui.Button(
+            style=(
+                discord.ButtonStyle.blurple
+                if not isLooping
+                else discord.ButtonStyle.danger
+            ),
+            emoji="🔄",
+            custom_id="loop",
+            row=0,
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
             style=discord.ButtonStyle.blurple, emoji="⏮", custom_id="prev", row=1
         )
     )
@@ -73,11 +85,19 @@ def createView(isPaused: bool):
             style=discord.ButtonStyle.blurple, label="-", custom_id="volumeDown", row=1
         )
     )
+    view.add_item(
+        discord.ui.Button(
+            style=(
+                discord.ButtonStyle.blurple
+                if not isShuffle
+                else discord.ButtonStyle.danger
+            ),
+            emoji="🔀",
+            custom_id="shuffle",
+            row=1,
+        )
+    )
     return view
-
-
-pausedView = createView(isPaused=True)
-notPausedView = createView(isPaused=False)
 
 
 class MusicCog(commands.Cog):
@@ -146,23 +166,47 @@ class MusicCog(commands.Cog):
         except KeyError:
             pass
 
-    def seekMusic(source, seconds: float):
+    def seekMusic(
+        self, source: YTDLSource | NicoNicoSource | DiscordFileSource, seconds: float
+    ) -> YTDLSource | NicoNicoSource | DiscordFileSource:
         options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": f"-vn -ss {formatTime(clamp(seconds, 0, int(source.info['duration'])))} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
         }
 
         if isinstance(source, NicoNicoSource):
-            options[
-                "before_options"
-            ] += f" -headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}'"
-
-        return type(source)(
-            discord.FFmpegPCMAudio(
-                source.info.get("url", source.hslContentUrl), **options
-            ),
-            **{k: v for k, v in vars(source).items() if k != "info"},
-        )
+            options["before_options"] = (
+                f"-headers 'cookie: {'; '.join(f'{k}={v}' for k, v in source.client.cookies.items())}' {options['before_options']}"
+            )
+            return NicoNicoSource(
+                discord.FFmpegPCMAudio(source.hslContentUrl, **options),
+                info=source.info,
+                hslContentUrl=source.hslContentUrl,
+                watchid=source.watchid,
+                trackid=source.trackid,
+                outputs=source.outputs,
+                nicosid=source.nicosid,
+                niconico=source.niconico,
+                volume=source.volume,
+                progress=seconds / 0.02,
+                user=source.user,
+            )
+        elif isinstance(source, DiscordFileSource):
+            return DiscordFileSource(
+                discord.FFmpegPCMAudio(source.info["url"], **options),
+                info=source.info,
+                volume=source.volume,
+                progress=seconds / 0.02,
+                user=source.user,
+            )
+        else:
+            return YTDLSource(
+                discord.FFmpegPCMAudio(source.info["url"], **options),
+                info=source.info,
+                volume=source.volume,
+                progress=seconds / 0.02,
+                user=source.user,
+            )
 
     async def queuePagenation(
         self, interaction: discord.Interaction, page: int = None, *, edit: bool = False
@@ -261,7 +305,12 @@ class MusicCog(commands.Cog):
                 interaction.guild.voice_client.resume()
                 embed = interaction.message.embeds[0]
                 await interaction.edit_original_response(
-                    embed=embed, view=notPausedView
+                    embed=embed,
+                    view=createView(
+                        isPaused=False,
+                        isLooping=self.guildStates[interaction.guild.id].loop,
+                        isShuffle=self.guildStates[interaction.guild.id].shuffle,
+                    ),
                 )
             case "pause":
                 if not interaction.guild.voice_client:
@@ -273,7 +322,14 @@ class MusicCog(commands.Cog):
                 await interaction.response.defer(ephemeral=True)
                 interaction.guild.voice_client.pause()
                 embed = interaction.message.embeds[0]
-                await interaction.edit_original_response(embed=embed, view=pausedView)
+                await interaction.edit_original_response(
+                    embed=embed,
+                    view=createView(
+                        isPaused=True,
+                        isLooping=self.guildStates[interaction.guild.id].loop,
+                        isShuffle=self.guildStates[interaction.guild.id].shuffle,
+                    ),
+                )
             case "reverse":
                 if not interaction.guild.voice_client:
                     embed = discord.Embed(
@@ -317,6 +373,15 @@ class MusicCog(commands.Cog):
                         )
                         / 100
                     )
+                    embed = interaction.message.embeds[0]
+                    await interaction.edit_original_response(
+                        embed=embed,
+                        view=createView(
+                            isPaused=True,
+                            isLooping=self.guildStates[interaction.guild.id].loop,
+                            isShuffle=self.guildStates[interaction.guild.id].shuffle,
+                        ),
+                    )
             case "volumeDown":
                 if not interaction.guild.voice_client:
                     embed = discord.Embed(
@@ -332,6 +397,43 @@ class MusicCog(commands.Cog):
                         )
                         / 100
                     )
+                    embed = interaction.message.embeds[0]
+                    await interaction.edit_original_response(
+                        embed=embed,
+                        view=createView(
+                            isPaused=True,
+                            isLooping=self.guildStates[interaction.guild.id].loop,
+                            isShuffle=self.guildStates[interaction.guild.id].shuffle,
+                        ),
+                    )
+            case "loop":
+                await interaction.response.defer(ephemeral=True)
+                self.guildStates[interaction.guild.id].loop = not self.guildStates[
+                    interaction.guild.id
+                ].loop
+                embed = interaction.message.embeds[0]
+                await interaction.edit_original_response(
+                    embed=embed,
+                    view=createView(
+                        isPaused=False,
+                        isLooping=self.guildStates[interaction.guild.id].loop,
+                        isShuffle=self.guildStates[interaction.guild.id].shuffle,
+                    ),
+                )
+            case "shuffle":
+                await interaction.response.defer(ephemeral=True)
+                self.guildStates[interaction.guild.id].shuffle = not self.guildStates[
+                    interaction.guild.id
+                ].shuffle
+                embed = interaction.message.embeds[0]
+                await interaction.edit_original_response(
+                    embed=embed,
+                    view=createView(
+                        isPaused=False,
+                        isLooping=self.guildStates[interaction.guild.id].loop,
+                        isShuffle=self.guildStates[interaction.guild.id].shuffle,
+                    ),
+                )
             case "queuePagenation":
                 if not interaction.guild.voice_client or (
                     self.guildStates[interaction.guild.id].queue.qsize() <= 0
@@ -424,6 +526,9 @@ class MusicCog(commands.Cog):
                 if queue.empty():
                     break
 
+                if self.guildStates[guild.id].shuffle:
+                    queue.shuffle()
+
                 try:
                     source: YTDLSource | NicoNicoSource | DiscordFileSource = (
                         await self.getSourceFromQueue(queue)
@@ -435,7 +540,11 @@ class MusicCog(commands.Cog):
                 voiceClient: discord.VoiceClient = guild.voice_client
                 message: discord.Message = await channel.send(
                     embed=self.embedPanel(voiceClient, source=source),
-                    view=notPausedView,
+                    view=createView(
+                        isPaused=False,
+                        isLooping=self.guildStates[guild.id].loop,
+                        isShuffle=self.guildStates[guild.id].shuffle,
+                    ),
                 )
 
                 if isinstance(source, NicoNicoSource):
@@ -445,27 +554,44 @@ class MusicCog(commands.Cog):
                 self.guildStates[guild.id].playing = True
 
                 _break = False
-                while self.guildStates[guild.id].playing:
-                    if isinstance(source, NicoNicoSource):
-                        await source.sendHeartBeat()
-                    if voiceClient.source is not None:
-                        source = voiceClient.source
-                    if not voiceClient.is_paused():
-                        await message.edit(
-                            embed=self.embedPanel(voiceClient, source=source),
-                            view=(
-                                notPausedView
-                                if not voiceClient.is_paused()
-                                else pausedView
-                            ),
-                        )
-                    for _ in range(5):
-                        if not self.guildStates[guild.id].playing:
-                            _break = True
+                while True:
+                    while self.guildStates[guild.id].playing:
+                        if isinstance(source, NicoNicoSource):
+                            await source.sendHeartBeat()
+                        if voiceClient.source is not None:
+                            source = voiceClient.source
+                        if not voiceClient.is_paused():
+                            await message.edit(
+                                embed=self.embedPanel(voiceClient, source=source),
+                                view=createView(
+                                    isPaused=voiceClient.is_paused(),
+                                    isLooping=self.guildStates[guild.id].loop,
+                                    isShuffle=self.guildStates[guild.id].shuffle,
+                                ),
+                            )
+                        for _ in range(5):
+                            if (not self.guildStates[guild.id].playing) or (
+                                not voiceClient.is_connected()
+                            ):
+                                _break = True
+                                print("ぶれいく")
+                                break
+                            await asyncio.sleep(1)
+                        if _break:
+                            print("ぶれいく")
                             break
-                        await asyncio.sleep(1)
-                    if _break:
+                    if not self.guildStates[guild.id].loop:
                         break
+                    elif not voiceClient.is_connected():
+                        break
+                    else:
+                        _break = False
+                        voiceClient.play(
+                            self.seekMusic(source, 0),
+                            after=lambda _: self.setToNotPlaying(guild.id),
+                        )
+                        self.guildStates[guild.id].playing = True
+                        continue
                 await message.edit(
                     embed=self.embedPanel(voiceClient, source=source, finished=True),
                     view=None,
@@ -589,7 +715,7 @@ class MusicCog(commands.Cog):
                 for result in results:
                     queue.put(
                         Item(
-                            url=result["title"],
+                            url=result["url"],
                             volume=volume,
                             user=interaction.user,
                             title=result["title"],

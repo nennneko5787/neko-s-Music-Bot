@@ -99,6 +99,8 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         "niconico",
         "__count",
         "user",
+        "original",
+        "_volume",
     )
 
     def __init__(

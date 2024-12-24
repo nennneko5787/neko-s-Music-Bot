@@ -1,3 +1,5 @@
+import random
+
 import logging
 from typing import Any
 
@@ -45,6 +47,12 @@ class Queue:
     def clear(self):
         self.__index = 0
         self.__list.clear()
+
+    def shuffle(self):
+        list1 = self.__list[0 : self.__index - 1]
+        list2 = self.__list[self.__list : self.asize() - 1]
+        random.shuffle(list2)
+        self.__list = list1 + list2
 
     def put(self, value: Any):
         self.__list.append(value)
