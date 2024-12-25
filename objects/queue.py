@@ -1,7 +1,6 @@
 import random
-
 import logging
-from typing import Any
+from typing import Any, Optional
 
 
 class QueueEdge(Exception):
@@ -19,11 +18,15 @@ class Queue:
     __slots__ = (
         "__list",
         "__index",
+        "__original_list",
+        "shuffled",
     )
 
     def __init__(self):
-        self.__list = list()
+        self.__list = []
         self.__index = 0
+        self.__original_list: Optional[list] = None
+        self.shuffled: bool = False
 
     @property
     def index(self):
@@ -47,20 +50,36 @@ class Queue:
     def clear(self):
         self.__index = 0
         self.__list.clear()
+        self.__original_list = None
+        self.shuffled = False
 
     def shuffle(self):
-        list1 = self.__list[0 : self.__index - 1]
-        list2 = self.__list[self.__index : self.asize() - 1]
+        if not self.shuffled:
+            self.__original_list = self.__list[:]
+        list1 = self.__list[: self.__index]
+        list2 = self.__list[self.__index :]
         random.shuffle(list2)
         self.__list = list1 + list2
+        self.shuffled = True
+
+    def unshuffle(self):
+        if not self.shuffled or self.__original_list is None:
+            _log.warning("Cannot unshuffle: No original list available.")
+            return
+        self.__list = self.__original_list + self.__list[len(self.__original_list) :]
+        self.__original_list = None
+        self.__index = 0
+        self.shuffled = False
 
     def put(self, value: Any):
         self.__list.append(value)
+        if self.shuffled and self.__original_list is not None:
+            self.__original_list.append(value)
 
     def prev(self):
         if self.edge():
             raise QueueEdge()
-        self.__index -= 2
+        self.__index -= 1
 
     def get(self):
         if self.empty():

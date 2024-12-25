@@ -527,6 +527,8 @@ class MusicCog(commands.Cog):
 
                 if self.guildStates[guild.id].shuffle:
                     queue.shuffle()
+                elif queue.shuffled:
+                    queue.unshuffle()
 
                 try:
                     source: YTDLSource | NicoNicoSource | DiscordFileSource = (
@@ -536,10 +538,13 @@ class MusicCog(commands.Cog):
                     traceback.print_exc()
                     continue
 
-                if voiceClient.channel.permissions_for(guild.me).value & (1 << 0x0002000000000000):
+                voiceClient: discord.VoiceClient = guild.voice_client
+
+                if (voiceClient.channel.type == discord.ChannelType.voice) and (
+                    voiceClient.channel.permissions_for(guild.me).value & (1 << 48) != 0
+                ):
                     await voiceClient.channel.edit(status=source.info.get("title"))
 
-                voiceClient: discord.VoiceClient = guild.voice_client
                 message: discord.Message = await channel.send(
                     embed=self.embedPanel(voiceClient, source=source),
                     view=createView(
@@ -604,8 +609,10 @@ class MusicCog(commands.Cog):
         self.guildStates[guild.id].playing = False
         if guild.voice_client:
             await guild.voice_client.disconnect()
-        if voiceClient.channel.permissions_for(guild.me).value & (1 << 0x0002000000000000):
-            await voiceClient.channel.edit(status=None)
+        if (voiceClient.channel.type == discord.ChannelType.voice) and (
+            voiceClient.channel.permissions_for(guild.me).value & (1 << 48) != 0
+        ):
+            await voiceClient.channel.edit(status="")
 
     def getDownloadUrls(self, songs: tuple[Song]) -> tuple[
         list[tuple[str, str]],
