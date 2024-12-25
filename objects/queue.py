@@ -68,7 +68,6 @@ class Queue:
             return
         self.__list = self.__original_list + self.__list[len(self.__original_list) :]
         self.__original_list = None
-        self.__index = 0
         self.shuffled = False
 
     def put(self, value: Any):
