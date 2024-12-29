@@ -599,6 +599,7 @@ class MusicCog(commands.Cog):
                             await asyncio.sleep(1)
                         if _break:
                             break
+                    source.cleanup()
                     if not self.guildStates[guild.id].loop:
                         break
                     elif not voiceClient.is_connected():
