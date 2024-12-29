@@ -606,7 +606,7 @@ class MusicCog(commands.Cog):
                     else:
                         _break = False
                         voiceClient.play(
-                            self.newSource(source),
+                            await self.newSource(source),
                             after=lambda _: self.setToNotPlaying(guild.id),
                         )
                         self.guildStates[guild.id].playing = True
