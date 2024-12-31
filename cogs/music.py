@@ -519,6 +519,11 @@ class MusicCog(commands.Cog):
             return await YTDLSource.from_url(info.url, info.volume, info.user)
 
     async def newSource(self, source: YTDLSource) -> YTDLSource:
+        options = {
+            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+            "options": f"-vn -ss {formatTime(0)} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
+        }
+
         if isinstance(source, DiscordFileSource):
             return DiscordFileSource(
                 discord.FFmpegPCMAudio(source.info["url"], **options),
@@ -528,9 +533,13 @@ class MusicCog(commands.Cog):
                 user=source.user,
             )
         elif isinstance(source, NicoNicoSource):
-            return await NicoNicoSource.from_url(source.info["webpage_url"], source.volume, source.user)
+            return await NicoNicoSource.from_url(
+                source.info["webpage_url"], source.volume, source.user
+            )
         else:
-            return await YTDLSource.from_url(source.info["webpage_url"], source.volume, source.user)
+            return await YTDLSource.from_url(
+                source.info["webpage_url"], source.volume, source.user
+            )
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: Queue = self.guildStates[guild.id].queue
