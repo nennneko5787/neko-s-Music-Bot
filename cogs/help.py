@@ -16,7 +16,7 @@ class HelpCog(commands.Cog):
         embed = (
             discord.Embed(
                 title="neko's Music Botの使い方",
-                description="バグが発生した・使い方がわからない・再生できない動画がある場合は、[サポートサーバー](https://discord.gg/2TfFUuY3RG)へ報告をお願いします。",
+                description="バグが発生した・使い方がわからない・再生できない動画がある場合は、[サポートサーバー](https://discord.gg/PN3KWEnYzX)へ報告をお願いします。",
                 color=discord.Colour.purple(),
             )
             .add_field(
