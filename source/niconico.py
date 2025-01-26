@@ -7,6 +7,8 @@ from zoneinfo import ZoneInfo
 import discord
 import httpx
 
+from objects.videoInfo import VideoInfo
+
 _log = logging.getLogger("music")
 
 
@@ -107,7 +109,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         self,
         source,
         *,
-        info: dict,
+        info: VideoInfo,
         hslContentUrl: str,
         watchid: str,
         trackid: str,
@@ -119,7 +121,7 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
         user: discord.Member = None,
     ):
         super().__init__(source, volume=volume)
-        self.info: dict = info
+        self.info = info
         self.hslContentUrl = hslContentUrl
         self.watchid = watchid
         self.trackid = trackid
@@ -246,16 +248,13 @@ class NicoNicoSource(discord.PCMVolumeTransformer):
             "options": "-vn -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
         }
 
-        info = {
-            "title": data["data"]["response"]["video"]["title"],
-            "duration_string": time.strftime(
-                "%H:%M:%S",
-                time.gmtime(float(data["data"]["response"]["video"]["duration"])),
-            ),
-            "duration": int(data["data"]["response"]["video"]["duration"]),
-            "webpage_url": f'https://www.nicovideo.jp/watch/{data["data"]["response"]["video"]["id"]}',
-            "thumbnail": data["data"]["response"]["video"]["thumbnail"]["ogp"],
-        }
+        info = VideoInfo(
+            title=data["data"]["response"]["video"]["title"],
+            duration=int(data["data"]["response"]["video"]["duration"]),
+            webpage_url=f'https://www.nicovideo.jp/watch/{data["data"]["response"]["video"]["id"]}',
+            thumbnail=data["data"]["response"]["video"]["thumbnail"]["ogp"],
+        )
+
         _log.info(f"success loading {url}")
 
         return cls(

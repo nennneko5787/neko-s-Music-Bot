@@ -9,12 +9,14 @@ class Item:
         "volume",
         "user",
         "title",
+        "locale",
     )
 
     def __init__(
         self,
         *,
         user: discord.Member,
+        locale: discord.Locale,
         url: Optional[str] = None,
         title: Optional[str] = None,
         attachment: Optional[discord.Attachment] = None,
@@ -25,6 +27,7 @@ class Item:
         self.attachment: Optional[discord.Attachment] = attachment
         self.volume: float = volume
         self.user: discord.Member = user
+        self.locale: discord.Locale = locale
 
     @property
     def name(self):

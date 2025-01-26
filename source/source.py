@@ -1,9 +1,12 @@
 import asyncio
+import discord
 import logging
 from concurrent.futures import ProcessPoolExecutor
 
 import discord
 from yt_dlp import YoutubeDL
+
+from objects.videoInfo import VideoInfo
 
 FFMPEG_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
@@ -17,12 +20,22 @@ class FetchVideoInfoFailed(Exception):
     pass
 
 
-def _isPlayList(url) -> list[dict] | bool:
+def _isPlayList(url: str, locale: str) -> list[dict] | bool:
     try:
+        if locale in ["en-US", "en-GB"]:
+            lang = "en"
+        elif locale == "es-ES":
+            lang = "es"
+        elif locale == "sv-SE":
+            lang = "sv"
+        else:
+            lang = locale
+
         ydlOpts = {
             "quiet": True,
             "extract_flat": True,
             "cookiefile": "./cookies.txt",
+            "extractor_args": {"youtube": {"lang": [lang]}},
         }
         with YoutubeDL(ydlOpts) as ydl:
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
@@ -35,10 +48,10 @@ def _isPlayList(url) -> list[dict] | bool:
         raise FetchVideoInfoFailed(f"Failed to fetch video info: {url}, {str(e)}")
 
 
-async def isPlayList(url: str) -> list[str] | bool:
+async def isPlayList(url: str, locale: discord.Locale) -> list[str] | bool:
     loop = asyncio.get_event_loop()
     with ProcessPoolExecutor() as executor:
-        return await loop.run_in_executor(executor, _isPlayList, url)
+        return await loop.run_in_executor(executor, _isPlayList, url, str(locale))
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -50,19 +63,20 @@ class YTDLSource(discord.PCMVolumeTransformer):
         "user",
         "original",
         "_volume",
+        "locale",
     )
 
     def __init__(
         self,
         source,
         *,
-        info: dict,
+        info: VideoInfo,
         volume: float = 0.5,
         progress: float = 0,
         user: discord.Member = None,
     ):
         super().__init__(source, volume=volume)
-        self.info: dict = info
+        self.info = info
         self.__count = progress
         self.user = user
 
@@ -77,13 +91,23 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return data
 
     @classmethod
-    def _getVideoInfo(cls, url) -> dict:
+    def _getVideoInfo(cls, url: str, locale: discord.Locale) -> dict:
         try:
+            if locale in ["en-US", "en-GB"]:
+                lang = "en"
+            elif locale == "es-ES":
+                lang = "es"
+            elif locale == "sv-SE":
+                lang = "sv"
+            else:
+                lang = locale
+
             ydlOpts = {
                 "quiet": True,
                 "format": "bestaudio/best",
                 "noplaylist": True,
                 "cookiefile": "./cookies.txt",
+                "extractor_args": {"youtube": {"lang": [lang]}},
             }
             ydl = YoutubeDL(ydlOpts)
             info = ydl.sanitize_info(ydl.extract_info(url, download=False))
@@ -92,13 +116,21 @@ class YTDLSource(discord.PCMVolumeTransformer):
             raise FetchVideoInfoFailed(f"Failed to fetch video info: {url}, {str(e)}")
 
     @classmethod
-    async def getVideoInfo(cls, url: str) -> dict:
+    async def getVideoInfo(cls, url: str, locale: discord.Locale) -> dict:
         loop = asyncio.get_event_loop()
         with ProcessPoolExecutor() as executor:
-            return await loop.run_in_executor(executor, cls._getVideoInfo, url)
+            return await loop.run_in_executor(
+                executor, cls._getVideoInfo, url, str(locale)
+            )
 
     @classmethod
-    async def from_url(cls, url, volume: float = 0.5, user: discord.Member = None):
+    async def from_url(
+        cls,
+        url: str,
+        locale: discord.Locale,
+        volume: float = 0.5,
+        user: discord.Member = None,
+    ):
         """urlからAudioSourceを作成します。
 
         Args:
@@ -109,12 +141,22 @@ class YTDLSource(discord.PCMVolumeTransformer):
             YTDLSource: 完成したAudioSource。
         """
         _log.info(f"loading {url} with YTDLSource now")
-        info = await cls.getVideoInfo(url)
+        info = await cls.getVideoInfo(url, locale)
         _log.info(f"success loading {url}")
+
         if "entries" in info:
             info = info.get("entries", [])[0]
+
+        info = VideoInfo(
+            title=info["title"],
+            duration=info["duration"],
+            url=info["url"],
+            webpage_url=info["webpage_url"],
+            thumbnail=info["thumbnail"],
+        )
+
         return cls(
-            discord.FFmpegPCMAudio(info.get("url", ""), **FFMPEG_OPTIONS),
+            discord.FFmpegPCMAudio(info.url, **FFMPEG_OPTIONS),
             info=info,
             volume=volume,
             user=user,

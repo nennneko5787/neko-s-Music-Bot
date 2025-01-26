@@ -6,6 +6,8 @@ from concurrent.futures import ProcessPoolExecutor
 import discord
 import ffmpeg
 
+from objects.videoInfo import VideoInfo
+
 FFMPEG_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
     "options": "-vn -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
@@ -51,13 +53,13 @@ class DiscordFileSource(discord.PCMVolumeTransformer):
         self,
         source,
         *,
-        info: dict,
+        info: VideoInfo,
         volume: float = 0.5,
         progress: float = 0,
         user: discord.Member = None,
     ):
         super().__init__(source, volume=volume)
-        self.info: dict = info
+        self.info = info
         self.__count = progress
         self.user = user
 
@@ -90,17 +92,14 @@ class DiscordFileSource(discord.PCMVolumeTransformer):
         _log.info(f"loading {attachment.url} with DiscordFileSource now")
         probeData = await probe(attachment.url)
 
-        info = {
-            "title": attachment.filename,
-            "duration_string": time.strftime(
-                "%H:%M:%S",
-                time.gmtime(float(probeData["streams"][0]["duration"])),
-            ),
-            "duration": int(float(probeData["streams"][0]["duration"])),
-            "url": attachment.url,
-            "webpage_url": attachment.url,
-            "thumbnail": user.display_avatar,
-        }
+        info = VideoInfo(
+            title=attachment.filename,
+            duration=int(float(probeData["streams"][0]["duration"])),
+            url=attachment.url,
+            webpage_url=attachment.url,
+            thumbnail=user.display_avatar,
+        )
+
         _log.info(f"success loading {attachment.url}")
         return cls(
             discord.FFmpegPCMAudio(attachment.url, **FFMPEG_OPTIONS),

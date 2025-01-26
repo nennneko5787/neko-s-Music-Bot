@@ -119,6 +119,9 @@ class MusicCog(commands.Cog):
             client_secret=os.getenv("spotify_clientsecret"),
         )
         self.isFirstReady: bool = True
+        self.bar = ""
+        self.circle = ""
+        self.graybar = ""
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -127,6 +130,15 @@ class MusicCog(commands.Cog):
                 self.guildStates[guild.id] = GuildState()
             self.presenceLoop.start()
             self.isFirstReady = False
+        self.bar = str(
+            discord.utils.get(await self.bot.fetch_application_emojis(), name="bar")
+        )
+        self.circle = str(
+            discord.utils.get(await self.bot.fetch_application_emojis(), name="circle")
+        )
+        self.graybar = str(
+            discord.utils.get(await self.bot.fetch_application_emojis(), name="graybar")
+        )
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
@@ -171,7 +183,7 @@ class MusicCog(commands.Cog):
     ) -> YTDLSource | NicoNicoSource | DiscordFileSource:
         options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            "options": f"-vn -ss {formatTime(clamp(seconds, 0, int(source.info['duration'])))} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
+            "options": f"-vn -ss {formatTime(clamp(seconds, 0, int(source.info.duration)))} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
         }
 
         if isinstance(source, NicoNicoSource):
@@ -193,7 +205,7 @@ class MusicCog(commands.Cog):
             )
         elif isinstance(source, DiscordFileSource):
             return DiscordFileSource(
-                discord.FFmpegPCMAudio(source.info["url"], **options),
+                discord.FFmpegPCMAudio(source.info.url, **options),
                 info=source.info,
                 volume=source.volume,
                 progress=seconds / 0.02,
@@ -201,7 +213,7 @@ class MusicCog(commands.Cog):
             )
         else:
             return YTDLSource(
-                discord.FFmpegPCMAudio(source.info["url"], **options),
+                discord.FFmpegPCMAudio(source.info.url, **options),
                 info=source.info,
                 volume=source.volume,
                 progress=seconds / 0.02,
@@ -458,30 +470,34 @@ class MusicCog(commands.Cog):
                 return None
             source: YTDLSource | NicoNicoSource | DiscordFileSource = voiceClient.source
         embed = discord.Embed(
-            title=source.info["title"],
-            url=source.info["webpage_url"],
-        ).set_image(url=source.info["thumbnail"])
+            title=source.info.title,
+            url=source.info.webpage_url,
+        ).set_image(url=source.info.thumbnail)
 
         if finished:
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生終了")
         elif voiceClient.is_playing() or voiceClient.is_paused():
-            bar = "<:bar:1320712302475083816>"
-            circle = "<:circle:1320712333676515328>"
-            graybar = "<:graybar:1320712319512219648>"
+            # bar = "<:bar:1320712302475083816>"
+            # circle = "<:circle:1320712333676515328>"
+            # graybar = "<:graybar:1320712319512219648>"
 
-            percentage = source.progress / source.info["duration"]
+            percentage = source.progress / source.info.duration
             barLength = 14
             filledLength = int(barLength * percentage)
             progressBar = (
-                bar * filledLength + circle + graybar * (barLength - filledLength - 1)
+                self.bar * filledLength
+                + self.circle
+                + self.graybar * (barLength - filledLength - 1)
             )
 
             percentage = source.volume / 2.0
             barLength = 14
             filledLength = int(barLength * percentage)
             volumeProgressBar = (
-                bar * filledLength + circle + graybar * (barLength - filledLength - 1)
+                self.bar * filledLength
+                + self.circle
+                + self.graybar * (barLength - filledLength - 1)
             )
 
             embed.colour = discord.Colour.purple()
@@ -491,7 +507,7 @@ class MusicCog(commands.Cog):
                 embed.set_author(name="再生中")
             embed.add_field(
                 name="再生時間",
-                value=f'{progressBar}\n`{formatTime(source.progress)} / {formatTime(source.info["duration"])}`',
+                value=f"{progressBar}\n`{formatTime(source.progress)} / {formatTime(source.info.duration)}`",
                 inline=False,
             ).add_field(
                 name="リクエストしたユーザー",
@@ -516,7 +532,9 @@ class MusicCog(commands.Cog):
         elif ("nicovideo.jp" in info.url) or ("nico.ms" in info.url):
             return await NicoNicoSource.from_url(info.url, info.volume, info.user)
         else:
-            return await YTDLSource.from_url(info.url, info.volume, info.user)
+            return await YTDLSource.from_url(
+                info.url, info.locale, info.volume, info.user
+            )
 
     async def newSource(self, source: YTDLSource) -> YTDLSource:
         options = {
@@ -526,7 +544,7 @@ class MusicCog(commands.Cog):
 
         if isinstance(source, DiscordFileSource):
             return DiscordFileSource(
-                discord.FFmpegPCMAudio(source.info["url"], **options),
+                discord.FFmpegPCMAudio(source.info.url, **options),
                 info=source.info,
                 volume=source.volume,
                 progress=0,
@@ -534,11 +552,11 @@ class MusicCog(commands.Cog):
             )
         elif isinstance(source, NicoNicoSource):
             return await NicoNicoSource.from_url(
-                source.info["webpage_url"], source.volume, source.user
+                source.info.webpage_url, source.volume, source.user
             )
         else:
             return await YTDLSource.from_url(
-                source.info["webpage_url"], source.volume, source.user
+                source.info.webpage_url, source.locale, source.volume, source.user
             )
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
@@ -548,7 +566,7 @@ class MusicCog(commands.Cog):
                 if queue.empty():
                     break
 
-                if self.guildStates[guild.id].shuffle:
+                if self.guildStates[guild.id].shuffle and not queue.shuffled:
                     queue.shuffle()
                 elif queue.shuffled:
                     queue.unshuffle()
@@ -566,7 +584,7 @@ class MusicCog(commands.Cog):
                 if (voiceClient.channel.type == discord.ChannelType.voice) and (
                     voiceClient.channel.permissions_for(guild.me).value & (1 << 48) != 0
                 ):
-                    await voiceClient.channel.edit(status=source.info.get("title"))
+                    await voiceClient.channel.edit(status=source.info.title)
 
                 message: discord.Message = await channel.send(
                     embed=self.embedPanel(voiceClient, source=source),
@@ -633,10 +651,6 @@ class MusicCog(commands.Cog):
         self.guildStates[guild.id].playing = False
         if guild.voice_client:
             await guild.voice_client.disconnect()
-        if (voiceClient.channel.type == discord.ChannelType.voice) and (
-            voiceClient.channel.permissions_for(guild.me).value & (1 << 48) != 0
-        ):
-            await voiceClient.channel.edit(status="")
 
     def getDownloadUrls(self, songs: tuple[Song]) -> tuple[
         list[tuple[str, str]],
@@ -684,8 +698,6 @@ class MusicCog(commands.Cog):
         interaction: discord.Interaction,
         url: str,
         volume: float,
-        *,
-        shuffle: bool = False,
     ):
         queue: Queue = self.guildStates[interaction.guild.id].queue
         if "spotify" in url:
@@ -714,9 +726,6 @@ class MusicCog(commands.Cog):
             for songId in failedSongs:
                 del titles[songId]
 
-            if shuffle:
-                random.shuffle(urls)
-
             for url, songId in urls:
                 queue.put(
                     Item(
@@ -730,7 +739,7 @@ class MusicCog(commands.Cog):
                 f"**{len(urls)}個の曲**をキューに追加しました。"
             )
         else:
-            results = await isPlayList(url)
+            results = await isPlayList(url, interaction.locale)
             if not isinstance(results, list):
                 queue.put(
                     Item(
@@ -738,13 +747,11 @@ class MusicCog(commands.Cog):
                         volume=volume,
                         user=interaction.user,
                         title=results["title"],
+                        locale=interaction.locale,
                     )
                 )
                 await interaction.followup.send(f"**{url}** をキューに追加しました。")
             else:
-                if shuffle:
-                    random.shuffle(results)
-
                 for result in results:
                     queue.put(
                         Item(
@@ -752,6 +759,7 @@ class MusicCog(commands.Cog):
                             volume=volume,
                             user=interaction.user,
                             title=result["title"],
+                            locale=interaction.locale,
                         )
                     )
                 await interaction.followup.send(
@@ -800,7 +808,6 @@ class MusicCog(commands.Cog):
         delay: app_commands.Range[int, 0],
         url: str,
         volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
-        shuffle: bool = False,
     ):
         if not await self.checks(interaction, url=url):
             return
@@ -810,7 +817,7 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
-        await self.putQueue(interaction, url, volume, shuffle=shuffle)
+        await self.putQueue(interaction, url, volume)
 
         self.guildStates[guild.id].alarm = True
 
@@ -821,7 +828,10 @@ class MusicCog(commands.Cog):
         )
         await interaction.followup.send(embed=embed)
 
-        await asyncio.sleep(delay)
+        for _ in range(delay):
+            if self.guildStates[guild.id].alarm != True:
+                return
+            await asyncio.sleep(1)
         self.guildStates[guild.id].alarm = False
         await self.playNext(guild, channel)
 
@@ -832,7 +842,6 @@ class MusicCog(commands.Cog):
         interaction: discord.Interaction,
         url: str,
         volume: app_commands.Range[float, 0.0, 2.0] = 0.5,
-        shuffle: bool = False,
     ):
         if not await self.checks(interaction, url=url):
             return
@@ -842,7 +851,7 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         if not guild.voice_client:
             await user.voice.channel.connect(self_deaf=True)
-        await self.putQueue(interaction, url, volume, shuffle=shuffle)
+        await self.putQueue(interaction, url, volume)
         if (not self.guildStates[guild.id].playing) and (
             not self.guildStates[guild.id].alarm
         ):
@@ -908,7 +917,10 @@ class MusicCog(commands.Cog):
         )
         await interaction.followup.send(embed=embed)
 
-        await asyncio.sleep(delay)
+        for _ in range(delay):
+            if self.guildStates[guild.id].alarm != True:
+                return
+            await asyncio.sleep(1)
         self.guildStates[guild.id].alarm = False
         await self.playNext(guild, channel)
 
@@ -928,7 +940,7 @@ class MusicCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         view = discord.ui.View(timeout=None)
         select = discord.ui.Select(custom_id="ytsearch")
-        videos = await searchYoutube(keyword)
+        videos = await searchYoutube(keyword, language=interaction.locale)
         for video in videos:
             select.add_option(
                 label=video["title"],
@@ -1023,8 +1035,6 @@ class MusicCog(commands.Cog):
             return
         await self.queuePagenation(interaction, None, edit=True)
 
-    # Non-support commands
-
     @app_commands.command(name="skip", description="曲をスキップします。")
     @app_commands.guild_only()
     async def skipMusic(self, interaction: discord.Interaction):
@@ -1051,6 +1061,7 @@ class MusicCog(commands.Cog):
         await interaction.response.defer()
         await guild.voice_client.disconnect()
         self.guildStates[guild.id].playing = False
+        self.guildStates[guild.id].alarm = False
         await interaction.followup.send("停止しました。")
 
     @app_commands.command(name="pause", description="曲を一時停止します。")

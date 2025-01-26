@@ -22,37 +22,37 @@ class HelpCog(commands.Cog):
             .add_field(
                 name="/play",
                 value="指定された動画・曲のURLをボイスチャンネルで再生します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=True,
+                inline=False,
             )
             .add_field(
                 name="/playfile",
                 value="指定されたファイルをボイスチャンネルで再生します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=True,
+                inline=False,
             )
             .add_field(
                 name="/search youtube",
                 value="Youtubeの動画・曲を指定されたキーワードで検索します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=True,
+                inline=False,
             )
             .add_field(
                 name="/search niconico",
                 value="ニコニコ動画の動画・曲を指定されたキーワードで検索します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=True,
+                inline=False,
             )
             .add_field(
                 name="/alarm",
                 value="指定された時間まで待ってから、動画・曲をボイスチャンネルで再生します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=True,
+                inline=False,
             )
             .add_field(
                 name="/alarmfile",
                 value="指定された時間まで待ってから、ファイルをボイスチャンネルで再生します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=True,
+                inline=False,
             )
             .add_field(
                 name="/ping",
                 value="ボットのレイテンシー(Bot/Voice)やCPU・メモリ使用率を確認することができます。",
-                inline=True,
+                inline=False,
             )
         )
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
