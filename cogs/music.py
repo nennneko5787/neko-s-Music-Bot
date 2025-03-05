@@ -539,7 +539,7 @@ class MusicCog(commands.Cog):
     async def newSource(self, source: YTDLSource) -> YTDLSource:
         options = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            "options": f"-vn -ss {formatTime(0)} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647",
+            "options": f"-vn -ss {formatTime(0)} -bufsize 64k -analyzeduration 2147483647 -probesize 2147483647 -ac 2",
         }
 
         if isinstance(source, DiscordFileSource):
