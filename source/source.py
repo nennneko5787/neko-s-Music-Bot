@@ -74,11 +74,13 @@ class YTDLSource(discord.PCMVolumeTransformer):
         volume: float = 0.5,
         progress: float = 0,
         user: discord.Member = None,
+        locale: discord.Locale = discord.Locale.japanese,
     ):
         super().__init__(source, volume=volume)
         self.info = info
         self.__count = progress
         self.user = user
+        self.locale = locale
 
     @property
     def progress(self) -> float:
@@ -160,4 +162,5 @@ class YTDLSource(discord.PCMVolumeTransformer):
             info=info,
             volume=volume,
             user=user,
+            locale=locale,
         )
