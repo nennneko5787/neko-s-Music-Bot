@@ -125,7 +125,7 @@ class MusicCog(commands.Cog):
                 emoji="⏭",
                 custom_id="next",
                 row=1,
-                disabled=(len(player.queue) > 0),
+                disabled=(len(player.queue) <= 0),
             )
         )
         view.add_item(
