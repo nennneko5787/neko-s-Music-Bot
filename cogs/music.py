@@ -447,10 +447,11 @@ class MusicCog(commands.Cog):
                             await player.seek(0)
                             continue
                         else:
-                            await player.message.edit(
-                                embed=self.embedPanel(player, finished=True),
-                                view=None,
-                            )
+                            if hasattr(player, "message"):
+                                await player.message.edit(
+                                    embed=self.embedPanel(player, finished=True),
+                                    view=None,
+                                )
                             break
                 if hasattr(player, "message") and count >= 5:
                     await player.message.edit(
