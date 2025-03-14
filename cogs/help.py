@@ -21,32 +21,12 @@ class HelpCog(commands.Cog):
             )
             .add_field(
                 name="/play",
-                value="指定された動画・曲のURLをボイスチャンネルで再生します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
+                value="指定された動画・曲のURLをボイスチャンネルで再生します。ボイスチャンネルに接続してから実行する必要があります。",
                 inline=False,
             )
             .add_field(
-                name="/playfile",
-                value="指定されたファイルをボイスチャンネルで再生します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=False,
-            )
-            .add_field(
-                name="/search youtube",
-                value="Youtubeの動画・曲を指定されたキーワードで検索します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=False,
-            )
-            .add_field(
-                name="/search niconico",
-                value="ニコニコ動画の動画・曲を指定されたキーワードで検索します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=False,
-            )
-            .add_field(
-                name="/alarm",
-                value="指定された時間まで待ってから、動画・曲をボイスチャンネルで再生します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
-                inline=False,
-            )
-            .add_field(
-                name="/alarmfile",
-                value="指定された時間まで待ってから、ファイルをボイスチャンネルで再生します。\nボリュームを指定することもできます。\nボイスチャンネルに接続してから実行する必要があります。",
+                name="/pitch",
+                value="再生中の曲のピッチを変更します。",
                 inline=False,
             )
             .add_field(
