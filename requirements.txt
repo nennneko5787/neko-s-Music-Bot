@@ -1,9 +1,6 @@
-git+https://github.com/yt-dlp/yt-dlp.git
 git+https://github.com/Rapptz/discord.py.git
 pynacl
 python-dotenv
-httpx
 tzdata
-spotdl
 psutil
-ffmpeg-python
+wavelink

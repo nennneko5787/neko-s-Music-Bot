@@ -1,5 +1,6 @@
 import discord
 import psutil
+import wavelink
 from discord import app_commands
 from discord.ext import commands
 
@@ -20,8 +21,8 @@ class PingCog(commands.Cog):
         _totalPing = 0
         voicePing = 0
         for voiceClient in self.bot.voice_clients:
-            voiceClient: discord.VoiceClient = voiceClient
-            _totalPing += voiceClient.average_latency
+            voiceClient: wavelink.Player = voiceClient
+            _totalPing += voiceClient.ping
             _count += 1
         if _count != 0:
             voicePing = _totalPing / _count
