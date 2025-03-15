@@ -445,7 +445,6 @@ class MusicCog(commands.Cog):
                     ):
                         if player.loop:
                             await player.seek(0)
-                            continue
                         else:
                             if hasattr(player, "message"):
                                 await player.message.edit(
