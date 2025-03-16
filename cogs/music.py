@@ -265,9 +265,9 @@ class MusicCog(commands.Cog):
                     )
                 )
             case "volumeUp":
-                await player.set_volume(self.clamp(player.volume + 10, 0, 100))
+                await player.set_volume(self.clamp(player.volume + 5, 0, 100))
             case "volumeDown":
-                await player.set_volume(self.clamp(player.volume - 10, 0, 100))
+                await player.set_volume(self.clamp(player.volume - 5, 0, 100))
             case "loop":
                 player.loop = not player.loop
             case "shuffle":
@@ -362,10 +362,43 @@ class MusicCog(commands.Cog):
         player.original = original
         player.track = track
 
-        player.message = await player.home.send(
+        message = await player.home.send(
             embed=self.embedPanel(player, finished=False),
             view=self.createView(player),
         )
+
+        await asyncio.sleep(3)
+
+        count = 0
+        while True:
+            if hasattr(player, "track"):
+                if (
+                    player.position / 1000 >= player.track.length / 1000
+                    or not player.playing
+                ):
+                    if player.loop:
+                        await player.seek(0)
+                        await asyncio.sleep(3)
+                    else:
+                        await message.edit(
+                            embed=self.embedPanel(player, finished=True),
+                            view=None,
+                        )
+                        break
+            if count >= 5:
+                await message.edit(
+                    embed=self.embedPanel(player, finished=False),
+                    view=self.createView(player),
+                )
+                count = 0
+            count += 0.01
+            await asyncio.sleep(0.01)
+
+        if len(player.queue) > 0:
+            await player.play(player.queue.get(), volume=15)
+        else:
+            await player.home.send("再生終了")
+            await player.disconnect()
 
     @app_commands.command(name="play", description="曲を再生します。")
     @app_commands.rename(query="クエリ")
@@ -434,32 +467,7 @@ class MusicCog(commands.Cog):
             await interaction.followup.send(f"**`{track}`**をキューに追加しました。")
 
         if not player.playing:
-            url = player.queue.get()
-            await player.play(url, volume=15)
-            count = 0
-            while True:
-                if hasattr(player, "track"):
-                    if (
-                        player.position / 1000 >= player.track.length / 1000
-                        or not player.playing
-                    ):
-                        if player.loop:
-                            await player.seek(0)
-                        else:
-                            if hasattr(player, "message"):
-                                await player.message.edit(
-                                    embed=self.embedPanel(player, finished=True),
-                                    view=None,
-                                )
-                            break
-                if hasattr(player, "message") and count >= 5:
-                    await player.message.edit(
-                        embed=self.embedPanel(player, finished=False),
-                        view=self.createView(player),
-                    )
-                    count = 0
-                count += 0.01
-                await asyncio.sleep(0.01)
+            await player.play(player.queue.get(), volume=15)
 
     @app_commands.command(name="pitch", description="曲のピッチを変更します。")
     @app_commands.rename(pitch="ピッチ")
