@@ -8,7 +8,7 @@ import discord
 import dotenv
 import wavelink
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 dotenv.load_dotenv()
 
@@ -22,6 +22,27 @@ class MusicCog(commands.Cog):
         self.bar = ""
         self.circle = ""
         self.graybar = ""
+        self.presenceCount = 0
+        self.presenceLoop.start()
+
+    @tasks.loop(seconds=20)
+    async def presenceLoop(self):
+        if self.presenceCount == 0:
+            await self.bot.change_presence(
+                activity=discord.Activity(
+                    name=f"{len(self.bot.voice_clients)} / {len(self.bot.guilds)} サーバー",
+                    type=discord.ActivityType.competing,
+                )
+            )
+            self.presenceCount = 1
+        elif self.presenceCount == 1:
+            await self.bot.change_presence(activity=discord.Game("/help"))
+            self.presenceCount = 2
+        elif self.presenceCount == 2:
+            await self.bot.change_presence(
+                activity=discord.Game("Powered by nennneko5787")
+            )
+            self.presenceCount = 0
 
     async def cog_load(self):
         nodes = [
