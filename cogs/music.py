@@ -178,6 +178,12 @@ class MusicCog(commands.Cog):
         except KeyError:
             pass
 
+    def releaseSource(self, source: discord.AudioSource) -> bool:
+        if source:
+            source.cleanup()
+            return True
+        return False
+
     def seekMusic(
         self, source: YTDLSource | NicoNicoSource | DiscordFileSource, seconds: float
     ) -> YTDLSource | NicoNicoSource | DiscordFileSource:
@@ -352,6 +358,7 @@ class MusicCog(commands.Cog):
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
+                self.releaseSource(interaction.guild.voice_client.source)
                 interaction.guild.voice_client.source = self.seekMusic(
                     source, source.progress - 10
                 )
@@ -366,6 +373,7 @@ class MusicCog(commands.Cog):
                 source: YTDLSource | NicoNicoSource = (
                     interaction.guild.voice_client.source
                 )
+                self.releaseSource(interaction.guild.voice_client.source)
                 interaction.guild.voice_client.source = self.seekMusic(
                     source, source.progress + 10
                 )
@@ -626,7 +634,7 @@ class MusicCog(commands.Cog):
                             await asyncio.sleep(1)
                         if _break:
                             break
-                    source.cleanup()
+                    self.releaseSource(source)
                     if not self.guildStates[guild.id].loop:
                         break
                     elif not voiceClient.is_connected():
