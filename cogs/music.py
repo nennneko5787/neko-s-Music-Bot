@@ -1,11 +1,10 @@
 import asyncio
+import concurrent
 import concurrent.futures
 import math
 import os
-import random
 import traceback
 from datetime import timedelta
-import concurrent
 
 import discord
 import dotenv
@@ -165,8 +164,10 @@ class MusicCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild):
-        await asyncio.sleep(2)
-        del self.guildStates[guild.id]
+        if guild.id in self.guildStates:
+            if guild.voice_client:
+                self.releaseSource(guild.voice_client.source)
+            del self.guildStates[guild.id]
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
@@ -251,7 +252,7 @@ class MusicCog(commands.Cog):
                 discord.ui.Button(
                     style=discord.ButtonStyle.blurple,
                     emoji="⏪",
-                    custom_id=f"queuePagenation,{page-1}",
+                    custom_id=f"queuePagenation,{page - 1}",
                     row=0,
                     disabled=(page <= 1),
                 )
@@ -269,13 +270,13 @@ class MusicCog(commands.Cog):
                 discord.ui.Button(
                     style=discord.ButtonStyle.blurple,
                     emoji="⏩",
-                    custom_id=f"queuePagenation,{page+1}",
+                    custom_id=f"queuePagenation,{page + 1}",
                     row=0,
                     disabled=((queue.asize() // pageSize) + 1 == page),
                 )
             )
         )
-        embed = discord.Embed(title=f"キュー", description=songs)
+        embed = discord.Embed(title="キュー", description=songs)
         if edit:
             await interaction.edit_original_response(embed=embed, view=view)
         else:
@@ -283,7 +284,7 @@ class MusicCog(commands.Cog):
 
     async def onButtonClick(self, interaction: discord.Interaction):
         customField = interaction.data["custom_id"].split(",")
-        match (customField[0]):
+        match customField[0]:
             case "prev":
                 if not interaction.guild.voice_client:
                     await interaction.response.send_message(
@@ -569,98 +570,117 @@ class MusicCog(commands.Cog):
 
     async def playNext(self, guild: discord.Guild, channel: discord.abc.Messageable):
         queue: Queue = self.guildStates[guild.id].queue
-        while True:
-            if guild.voice_client:
-                if queue.empty():
-                    break
-
-                if self.guildStates[guild.id].shuffle and not queue.shuffled:
-                    queue.shuffle()
-                elif queue.shuffled:
-                    queue.unshuffle()
-
-                try:
-                    source: YTDLSource | NicoNicoSource | DiscordFileSource = (
-                        await self.getSourceFromQueue(queue)
-                    )
-                except:
-                    traceback.print_exc()
-                    continue
-
-                voiceClient: discord.VoiceClient = guild.voice_client
-
-                if (voiceClient.channel.type == discord.ChannelType.voice) and (
-                    voiceClient.channel.permissions_for(guild.me).value & (1 << 48) != 0
-                ):
-                    await voiceClient.channel.edit(status=source.info.title)
-
-                message: discord.Message = await channel.send(
-                    embed=self.embedPanel(voiceClient, source=source),
-                    view=createView(
-                        isPaused=False,
-                        isLooping=self.guildStates[guild.id].loop,
-                        isShuffle=self.guildStates[guild.id].shuffle,
-                    ),
-                )
-
-                if isinstance(source, NicoNicoSource):
-                    await source.sendHeartBeat()
-
-                voiceClient.play(source, after=lambda _: self.setToNotPlaying(guild.id))
-                self.guildStates[guild.id].playing = True
-
-                _break = False
-                while True:
-                    while self.guildStates[guild.id].playing:
-                        if isinstance(source, NicoNicoSource):
-                            await source.sendHeartBeat()
-                        if voiceClient.source is not None:
-                            source = voiceClient.source
-                        if not voiceClient.is_paused():
-                            await message.edit(
-                                embed=self.embedPanel(voiceClient, source=source),
-                                view=createView(
-                                    isPaused=voiceClient.is_paused(),
-                                    isLooping=self.guildStates[guild.id].loop,
-                                    isShuffle=self.guildStates[guild.id].shuffle,
-                                ),
-                            )
-                        for _ in range(5):
-                            if (not self.guildStates[guild.id].playing) or (
-                                not voiceClient.is_connected()
-                            ):
-                                _break = True
-                                break
-                            await asyncio.sleep(1)
-                        if _break:
-                            break
-                    self.releaseSource(source)
-                    if not self.guildStates[guild.id].loop:
+        voiceClient = None
+        source = None
+        try:
+            while True:
+                if guild.voice_client:
+                    if queue.empty():
                         break
-                    elif not voiceClient.is_connected():
-                        break
-                    else:
-                        _break = False
-                        voiceClient.play(
-                            await self.newSource(source),
-                            after=lambda _: self.setToNotPlaying(guild.id),
-                        )
-                        self.guildStates[guild.id].playing = True
+
+                    if self.guildStates[guild.id].shuffle:
+                        if not queue.shuffled:
+                            queue.shuffle()
+                        else:
+                            queue.unshuffle()
+
+                    try:
+                        source: (
+                            YTDLSource | NicoNicoSource | DiscordFileSource
+                        ) = await self.getSourceFromQueue(queue)
+                    except Exception:
+                        traceback.print_exc()
                         continue
-                await message.edit(
-                    embed=self.embedPanel(voiceClient, source=source, finished=True),
-                    view=None,
-                )
+
+                    voiceClient: discord.VoiceClient = guild.voice_client
+
+                    if (voiceClient.channel.type == discord.ChannelType.voice) and (
+                        voiceClient.channel.permissions_for(guild.me).value & (1 << 48)
+                        != 0
+                    ):
+                        await voiceClient.channel.edit(status=source.info.title)
+
+                    message: discord.Message = await channel.send(
+                        embed=self.embedPanel(voiceClient, source=source),
+                        view=createView(
+                            isPaused=False,
+                            isLooping=self.guildStates[guild.id].loop,
+                            isShuffle=self.guildStates[guild.id].shuffle,
+                        ),
+                    )
+
+                    if isinstance(source, NicoNicoSource):
+                        await source.sendHeartBeat()
+
+                    voiceClient.play(
+                        source, after=lambda _: self.setToNotPlaying(guild.id)
+                    )
+                    self.guildStates[guild.id].playing = True
+
+                    _break = False
+                    while True:
+                        while self.guildStates[guild.id].playing:
+                            if isinstance(source, NicoNicoSource):
+                                await source.sendHeartBeat()
+                            if voiceClient.source is not None:
+                                source = voiceClient.source
+                            if not voiceClient.is_paused():
+                                await message.edit(
+                                    embed=self.embedPanel(voiceClient, source=source),
+                                    view=createView(
+                                        isPaused=voiceClient.is_paused(),
+                                        isLooping=self.guildStates[guild.id].loop,
+                                        isShuffle=self.guildStates[guild.id].shuffle,
+                                    ),
+                                )
+                            for _ in range(5):
+                                if (not self.guildStates[guild.id].playing) or (
+                                    not voiceClient.is_connected()
+                                ):
+                                    _break = True
+                                    break
+                                await asyncio.sleep(1)
+                            if _break:
+                                break
+                        self.releaseSource(source)
+                        if not self.guildStates[guild.id].loop:
+                            break
+                        elif not voiceClient.is_connected():
+                            break
+                        else:
+                            _break = False
+                            voiceClient.play(
+                                await self.newSource(source),
+                                after=lambda _: self.setToNotPlaying(guild.id),
+                            )
+                            self.guildStates[guild.id].playing = True
+                            continue
+                    await message.edit(
+                        embed=self.embedPanel(
+                            voiceClient, source=source, finished=True
+                        ),
+                        view=None,
+                    )
+                    voiceClient.stop()
+                else:
+                    break
+        except Exception as e:
+            if voiceClient:
                 voiceClient.stop()
-            else:
-                break
+            if source:
+                self.releaseSource(source)
+            await channel.send(
+                f"`{e}` エラがー発生したため、再生を継続できませんでした。。"
+            )
         await channel.send("再生終了")
         self.guildStates[guild.id].queue.clear()
         self.guildStates[guild.id].playing = False
         if guild.voice_client:
             await guild.voice_client.disconnect()
 
-    def getDownloadUrls(self, songs: tuple[Song]) -> tuple[
+    def getDownloadUrls(
+        self, songs: tuple[Song]
+    ) -> tuple[
         list[tuple[str, str]],
         list[str],
     ]:
@@ -696,7 +716,7 @@ class MusicCog(commands.Cog):
                             song.song_id,
                         )
                     )
-                except Exception as exc:
+                except Exception:
                     failedSongs.append(song.song_id)
 
         return urls, failedSongs
@@ -831,13 +851,13 @@ class MusicCog(commands.Cog):
 
         embed = discord.Embed(
             title="アラームをセットしました！",
-            description=f"{discord.utils.format_dt(discord.utils.utcnow()+timedelta(seconds=delay), 'R')} に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
+            description=f"{discord.utils.format_dt(discord.utils.utcnow() + timedelta(seconds=delay), 'R')} に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
             colour=discord.Colour.green(),
         )
         await interaction.followup.send(embed=embed)
 
         for _ in range(delay):
-            if self.guildStates[guild.id].alarm != True:
+            if not self.guildStates[guild.id].alarm:
                 return
             await asyncio.sleep(1)
         self.guildStates[guild.id].alarm = False
@@ -920,13 +940,13 @@ class MusicCog(commands.Cog):
 
         embed = discord.Embed(
             title="アラームをセットしました！",
-            description=f"{discord.utils.format_dt(discord.utils.utcnow()+timedelta(seconds=delay), 'R')} に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
+            description=f"{discord.utils.format_dt(discord.utils.utcnow() + timedelta(seconds=delay), 'R')} に音楽を再生します。\n-# VCに参加している端末の電池残量・電力消費に注意してください。\n-# また、アラームを設定している最中にボットが再起動されると、アラームはリセットされます。ご注意ください。",
             colour=discord.Colour.green(),
         )
         await interaction.followup.send(embed=embed)
 
         for _ in range(delay):
-            if self.guildStates[guild.id].alarm != True:
+            if not self.guildStates[guild.id].alarm:
                 return
             await asyncio.sleep(1)
         self.guildStates[guild.id].alarm = False
@@ -1090,7 +1110,7 @@ class MusicCog(commands.Cog):
         guild.voice_client.pause()
         await interaction.followup.send("一時停止しました。")
 
-    @app_commands.command(name="resume", description="曲を一時停止します。")
+    @app_commands.command(name="resume", description="一時停止した曲を再開します。")
     @app_commands.guild_only()
     async def resumeMusic(self, interaction: discord.Interaction):
         guild = interaction.guild
@@ -1106,7 +1126,7 @@ class MusicCog(commands.Cog):
             return
         await interaction.response.defer()
         await guild.voice_client.resume()
-        await interaction.followup.send("一時停止しました。")
+        await interaction.followup.send("再開しました。")
 
 
 async def setup(bot: commands.Bot):
