@@ -974,7 +974,7 @@ class MusicCog(commands.Cog):
             select.add_option(
                 label=video["title"],
                 description=video["uploader"],
-                value=f"{video['url']}|{volume}|{video['title']}",
+                value=f"{video['url']}|{volume}|{video['title']}"[:100],
             )
 
         async def selectCallBack(interaction: discord.Interaction):
@@ -1021,7 +1021,7 @@ class MusicCog(commands.Cog):
             select.add_option(
                 label=video["title"],
                 description=video["uploader"],
-                value=f"{video['url']}|{volume}|{video['title']}",
+                value=f"{video['url']}|{volume}|{video['title']}"[:100],
             )
 
         async def selectCallBack(interaction: discord.Interaction):
