@@ -23,7 +23,7 @@ class MusicCog(commands.Cog):
         self.circle = ""
         self.graybar = ""
         self.presenceCount = 0
-        self.presenceLoop.start()
+        self.initialized = False
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
@@ -63,6 +63,9 @@ class MusicCog(commands.Cog):
         self.graybar = str(
             discord.utils.get(await self.bot.fetch_application_emojis(), name="graybar")
         )
+        if not self.initialized:
+            self.presenceLoop.start()
+            self.initialized = True
 
     @commands.Cog.listener()
     async def on_wavelink_node_ready(
