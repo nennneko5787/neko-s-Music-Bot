@@ -988,7 +988,13 @@ class MusicCog(commands.Cog):
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)
             self.guildStates[guild.id].queue.put(
-                Item(url=url, volume=float(volume), user=interaction.user, title=title)
+                Item(
+                    url=url,
+                    volume=float(volume),
+                    user=interaction.user,
+                    title=title,
+                    locale=interaction.locale,
+                )
             )
             if (not self.guildStates[guild.id].playing) and (
                 not self.guildStates[guild.id].alarm
@@ -1035,7 +1041,13 @@ class MusicCog(commands.Cog):
             if not guild.voice_client:
                 await user.voice.channel.connect(self_deaf=True)
             self.guildStates[guild.id].queue.put(
-                Item(url=url, volume=float(volume), user=interaction.user, title=title)
+                Item(
+                    url=url,
+                    volume=float(volume),
+                    user=interaction.user,
+                    title=title,
+                    locale=interaction.locale,
+                )
             )
             if (not self.guildStates[guild.id].playing) and (
                 not self.guildStates[guild.id].alarm
