@@ -665,12 +665,13 @@ class MusicCog(commands.Cog):
                 else:
                     break
         except Exception as e:
+            traceback.print_exc(e)
             if voiceClient:
                 voiceClient.stop()
             if source:
                 self.releaseSource(source)
             await channel.send(
-                f"`{e}` エラがー発生したため、再生を継続できませんでした。。"
+                f"`{e}` エラがー発生したため、再生を継続できませんでした。"
             )
         await channel.send("再生終了")
         self.guildStates[guild.id].queue.clear()
