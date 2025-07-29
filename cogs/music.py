@@ -187,6 +187,7 @@ class MusicCog(commands.Cog):
         *,
         finished: bool = False,
     ):
+        print(player.track.uri)
         embed = discord.Embed(
             title=player.track.title,
             url=player.track.uri,
@@ -264,12 +265,12 @@ class MusicCog(commands.Cog):
             )
             return
         await interaction.response.defer(ephemeral=True)
-        match (customField[0]):
+        match customField[0]:
             case "prev":
                 player.queue.put_at(0, player.track)
                 await player.play(player._previous)
             case "next":
-                player.skip()
+                await player.skip()
             case "stop":
                 await player.disconnect()
             case "resume":
@@ -341,7 +342,7 @@ class MusicCog(commands.Cog):
                 discord.ui.Button(
                     style=discord.ButtonStyle.blurple,
                     emoji="⏪",
-                    custom_id=f"queuePagenation,{page-1}",
+                    custom_id=f"queuePagenation,{page - 1}",
                     row=0,
                     disabled=(page <= 1),
                 )
@@ -359,13 +360,13 @@ class MusicCog(commands.Cog):
                 discord.ui.Button(
                     style=discord.ButtonStyle.blurple,
                     emoji="⏩",
-                    custom_id=f"queuePagenation,{page+1}",
+                    custom_id=f"queuePagenation,{page + 1}",
                     row=0,
                     disabled=((len(player.queue) // pageSize) + 1 == page),
                 )
             )
         )
-        embed = discord.Embed(title=f"キュー", description=songs)
+        embed = discord.Embed(title="キュー", description=songs)
         if edit:
             await interaction.edit_original_response(embed=embed, view=view)
         else:
@@ -401,6 +402,7 @@ class MusicCog(commands.Cog):
                     or not player.playing
                 ):
                     if player.loop:
+                        await player.queue.put_at(0, track)
                         await player.seek(0)
                         await asyncio.sleep(3)
                     else:
@@ -436,7 +438,9 @@ class MusicCog(commands.Cog):
 
         if not player:
             try:
-                player = await interaction.user.voice.channel.connect(cls=wavelink.Player)  # type: ignore
+                player = await interaction.user.voice.channel.connect(
+                    cls=wavelink.Player
+                )  # type: ignore
                 player.loop = False
             except AttributeError:
                 await interaction.followup.send(
