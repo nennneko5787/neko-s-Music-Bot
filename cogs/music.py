@@ -187,7 +187,6 @@ class MusicCog(commands.Cog):
         *,
         finished: bool = False,
     ):
-        print(player.track.uri)
         embed = discord.Embed(
             title=player.track.title,
             url=player.track.uri,
