@@ -452,8 +452,8 @@ class MusicCog(commands.Cog):
 
         return True
 
-    @commands.Cog.listener()
-    async def on_wavelink_track_start(self, event: TrackStartEvent):
+    @lavalink.listener(TrackStartEvent)
+    async def onTrackStart(self, event: TrackStartEvent):
         player: lavalink.DefaultPlayer = event.player
         if not player:
             return
@@ -498,7 +498,7 @@ class MusicCog(commands.Cog):
             await asyncio.sleep(0.01)
 
     @lavalink.listener(QueueEndEvent)
-    async def on_queue_end(self, event: QueueEndEvent):
+    async def onQueueEnd(self, event: QueueEndEvent):
         guildId = event.player.guild_id
         guild = self.bot.get_guild(guildId)
 
