@@ -147,11 +147,11 @@ class MusicCog(commands.Cog):
         view.add_item(
             discord.ui.Button(
                 style=(
-                    discord.ButtonStyle.blurple
+                    discord.ButtonStyle.gray
                     if player.loop == player.LOOP_NONE
                     else discord.ButtonStyle.green
                     if player.loop == player.LOOP_SINGLE
-                    else discord.ButtonStyle.danger
+                    else discord.ButtonStyle.blurple
                 ),
                 emoji="🔄",
                 custom_id="loop",
