@@ -23,6 +23,7 @@ class LavalinkVoiceClient(discord.VoiceProtocol):
         "_destroyed",
         "player",
         "lavalink",
+        "track",
     )
 
     def __init__(
@@ -35,6 +36,7 @@ class LavalinkVoiceClient(discord.VoiceProtocol):
         self.guildId = channel.guild.id
         self._destroyed = False
         self.player: lavalink.DefaultPlayer = None
+        self.track: lavalink.AudioTrack = None
 
         if not hasattr(self.client, "lavalink"):
             # Instantiate a client if one doesn't exist.

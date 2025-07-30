@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import os
-import random
 import re
 import time
 from typing import List, Literal
@@ -191,7 +190,9 @@ class MusicCog(commands.Cog):
         )
         view.add_item(
             discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
+                style=discord.ButtonStyle.blurple
+                if player.shuffle
+                else discord.ButtonStyle.gray,
                 emoji="🔀",
                 custom_id="shuffle",
                 row=1,
@@ -260,7 +261,7 @@ class MusicCog(commands.Cog):
                 inline=False,
             ).add_field(
                 name="ボリューム",
-                value=f"{volumeProgressBar}\n`{player.volume} / 100`",
+                value=f"{volumeProgressBar}\n`{player.volume}% / 100%`",
                 inline=False,
             )
         else:
@@ -294,7 +295,7 @@ class MusicCog(commands.Cog):
         match customField[0]:
             case "prev":
                 player.queue.insert(0, player.current)
-                await player.play(player.current)
+                await player.play()
             case "next":
                 await player.skip()
             case "stop":
@@ -325,9 +326,16 @@ class MusicCog(commands.Cog):
                     loop = 0
                 player.loop = loop
             case "shuffle":
-                random.shuffle(player.queue)
+                player.set_shuffle(not player.shuffle)
             case "queuePagenation":
                 await self.queuePagenation(interaction, int(customField[1]), edit=True)
+
+        track: Lavalink.AudioTrack = interaction.guild.voice_client.track
+        requestAuthor = await interaction.guild.fetch_member(track.extra["requester"])
+        await interaction.edit_original_response(
+            embed=self.embedPanel(player, track, requestAuthor, finished=False),
+            view=self.createView(player),
+        )
 
     def pagenation(
         self, queue: List[Lavalink.AudioTrack], page: int, *, pageSize: int = 10
@@ -461,6 +469,9 @@ class MusicCog(commands.Cog):
         track: Lavalink.AudioTrack = event.track
         channel = self.bot.get_channel(track.extra["channelId"])
 
+        voiceClient: LavalinkVoiceClient = guild.voice_client
+        voiceClient.track = track
+
         if not guild:
             return await self.lavalink.player_manager.destroy(player.guild_id)
 
@@ -503,6 +514,7 @@ class MusicCog(commands.Cog):
         guild = self.bot.get_guild(guildId)
 
         if guild is not None:
+            guild.voice_client.track = None
             await guild.voice_client.disconnect(force=True)
 
     @app_commands.command(name="play", description="曲を再生します。")
