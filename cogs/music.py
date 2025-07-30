@@ -256,7 +256,7 @@ class MusicCog(commands.Cog):
                 inline=False,
             ).add_field(
                 name="リクエストしたユーザー",
-                value=requestAuthor,
+                value=requestAuthor.mention,
                 inline=False,
             ).add_field(
                 name="ボリューム",
