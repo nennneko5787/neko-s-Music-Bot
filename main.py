@@ -63,7 +63,7 @@ async def onTreeError(
         )
     elif isinstance(error, app_commands.MissingPermissions):
         return await send(
-            f"あなたにはこのコマンドを実行する権限がありません。", ephemeral=True
+            "あなたにはこのコマンドを実行する権限がありません。", ephemeral=True
         )
     else:
         await send(
