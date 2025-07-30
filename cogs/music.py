@@ -328,10 +328,6 @@ class MusicCog(commands.Cog):
                 random.shuffle(player.queue)
             case "queuePagenation":
                 await self.queuePagenation(interaction, int(customField[1]), edit=True)
-        await interaction.edit_original_response(
-            embed=self.embedPanel(player, finished=False),
-            view=self.createView(player),
-        )
 
     def pagenation(
         self, queue: List[Lavalink.AudioTrack], page: int, *, pageSize: int = 10
@@ -486,7 +482,9 @@ class MusicCog(commands.Cog):
                     await asyncio.sleep(3)
                 else:
                     await message.edit(
-                        embed=self.embedPanel(player, finished=True),
+                        embed=self.embedPanel(
+                            player, track, requestAuthor, finished=True
+                        ),
                         view=None,
                     )
                     break

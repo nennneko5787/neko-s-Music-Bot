@@ -59,7 +59,7 @@ class LavalinkVoiceClient(discord.VoiceProtocol):
         await self.lavalink.voice_update_handler(lavalinkData)
 
     async def on_voice_state_update(self, data):
-        channelId = data["channelId"]
+        channelId = data["channel_id"]
 
         if not channelId:
             await self._destroy()
