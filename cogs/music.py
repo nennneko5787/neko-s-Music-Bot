@@ -604,7 +604,7 @@ class MusicCog(commands.Cog):
     @app_commands.command(
         name="queue", description="キューに入っている曲の一覧を取得します。"
     )
-    @app_commands.guild_only()
+    @app_commands.guild_install()
     async def queueCommand(self, interaction: discord.Interaction):
         guild = interaction.guild
         if not guild.voice_client:

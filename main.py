@@ -8,6 +8,8 @@ import dotenv
 from discord import app_commands
 from discord.ext import commands
 
+from objects.exceptions import NoPrivateMessage
+
 dotenv.load_dotenv()
 
 if sys.platform == "win32":
@@ -64,6 +66,10 @@ async def onTreeError(
     elif isinstance(error, app_commands.MissingPermissions):
         return await send(
             "あなたにはこのコマンドを実行する権限がありません。", ephemeral=True
+        )
+    elif isinstance(error, NoPrivateMessage):
+        return await send(
+            "このコマンドはこのチャンネルでは実行できません。", ephemeral=True
         )
     else:
         await send(
