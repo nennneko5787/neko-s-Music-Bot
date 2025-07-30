@@ -8,7 +8,7 @@ from typing import List, Literal
 
 import discord
 import dotenv
-import lavalink
+import lavalink as Lavalink
 from discord import app_commands
 from discord.ext import commands, tasks
 from lavalink.events import QueueEndEvent, TrackStartEvent
@@ -79,7 +79,7 @@ class MusicCog(commands.Cog):
             self.presenceLoop.start()
 
             if not hasattr(self.bot, "lavalink"):
-                self.bot.lavalink = lavalink.Client(self.bot.user.id)
+                self.bot.lavalink = Lavalink.Client(self.bot.user.id)
                 self.bot.lavalink.add_node(
                     host=os.getenv("lavalink_host"),
                     port=int(os.getenv("lavalink_port")),
@@ -88,7 +88,7 @@ class MusicCog(commands.Cog):
                     name="jp-1",
                 )
 
-            self.lavalink: lavalink.Client = self.bot.lavalink
+            self.lavalink: Lavalink.Client = self.bot.lavalink
             self.lavalink.add_event_hooks(self)
 
             self.initialized = True
@@ -110,7 +110,7 @@ class MusicCog(commands.Cog):
         else:
             return time.strftime("%d:%H:%M:%S", time.gmtime(seconds))
 
-    def createView(self, player: lavalink.DefaultPlayer):
+    def createView(self, player: Lavalink.DefaultPlayer):
         view = discord.ui.View(timeout=None)
         view.add_item(
             discord.ui.Button(
@@ -212,8 +212,8 @@ class MusicCog(commands.Cog):
 
     def embedPanel(
         self,
-        player: lavalink.DefaultPlayer,
-        track: lavalink.AudioTrack,
+        player: Lavalink.DefaultPlayer,
+        track: Lavalink.AudioTrack,
         requestAuthor: discord.Member,
         *,
         finished: bool = False,
@@ -334,7 +334,7 @@ class MusicCog(commands.Cog):
         )
 
     def pagenation(
-        self, queue: List[lavalink.AudioTrack], page: int, *, pageSize: int = 10
+        self, queue: List[Lavalink.AudioTrack], page: int, *, pageSize: int = 10
     ):
         startIndex = (page - 1) * pageSize
         endIndex = startIndex + pageSize
@@ -358,7 +358,7 @@ class MusicCog(commands.Cog):
         queue.insert(0, player.current)
 
         pageSize = 10
-        songList: tuple[lavalink.AudioTrack] = self.pagenation(
+        songList: tuple[Lavalink.AudioTrack] = self.pagenation(
             queue, page, pageSize=pageSize
         )
         songs = ""
@@ -406,7 +406,7 @@ class MusicCog(commands.Cog):
         if interaction.guild is None:
             raise NoPrivateMessage()
 
-        player: lavalink.DefaultPlayer = (
+        player: Lavalink.DefaultPlayer = (
             interaction.client.lavalink.player_manager.create(interaction.guild.id)
         )
         shouldConnect = interaction.command.name in ("play",)
@@ -454,15 +454,15 @@ class MusicCog(commands.Cog):
 
         return True
 
-    @lavalink.listener(TrackStartEvent)
+    @Lavalink.listener(TrackStartEvent)
     async def onTrackStart(self, event: TrackStartEvent):
-        player: lavalink.DefaultPlayer = event.player
+        player: Lavalink.DefaultPlayer = event.player
         if not player:
             return
 
         guild = self.bot.get_guild(player.guild_id)
         # voiceChannel = self.bot.get_channel(player.fetch("channel"))
-        track: lavalink.AudioTrack = event.track
+        track: Lavalink.AudioTrack = event.track
         channel = self.bot.get_channel(track.extra["channelId"])
 
         if not guild:
@@ -499,7 +499,7 @@ class MusicCog(commands.Cog):
             count += 0.01
             await asyncio.sleep(0.01)
 
-    @lavalink.listener(QueueEndEvent)
+    @Lavalink.listener(QueueEndEvent)
     async def onQueueEnd(self, event: QueueEndEvent):
         guildId = event.player.guild_id
         guild = self.bot.get_guild(guildId)
@@ -515,7 +515,7 @@ class MusicCog(commands.Cog):
     @app_commands.check(createPlayer)
     async def playCommand(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
-        player: lavalink.DefaultPlayer = self.lavalink.player_manager.get(
+        player: Lavalink.DefaultPlayer = self.lavalink.player_manager.get(
             interaction.guild.id
         )
         query = query.strip("<>")
