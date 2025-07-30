@@ -31,6 +31,7 @@ class MusicCog(commands.Cog):
         "presenceCount",
         "initialized",
         "urlRegexp",
+        "lavalink",
     )
 
     def __init__(self, bot: commands.Bot):
@@ -42,6 +43,7 @@ class MusicCog(commands.Cog):
         self.presenceCount = 0
         self.initialized = False
         self.urlRegexp: re.Pattern = re.compile(r"https?://(?:www\.)?.+")
+        self.lavalink = None
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
