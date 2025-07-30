@@ -252,7 +252,7 @@ class MusicCog(commands.Cog):
                 embed.set_author(name="再生中")
             embed.add_field(
                 name="再生時間",
-                value=f"{progressBar}\n`{self.formatTime(player.position / 1000)} / {self.formatTime(player.track.length / 1000)}`",
+                value=f"{progressBar}\n`{self.formatTime(player.position / 1000)} / {self.formatTime(track.duration / 1000)}`",
                 inline=False,
             ).add_field(
                 name="リクエストしたユーザー",
