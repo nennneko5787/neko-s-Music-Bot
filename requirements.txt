@@ -3,4 +3,4 @@ pynacl
 python-dotenv
 tzdata
 psutil
-wavelink
+lavalink

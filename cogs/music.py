@@ -1,20 +1,37 @@
 import asyncio
 import logging
 import os
+import random
+import re
 import time
-from typing import List
+from typing import List, Literal
 
 import discord
 import dotenv
-import wavelink
+import lavalink
 from discord import app_commands
 from discord.ext import commands, tasks
+from lavalink.events import QueueEndEvent, TrackStartEvent
+from lavalink.filters import Timescale
+from lavalink.server import LoadType
+
+from objects.client import LavalinkVoiceClient
+from objects.exceptions import CommandInvokeError, NoPrivateMessage
 
 dotenv.load_dotenv()
 
 
 class MusicCog(commands.Cog):
-    __slots__ = ("bot",)
+    __slots__ = (
+        "bot",
+        "log",
+        "bar",
+        "circle",
+        "graybar",
+        "presenceCount",
+        "initialized",
+        "urlRegexp",
+    )
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -24,6 +41,7 @@ class MusicCog(commands.Cog):
         self.graybar = ""
         self.presenceCount = 0
         self.initialized = False
+        self.urlRegexp: re.Pattern = re.compile(r"https?://(?:www\.)?.+")
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
@@ -44,14 +62,6 @@ class MusicCog(commands.Cog):
             )
             self.presenceCount = 0
 
-    async def cog_load(self):
-        nodes = [
-            wavelink.Node(
-                uri=os.getenv("lavalink_uri"), password=os.getenv("lavalink_password")
-            )
-        ]
-        await wavelink.Pool.connect(nodes=nodes, client=self.bot, cache_capacity=100)
-
     @commands.Cog.listener()
     async def on_ready(self):
         self.bar = str(
@@ -65,15 +75,30 @@ class MusicCog(commands.Cog):
         )
         if not self.initialized:
             self.presenceLoop.start()
+
+            if not hasattr(self.bot, "lavalink"):
+                self.bot.lavalink = lavalink.Client(self.bot.user.id)
+                self.bot.lavalink.add_node(
+                    host=os.getenv("lavalink_host"),
+                    port=int(os.getenv("lavalink_port")),
+                    password=os.getenv("lavalink_password"),
+                    region="jp-1",
+                    name="jp-1",
+                )
+
+            self.lavalink: lavalink.Client = self.bot.lavalink
+            self.lavalink.add_event_hooks(self)
+
             self.initialized = True
 
-    @commands.Cog.listener()
-    async def on_wavelink_node_ready(
-        self, payload: wavelink.NodeReadyEventPayload
-    ) -> None:
-        self.log.info(
-            "Wavelink Node connected: %r | Resumed: %s", payload.node, payload.resumed
-        )
+    async def cog_unload(self):
+        """
+        This will remove any registered event hooks when the cog is unloaded.
+        They will subsequently be registered again once the cog is loaded.
+
+        This effectively allows for event handlers to be updated when the cog is reloaded.
+        """
+        self.lavalink._event_hooks.clear()
 
     def formatTime(self, seconds: int):
         if seconds < 3600:
@@ -83,7 +108,7 @@ class MusicCog(commands.Cog):
         else:
             return time.strftime("%d:%H:%M:%S", time.gmtime(seconds))
 
-    def createView(self, player: wavelink.Player):
+    def createView(self, player: lavalink.DefaultPlayer):
         view = discord.ui.View(timeout=None)
         view.add_item(
             discord.ui.Button(
@@ -121,7 +146,9 @@ class MusicCog(commands.Cog):
             discord.ui.Button(
                 style=(
                     discord.ButtonStyle.blurple
-                    if not player.loop
+                    if player.loop == player.LOOP_NONE
+                    else discord.ButtonStyle.green
+                    if player.loop == player.LOOP_SINGLE
                     else discord.ButtonStyle.danger
                 ),
                 emoji="🔄",
@@ -183,20 +210,22 @@ class MusicCog(commands.Cog):
 
     def embedPanel(
         self,
-        player: wavelink.Player,
+        player: lavalink.DefaultPlayer,
+        track: lavalink.AudioTrack,
+        requestAuthor: discord.Member,
         *,
         finished: bool = False,
     ):
         embed = discord.Embed(
-            title=player.track.title,
-            url=player.track.uri,
-        ).set_image(url=player.track.artwork)
+            title=track.title,
+            url=track.uri,
+        ).set_image(url=track.artwork_url)
 
         if finished:
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生終了")
-        elif player.playing or player.paused:
-            percentage = player.position / player.track.length
+        elif player.is_playing or player.paused:
+            percentage = player.position / track.duration
             barLength = 14
             filledLength = int(barLength * percentage)
             progressBar = (
@@ -225,7 +254,7 @@ class MusicCog(commands.Cog):
                 inline=False,
             ).add_field(
                 name="リクエストしたユーザー",
-                value=player.track.user.mention,
+                value=requestAuthor,
                 inline=False,
             ).add_field(
                 name="ボリューム",
@@ -236,13 +265,8 @@ class MusicCog(commands.Cog):
             embed.colour = discord.Colour.greyple()
             embed.set_author(name="再生準備中")
 
-        if player.original and player.original.recommended:
-            embed.set_footer(
-                text=f"このトラックは {player.track.source} 経由でおすすめされました。"
-            )
-
-        if player.track.album.name:
-            embed.add_field(name="アルバム", value=player.track.album.name)
+        # if track.album.name:
+        #    embed.add_field(name="アルバム", value=track.album.name)
         return embed
 
     @commands.Cog.listener()
@@ -257,25 +281,26 @@ class MusicCog(commands.Cog):
 
     async def onButtonClick(self, interaction: discord.Interaction):
         customField = interaction.data["custom_id"].split(",")
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player:
+        voiceClient: LavalinkVoiceClient = interaction.guild.voice_client
+        if not voiceClient:
             await interaction.response.send_message(
                 "現在曲を再生していません。", ephemeral=True
             )
             return
+        player = voiceClient.player
         await interaction.response.defer(ephemeral=True)
         match customField[0]:
             case "prev":
-                player.queue.put_at(0, player.track)
-                await player.play(player._previous)
+                player.queue.insert(0, player.current)
+                await player.play(player.current)
             case "next":
                 await player.skip()
             case "stop":
-                await player.disconnect()
+                await voiceClient.disconnect()
             case "resume":
-                await player.pause(False)
+                await player.set_pause(False)
             case "pause":
-                await player.pause(True)
+                await player.set_pause(True)
             case "reverse":
                 await player.seek(
                     self.clamp(
@@ -293,9 +318,12 @@ class MusicCog(commands.Cog):
             case "volumeDown":
                 await player.set_volume(self.clamp(player.volume - 5, 0, 100))
             case "loop":
-                player.loop = not player.loop
+                loop = player.loop + 1
+                if loop > 2:
+                    loop = 0
+                player.loop = loop
             case "shuffle":
-                player.queue.shuffle()
+                random.shuffle(player.queue)
             case "queuePagenation":
                 await self.queuePagenation(interaction, int(customField[1]), edit=True)
         await interaction.edit_original_response(
@@ -304,7 +332,7 @@ class MusicCog(commands.Cog):
         )
 
     def pagenation(
-        self, queue: List[wavelink.Playable], page: int, *, pageSize: int = 10
+        self, queue: List[lavalink.AudioTrack], page: int, *, pageSize: int = 10
     ):
         startIndex = (page - 1) * pageSize
         endIndex = startIndex + pageSize
@@ -316,24 +344,25 @@ class MusicCog(commands.Cog):
         self, interaction: discord.Interaction, page: int = 1, *, edit: bool = False
     ):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player:
+        voiceClient: LavalinkVoiceClient = interaction.guild.voice_client
+        if not voiceClient:
             await interaction.followup.send(
                 "コマンドを実行する前に、曲を再生してください。"
             )
             return
+        player = voiceClient.player
 
-        queue = player.queue._items
-        queue.insert(0, player.track)
+        queue = player.queue.copy()
+        queue.insert(0, player.current)
 
         pageSize = 10
-        songList: tuple[wavelink.Playable] = self.pagenation(
+        songList: tuple[lavalink.AudioTrack] = self.pagenation(
             queue, page, pageSize=pageSize
         )
         songs = ""
 
         for _, song in enumerate(songList):
-            songs += f"[{song.title}]({song.uri}) by {(await interaction.guild.fetch_member(song.extras.userId)).mention} (現在再生中)\n"
+            songs += f"[{song.title}]({song.uri}) by {(await interaction.guild.fetch_member(song.extra['requester'])).mention} (現在再生中)\n"
 
         view = (
             discord.ui.View(timeout=None)
@@ -350,7 +379,7 @@ class MusicCog(commands.Cog):
                 discord.ui.Button(
                     style=discord.ButtonStyle.gray,
                     emoji="🔄",
-                    label=f"ページ {page} / {(len(player.queue) // pageSize) + 1}",
+                    label=f"ページ {page} / {(len(queue) // pageSize) + 1}",
                     custom_id=f"queuePagenation,{page}",
                     row=0,
                 )
@@ -361,7 +390,7 @@ class MusicCog(commands.Cog):
                     emoji="⏩",
                     custom_id=f"queuePagenation,{page + 1}",
                     row=0,
-                    disabled=((len(player.queue) // pageSize) + 1 == page),
+                    disabled=((len(queue) // pageSize) + 1 == page),
                 )
             )
         )
@@ -371,23 +400,76 @@ class MusicCog(commands.Cog):
         else:
             await interaction.followup.send(embed=embed, view=view)
 
+    async def createPlayer(interaction: discord.Interaction):
+        if interaction.guild is None:
+            raise NoPrivateMessage()
+
+        player: lavalink.DefaultPlayer = (
+            interaction.client.lavalink.player_manager.create(interaction.guild.id)
+        )
+        shouldConnect = interaction.command.name in ("play",)
+
+        voiceClient = interaction.guild.voice_client
+
+        if not interaction.user.voice or not interaction.user.voice.channel:
+            if voiceClient is not None:
+                raise CommandInvokeError(
+                    "このコマンドを実行するには、ボットが接続しているチャンネルに接続する必要があります。"
+                )
+
+            raise CommandInvokeError(
+                "このコマンドを実行するには、ボイスチャンネルに接続する必要があります。"
+            )
+
+        voiceChannel = interaction.user.voice.channel
+
+        if voiceClient is None:
+            if not shouldConnect:
+                raise CommandInvokeError("現在音楽を再生していません。")
+
+            permissions = voiceChannel.permissions_for(interaction.guild.me)
+
+            if not permissions.connect or not permissions.speak:
+                raise CommandInvokeError(
+                    "このボットに `接続` 及び `発言` の権限が必要です。"
+                )
+
+            if voiceChannel.user_limit > 0:
+                if (
+                    len(voiceChannel.members) >= voiceChannel.user_limit
+                    and not interaction.guild.me.guild_permissions.move_members
+                ):
+                    raise CommandInvokeError(
+                        "ボイスチャンネルが満員のため、ボイスチャンネルに接続できません。"
+                    )
+
+            player.store("channel", interaction.channel.id)
+            await interaction.user.voice.channel.connect(cls=LavalinkVoiceClient)
+        elif voiceClient.channel.id != voiceChannel.id:
+            raise CommandInvokeError(
+                "このコマンドを実行するには、ボットが接続しているチャンネルに接続する必要があります。"
+            )
+
+        return True
+
     @commands.Cog.listener()
-    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload):
-        player: wavelink.Player = payload.player
+    async def on_wavelink_track_start(self, event: TrackStartEvent):
+        player: lavalink.DefaultPlayer = event.player
         if not player:
-            # Handle edge cases...
             return
 
-        original: wavelink.Playable | None = payload.original
-        track: wavelink.Playable = payload.track
+        guild = self.bot.get_guild(player.guild_id)
+        # voiceChannel = self.bot.get_channel(player.fetch("channel"))
+        track: lavalink.AudioTrack = event.track
+        channel = self.bot.get_channel(track.extra["channelId"])
 
-        track.user = await player.home.guild.fetch_member(track.extras.userId)
+        if not guild:
+            return await self.lavalink.player_manager.destroy(player.guild_id)
 
-        player.original = original
-        player.track = track
+        requestAuthor = await guild.fetch_member(track.extra["requester"])
 
-        message = await player.home.send(
-            embed=self.embedPanel(player, finished=False),
+        message = await channel.send(
+            embed=self.embedPanel(player, track, requestAuthor, finished=False),
             view=self.createView(player),
         )
 
@@ -395,106 +477,79 @@ class MusicCog(commands.Cog):
 
         count = 0
         while True:
-            if hasattr(player, "track"):
-                if (
-                    player.position / 1000 >= player.track.length / 1000
-                    or not player.playing
-                ):
-                    if player.loop:
-                        await player.queue.put_at(0, track)
-                        await player.seek(0)
-                        await asyncio.sleep(3)
-                    else:
-                        await message.edit(
-                            embed=self.embedPanel(player, finished=True),
-                            view=None,
-                        )
-                        break
+            if player.position / 1000 >= track.duration / 1000 or not player.is_playing:
+                if player.loop:
+                    await player.queue.insert(0, track)
+                    await player.seek(0)
+                    await asyncio.sleep(3)
+                else:
+                    await message.edit(
+                        embed=self.embedPanel(player, finished=True),
+                        view=None,
+                    )
+                    break
             if count >= 5:
                 await message.edit(
-                    embed=self.embedPanel(player, finished=False),
+                    embed=self.embedPanel(player, track, requestAuthor, finished=False),
                     view=self.createView(player),
                 )
                 count = 0
             count += 0.01
             await asyncio.sleep(0.01)
 
-        if len(player.queue) > 0:
-            await player.play(player.queue.get(), volume=15)
-        else:
-            await player.home.send("再生終了")
-            await player.disconnect()
+    @lavalink.listener(QueueEndEvent)
+    async def on_queue_end(self, event: QueueEndEvent):
+        guildId = event.player.guild_id
+        guild = self.bot.get_guild(guildId)
+
+        if guild is not None:
+            await guild.voice_client.disconnect(force=True)
 
     @app_commands.command(name="play", description="曲を再生します。")
     @app_commands.rename(query="クエリ")
-    @app_commands.describe(query="URLまたは検索ワードを入力してください。")
+    @app_commands.describe(query="URLまたは検索ワード。")
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
+    @app_commands.check(createPlayer)
     async def playCommand(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
+        player: lavalink.DefaultPlayer = self.lavalink.player_manager.get(
+            interaction.guild.id
+        )
+        query = query.strip("<>")
+        if not self.urlRegexp.match(query):
+            query = f"ytsearch:{query}"
+        results = await player.node.get_tracks(query)
 
-        player: wavelink.Player = interaction.guild.voice_client
+        embed = discord.Embed(color=discord.Color.blurple())
 
-        if not player:
-            try:
-                player = await interaction.user.voice.channel.connect(
-                    cls=wavelink.Player
-                )  # type: ignore
-                player.loop = False
-            except AttributeError:
-                await interaction.followup.send(
-                    "コマンドを実行する前に、ボイスチャンネルに接続してください。"
-                )
-                return
-            except discord.ClientException:
-                await interaction.followup.send(
-                    "ボイスチャンネルに接続できませんでした。数秒待って、もう一度お試しください。"
-                )
-                return
-
-        # Turn on AutoPlay to enabled mode.
-        # enabled = AutoPlay will play songs for us and fetch recommendations...
-        # partial = AutoPlay will play songs for us, but WILL NOT fetch recommendations...
-        # disabled = AutoPlay will do nothing...
-        player.autoplay = wavelink.AutoPlayMode.disabled
-
-        # Lock the player to this channel...
-        if not hasattr(player, "home"):
-            player.home = interaction.channel
-        elif player.home != interaction.channel:
-            await interaction.send(
-                f"現在 {player.home.mention} にてボットが曲を再生しているため、このチャンネルで曲を再生することはできません。"
+        if results.load_type == LoadType.EMPTY:
+            return await interaction.followup.send(
+                "クエリに対応する検索結果が見つかりませんでした。"
             )
-            return
+        elif results.load_type == LoadType.PLAYLIST:
+            tracks = results.tracks
+            for track in tracks:
+                track.extra["requester"] = interaction.user.id
+                track.extra["channelId"] = interaction.channel.id
+                player.add(track=track)
 
-        # This will handle fetching Tracks and Playlists...
-        # Seed the doc strings for more information on this method...
-        # If spotify is enabled via LavaSrc, this will automatically fetch Spotify tracks if you pass a URL...
-        # Defaults to YouTube for non URL based queries...
-        _tracks: wavelink.Search = await wavelink.Playable.search(query)
-        if not _tracks:
-            await interaction.followup.send(
-                f"{interaction.user.mention} 曲がヒットしませんでした。もう一度お試しください。"
-            )
-            return
-        tracks = []
-        for track in _tracks:
-            track.extras = {"userId": interaction.user.id}
-            tracks.append(track)
-
-        if isinstance(tracks, wavelink.Playlist):
-            # tracks is a playlist...
-            added: int = await player.queue.put_wait(tracks)
-            await interaction.followup.send(
-                f"**`{tracks.name}`** ({added}曲) をキューに追加しました。"
-            )
+            embed.title = "プレイリストがキューに挿入されました。"
+            embed.description = f"{results.playlist_info.name} - {len(tracks)} トラック"
         else:
-            track: wavelink.Playable = tracks[0]
-            await player.queue.put_wait(track)
-            await interaction.followup.send(f"**`{track}`**をキューに追加しました。")
+            track = results.tracks[0]
+            embed.title = "トラックがキューに挿入されました。"
+            embed.description = f"[{track.title}]({track.uri})"
 
-        if not player.playing:
-            await player.play(player.queue.get(), volume=15)
+            track.extra["requester"] = interaction.user.id
+            track.extra["channelId"] = interaction.channel.id
+
+            player.add(track=track)
+
+        await interaction.followup.send(embed=embed)
+
+        if not player.is_playing:
+            await player.play()
 
     @app_commands.command(name="pitch", description="曲のピッチを変更します。")
     @app_commands.rename(pitch="ピッチ")
@@ -507,16 +562,16 @@ class MusicCog(commands.Cog):
         pitch: app_commands.Range[float, 0.1, 2.0],
     ):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player:
+        voiceClient: LavalinkVoiceClient = interaction.guild.voice_client
+        if not voiceClient:
             await interaction.followup.send(
                 "コマンドを実行する前に、曲を再生してください。"
             )
             return
+        player = voiceClient.player
 
-        filters: wavelink.Filters = player.filters
-        filters.timescale.set(pitch=pitch, speed=pitch, rate=1)
-        await player.set_filters(filters)
+        filter = Timescale(speed=pitch, pitch=pitch, rate=1)
+        await player.set_filter(filter)
 
         await interaction.followup.send(
             f"曲のピッチを **``{pitch}``** に変更しました。"
@@ -533,12 +588,13 @@ class MusicCog(commands.Cog):
         volume: app_commands.Range[int, 0.0, 100.0],
     ):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player:
+        voiceClient: LavalinkVoiceClient = interaction.guild.voice_client
+        if not voiceClient:
             await interaction.followup.send(
                 "コマンドを実行する前に、曲を再生してください。"
             )
             return
+        player = voiceClient.player
 
         await player.set_volume(volume)
         await interaction.followup.send(f"曲の音量を **``{volume}``** に変更しました。")
@@ -561,20 +617,28 @@ class MusicCog(commands.Cog):
     )
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
-    async def loopToggleCommand(self, interaction: discord.Interaction):
+    async def loopToggleCommand(
+        self,
+        interaction: discord.Interaction,
+        loop: Literal["ループしない", "1曲ループ", "キュー内ループ"],
+    ):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player:
+        voiceClient: LavalinkVoiceClient = interaction.guild.voice_client
+        if not voiceClient:
             await interaction.followup.send(
                 "コマンドを実行する前に、曲を再生してください。"
             )
             return
+        player = voiceClient.player
 
-        player.loop = not player.loop
-        if player.loop:
-            await interaction.followup.send("ループを開始します。")
-        else:
-            await interaction.followup.send("ループを終了します。")
+        loopTypes = {
+            "ループしない": player.LOOP_NONE,
+            "1曲ループ": player.LOOP_SINGLE,
+            "キュー内ループ": player.LOOP_QUEUE,
+        }
+
+        player.set_loop(loopTypes[loop])
+        await interaction.followup.send(f"ループを `{loop}` に設定しました。")
 
     @app_commands.command(
         name="toggle", description="一時停止・再開状態を切り替えます。"
@@ -583,14 +647,15 @@ class MusicCog(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
     async def toggleCommand(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player:
+        voiceClient: LavalinkVoiceClient = interaction.guild.voice_client
+        if not voiceClient:
             await interaction.followup.send(
                 "コマンドを実行する前に、曲を再生してください。"
             )
             return
+        player = voiceClient.player
 
-        await player.pause(not player.paused)
+        await player.set_pause(not player.paused)
         if player.paused:
             await interaction.followup.send("一時停止しました。")
         else:
@@ -603,14 +668,14 @@ class MusicCog(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
     async def stopCommand(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        player: wavelink.Player = interaction.guild.voice_client
-        if not player:
+        voiceClient: LavalinkVoiceClient = interaction.guild.voice_client
+        if not voiceClient:
             await interaction.followup.send(
                 "コマンドを実行する前に、曲を再生してください。"
             )
             return
 
-        await player.disconnect()
+        await voiceClient.disconnect(force=True)
         await interaction.followup.send("切断しました。")
 
 
