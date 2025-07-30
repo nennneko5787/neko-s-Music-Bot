@@ -5,6 +5,7 @@ import sys
 
 import discord
 import dotenv
+from discord import app_commands
 from discord.ext import commands
 
 dotenv.load_dotenv()
@@ -45,6 +46,37 @@ _log.addHandler(handler)
 @bot.event
 async def on_ready():
     _log.info(f"Logined as {bot.user.name}")
+
+
+async def onTreeError(
+    interaction: discord.Interaction, error: app_commands.AppCommandError
+):
+    if interaction.response.is_done():
+        send = interaction.followup.send
+    else:
+        send = interaction.response.send_message
+
+    if isinstance(error, app_commands.CommandOnCooldown):
+        return await send(
+            f"コマンドはクールダウン中です。 **{error.retry_after:.2f}** 秒後にお試しください。",
+            ephemeral=True,
+        )
+    elif isinstance(error, app_commands.MissingPermissions):
+        return await send(
+            f"あなたにはこのコマンドを実行する権限がありません。", ephemeral=True
+        )
+    else:
+        await send(
+            embed=discord.Embed(
+                title="エラーが発生しました！",
+                description=str(error),
+                color=discord.Color.red(),
+            ),
+            ephemeral=True,
+        )
+
+
+bot.tree.on_error = onTreeError
 
 
 @bot.event
