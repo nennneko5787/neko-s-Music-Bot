@@ -496,7 +496,7 @@ class MusicCog(commands.Cog):
         while True:
             if player.position >= track.duration or not player.is_playing:
                 if player.loop:
-                    await player.queue.insert(0, track)
+                    player.queue.insert(0, track)
                     await player.seek(0)
                     await asyncio.sleep(3)
                 else:
