@@ -312,15 +312,11 @@ class MusicCog(commands.Cog):
                 await player.set_pause(True)
             case "reverse":
                 await player.seek(
-                    self.clamp(
-                        player.position / 1000 - 10, 0, player.track.length / 1000
-                    )
+                    int(self.clamp(player.position - 10_000, 0, player.track.length))
                 )
             case "forward":
                 await player.seek(
-                    self.clamp(
-                        player.position / 1000 + 10, 0, player.track.length / 1000
-                    )
+                    int(self.clamp(player.position + 10_000, 0, player.track.length))
                 )
             case "volumeUp":
                 await player.set_volume(self.clamp(player.volume + 5, 0, 100))
@@ -491,27 +487,36 @@ class MusicCog(commands.Cog):
         )
 
         await asyncio.sleep(3)
-
         count = 0
         while True:
-            if player.position >= track.duration or not player.is_playing:
-                if player.loop:
-                    player.queue.insert(0, track)
+            guild = self.bot.get_guild(player.guild_id)
+            vc = guild.voice_client if guild else None
+
+            if not guild or not vc:
+                break
+
+            if player.current != track:
+                break
+
+            if (not player.is_playing) or (player.position >= track.duration):
+                if player.loop == player.LOOP_SINGLE:
                     await player.seek(0)
-                    await asyncio.sleep(3)
-                else:
-                    await message.edit(
-                        view=MusicPanel(
-                            player,
-                            track,
-                            requestAuthor,
-                            self.bar,
-                            self.circle,
-                            self.graybar,
-                            finished=True,
-                        )
+                    await asyncio.sleep(1)
+                    continue
+
+                await message.edit(
+                    view=MusicPanel(
+                        player,
+                        track,
+                        requestAuthor,
+                        self.bar,
+                        self.circle,
+                        self.graybar,
+                        finished=True,
                     )
-                    break
+                )
+                break
+
             if count >= 5:
                 await message.edit(
                     view=MusicPanel(
@@ -525,8 +530,9 @@ class MusicCog(commands.Cog):
                     )
                 )
                 count = 0
-            count += 0.01
-            await asyncio.sleep(0.01)
+
+            count += 0.5
+            await asyncio.sleep(0.5)
 
     @Lavalink.listener(QueueEndEvent)
     async def onQueueEnd(self, event: QueueEndEvent):
