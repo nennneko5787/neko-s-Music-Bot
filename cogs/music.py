@@ -33,6 +33,7 @@ class MusicCog(commands.Cog):
         "urlRegexp",
         "lavalink",
         "editQueue",
+        "editQueueTask",
     )
 
     def __init__(self, bot: commands.Bot):
@@ -46,6 +47,7 @@ class MusicCog(commands.Cog):
         self.urlRegexp: re.Pattern = re.compile(r"https?://(?:www\.)?.+")
         self.lavalink = None
         self.editQueue = asyncio.Queue()
+        self.editQueueTask = None
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
@@ -95,6 +97,9 @@ class MusicCog(commands.Cog):
 
             self.initialized = True
 
+    async def cog_load(self):
+        self.editQueueTask = asyncio.create_task(self.messageEditQueue())
+
     async def cog_unload(self):
         """
         This will remove any registered event hooks when the cog is unloaded.
@@ -103,6 +108,9 @@ class MusicCog(commands.Cog):
         This effectively allows for event handlers to be updated when the cog is reloaded.
         """
         self.lavalink._event_hooks.clear()
+
+        # task cancel
+        self.editQueueTask.cancel()
 
     async def messageEditQueue(self):
         while True:
