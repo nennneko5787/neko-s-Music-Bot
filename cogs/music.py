@@ -15,175 +15,10 @@ from lavalink.server import LoadType
 
 from objects.client import LavalinkVoiceClient
 from objects.exceptions import CommandInvokeError, NoPrivateMessage
+from objects.panel import MusicPanel
+from objects.utils import clamp
 
 dotenv.load_dotenv()
-
-
-def formatTime(seconds):
-    seconds = int(max(0, seconds))
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    d, h = divmod(h, 24)
-    if d > 0:
-        return f"{d:02}:{h:02}:{m:02}:{s:02}"
-    elif h > 0:
-        return f"{h:02}:{m:02}:{s:02}"
-    else:
-        return f"{m:02}:{s:02}"
-
-
-class MusicPanel(discord.ui.LayoutView):
-    def __init__(
-        self,
-        player: Lavalink.DefaultPlayer,
-        track: Lavalink.AudioTrack,
-        requestAuthor: discord.Member,
-        bar: str,
-        circle: str,
-        graybar: str,
-        *,
-        finished: bool = False,
-    ) -> None:
-        super().__init__()
-
-        if not finished:
-            if player.is_playing:
-                if player.paused:
-                    self.title = discord.ui.TextDisplay(
-                        f"⏸️一時停止中 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
-                    )
-                else:
-                    self.title = discord.ui.TextDisplay(
-                        f"🎶再生中 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
-                    )
-            else:
-                self.title = discord.ui.TextDisplay(
-                    f"再生準備中 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
-                )
-        else:
-            self.title = discord.ui.TextDisplay(
-                f"再生終了 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
-            )
-            container = discord.ui.Container(
-                self.trackInfoSection,
-                accent_color=discord.Color.red(),
-            )
-            self.add_item(container)
-            return
-
-        self.thumbnail = discord.ui.Thumbnail(
-            media=track.artwork_url, description=track.title
-        )
-        self.trackInfoSection = discord.ui.Section(self.title, accessory=self.thumbnail)
-
-        percentage = player.position / track.duration
-        barLength = 14
-        filledLength = int(barLength * percentage)
-        progressBar = (
-            bar * filledLength + circle + graybar * (barLength - filledLength - 1)
-        )
-        self.playProgress = discord.ui.TextDisplay(
-            f"-# 再生時間 `{formatTime(player.position / 1000)} / {formatTime(track.duration / 1000)}`\n{progressBar}"
-        )
-
-        self.playActions = discord.ui.ActionRow(
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="⏪",
-                custom_id="reverse",
-                row=0,
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="▶" if player.paused else "⏸",
-                custom_id="resume" if player.paused else "pause",
-                row=0,
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="⏩",
-                custom_id="forward",
-                row=0,
-            ),
-            discord.ui.Button(
-                style=(
-                    discord.ButtonStyle.gray
-                    if player.loop == player.LOOP_NONE
-                    else discord.ButtonStyle.green
-                    if player.loop == player.LOOP_SINGLE
-                    else discord.ButtonStyle.blurple
-                ),
-                emoji="🔄",
-                custom_id="loop",
-                row=0,
-            ),
-        )
-
-        self.playActions2 = discord.ui.ActionRow(
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="⏮",
-                custom_id="prev",
-                row=1,
-                disabled=True,
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="⏹",
-                custom_id="stop",
-                row=1,
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="⏭",
-                custom_id="next",
-                row=1,
-                disabled=(len(player.queue) <= 0),
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple
-                if player.shuffle
-                else discord.ButtonStyle.gray,
-                emoji="🔀",
-                custom_id="shuffle",
-                row=1,
-            ),
-        )
-
-        percentage = player.volume / 100
-        barLength = 14
-        filledLength = int(barLength * percentage)
-        progressBar = (
-            bar * filledLength + circle + graybar * (barLength - filledLength - 1)
-        )
-        self.volumeView = discord.ui.TextDisplay(
-            f"-# ボリューム `{player.volume}%`\n{progressBar}"
-        )
-
-        self.volumeActions = discord.ui.ActionRow(
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                label="+",
-                custom_id="volumeUp",
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                label="-",
-                custom_id="volumeDown",
-                row=1,
-            ),
-        )
-
-        container = discord.ui.Container(
-            self.trackInfoSection,
-            self.playProgress,
-            self.playActions,
-            self.playActions2,
-            self.volumeView,
-            self.volumeActions,
-            accent_color=discord.Color.purple(),
-        )
-        self.add_item(container)
 
 
 class MusicCog(commands.Cog):
@@ -197,6 +32,7 @@ class MusicCog(commands.Cog):
         "initialized",
         "urlRegexp",
         "lavalink",
+        "editQueue",
     )
 
     def __init__(self, bot: commands.Bot):
@@ -209,6 +45,7 @@ class MusicCog(commands.Cog):
         self.initialized = False
         self.urlRegexp: re.Pattern = re.compile(r"https?://(?:www\.)?.+")
         self.lavalink = None
+        self.editQueue = asyncio.Queue()
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
@@ -267,16 +104,16 @@ class MusicCog(commands.Cog):
         """
         self.lavalink._event_hooks.clear()
 
-    def clamp(self, value: float | int, min_value: float | int, max_value: float | int):
-        """
-        指定した範囲内に数値を制限する関数。
+    async def messageEditQueue(self):
+        while True:
+            instance, kwargs = await self.editQueue.get()
 
-        :param value: 制限したい数値
-        :param min_value: 最小値
-        :param max_value: 最大値
-        :return: 制限された数値
-        """
-        return max(min_value, min(value, max_value))
+            if isinstance(instance, discord.Interaction):
+                await instance.edit_original_response(**kwargs)
+            elif isinstance(instance, discord.Message):
+                await instance.edit(**kwargs)
+
+            await asyncio.sleep(1)
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
@@ -312,16 +149,16 @@ class MusicCog(commands.Cog):
                 await player.set_pause(True)
             case "reverse":
                 await player.seek(
-                    int(self.clamp(player.position - 10_000, 0, player.track.length))
+                    int(clamp(player.position - 10_000, 0, player.track.length))
                 )
             case "forward":
                 await player.seek(
-                    int(self.clamp(player.position + 10_000, 0, player.track.length))
+                    int(clamp(player.position + 10_000, 0, player.track.length))
                 )
             case "volumeUp":
-                await player.set_volume(self.clamp(player.volume + 5, 0, 100))
+                await player.set_volume(clamp(player.volume + 5, 0, 100))
             case "volumeDown":
-                await player.set_volume(self.clamp(player.volume - 5, 0, 100))
+                await player.set_volume(clamp(player.volume - 5, 0, 100))
             case "loop":
                 loop = player.loop + 1
                 if loop > 2:
@@ -334,10 +171,20 @@ class MusicCog(commands.Cog):
 
         track: Lavalink.AudioTrack = interaction.guild.voice_client.track
         requestAuthor = await interaction.guild.fetch_member(track.extra["requester"])
-        await interaction.edit_original_response(
-            view=MusicPanel(
-                player, track, requestAuthor, self.bar, self.circle, self.graybar
-            ),
+        await self.editQueue.put(
+            (
+                interaction,
+                {
+                    "view": MusicPanel(
+                        player,
+                        track,
+                        requestAuthor,
+                        self.bar,
+                        self.circle,
+                        self.graybar,
+                    )
+                },
+            )
         )
 
     def pagenation(
@@ -405,7 +252,15 @@ class MusicCog(commands.Cog):
         )
         embed = discord.Embed(title="キュー", description=songs)
         if edit:
-            await interaction.edit_original_response(embed=embed, view=view)
+            await self.editQueue.put(
+                (
+                    interaction,
+                    {
+                        "embed": embed,
+                        "view": view,
+                    },
+                )
+            )
         else:
             await interaction.followup.send(embed=embed, view=view)
 
@@ -504,29 +359,39 @@ class MusicCog(commands.Cog):
                     await asyncio.sleep(1)
                     continue
 
-                await message.edit(
-                    view=MusicPanel(
-                        player,
-                        track,
-                        requestAuthor,
-                        self.bar,
-                        self.circle,
-                        self.graybar,
-                        finished=True,
+                await self.editQueue.put(
+                    (
+                        message,
+                        {
+                            "view": MusicPanel(
+                                player,
+                                track,
+                                requestAuthor,
+                                self.bar,
+                                self.circle,
+                                self.graybar,
+                                finished=True,
+                            )
+                        },
                     )
                 )
                 break
 
             if count >= 5:
-                await message.edit(
-                    view=MusicPanel(
-                        player,
-                        track,
-                        requestAuthor,
-                        self.bar,
-                        self.circle,
-                        self.graybar,
-                        finished=False,
+                await self.editQueue.put(
+                    (
+                        message,
+                        {
+                            "view": MusicPanel(
+                                player,
+                                track,
+                                requestAuthor,
+                                self.bar,
+                                self.circle,
+                                self.graybar,
+                                finished=False,
+                            )
+                        },
                     )
                 )
                 count = 0
