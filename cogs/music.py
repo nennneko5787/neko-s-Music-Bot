@@ -157,11 +157,11 @@ class MusicCog(commands.Cog):
                 await player.set_pause(True)
             case "reverse":
                 await player.seek(
-                    int(clamp(player.position - 10_000, 0, player.current.length))
+                    int(clamp(player.position - 10_000, 0, player.current.duration))
                 )
             case "forward":
                 await player.seek(
-                    int(clamp(player.position + 10_000, 0, player.current.length))
+                    int(clamp(player.position + 10_000, 0, player.current.duration))
                 )
             case "volumeUp":
                 await player.set_volume(clamp(player.volume + 5, 0, 100))
