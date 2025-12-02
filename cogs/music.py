@@ -183,6 +183,11 @@ class MusicCog(commands.Cog):
             case "queuePagenation":
                 await self.queuePagenation(interaction, int(customField[1]), edit=True)
 
+        if not finished:
+            track: Lavalink.AudioTrack = interaction.guild.voice_client.track
+            requestAuthor = await interaction.guild.fetch_member(
+                track.extra["requester"]
+            )
         await self.editQueue.put(
             (
                 interaction,
