@@ -143,6 +143,11 @@ class MusicCog(commands.Cog):
             return
         player = voiceClient.player
         await interaction.response.defer(ephemeral=True)
+
+        track: Lavalink.AudioTrack = interaction.guild.voice_client.track
+        requestAuthor = await interaction.guild.fetch_member(track.extra["requester"])
+
+        finished = False
         match customField[0]:
             case "prev":
                 player.queue.insert(0, player.current)
@@ -151,6 +156,7 @@ class MusicCog(commands.Cog):
                 await player.skip()
             case "stop":
                 await voiceClient.disconnect()
+                finished = True
             case "resume":
                 await player.set_pause(False)
             case "pause":
@@ -177,8 +183,6 @@ class MusicCog(commands.Cog):
             case "queuePagenation":
                 await self.queuePagenation(interaction, int(customField[1]), edit=True)
 
-        track: Lavalink.AudioTrack = interaction.guild.voice_client.track
-        requestAuthor = await interaction.guild.fetch_member(track.extra["requester"])
         await self.editQueue.put(
             (
                 interaction,
@@ -190,6 +194,7 @@ class MusicCog(commands.Cog):
                         self.bar,
                         self.circle,
                         self.graybar,
+                        finished=finished,
                     )
                 },
             )

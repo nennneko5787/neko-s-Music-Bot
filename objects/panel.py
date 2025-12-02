@@ -36,6 +36,7 @@ class MusicPanel(discord.ui.LayoutView):
             self.title = discord.ui.TextDisplay(
                 f"再生終了 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
             )
+            self.trackInfoSection = discord.ui.TextDisplay(self.title)
             container = discord.ui.Container(
                 self.trackInfoSection,
                 accent_color=discord.Color.red(),
