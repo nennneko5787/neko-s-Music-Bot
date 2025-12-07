@@ -52,7 +52,7 @@ class MusicPanel(discord.ui.LayoutView):
                 self.title, accessory=self.thumbnail
             )
         else:
-            self.trackInfoSection = discord.ui.TextDisplay(self.title)
+            self.trackInfoSection = discord.ui.TextDisplay(track.title)
 
         percentage = player.position / track.duration
         barLength = 14

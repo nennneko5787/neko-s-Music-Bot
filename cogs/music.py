@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import re
+import traceback
 from typing import List, Literal
 
 import discord
@@ -114,13 +115,17 @@ class MusicCog(commands.Cog):
 
     async def messageEditQueue(self):
         while True:
-            instance, kwargs = await self.editQueue.get()
+            try:
+                instance, kwargs = await self.editQueue.get()
 
-            if isinstance(instance, discord.Interaction):
-                await instance.edit_original_response(**kwargs)
-            elif isinstance(instance, discord.Message):
-                await instance.edit(**kwargs)
-
+                if isinstance(instance, discord.Interaction):
+                    await instance.edit_original_response(**kwargs)
+                elif isinstance(instance, discord.Message):
+                    await instance.edit(**kwargs)
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                traceback.print_exc()
             await asyncio.sleep(1)
 
     @commands.Cog.listener()
@@ -235,8 +240,8 @@ class MusicCog(commands.Cog):
         )
         songs = ""
 
-        for _, song in enumerate(songList):
-            songs += f"[{song.title}]({song.uri}) by {(await interaction.guild.fetch_member(song.extra['requester'])).mention} (現在再生中)\n"
+        for i, song in enumerate(songList):
+            songs += f"[{song.title}]({song.uri}) by {(await interaction.guild.fetch_member(song.extra['requester'])).mention} `{'(現在再生中)' if i == 0 else ''}`\n"
 
         view = (
             discord.ui.View(timeout=None)
@@ -414,8 +419,8 @@ class MusicCog(commands.Cog):
                 )
                 count = 0
 
-            count += 0.5
-            await asyncio.sleep(0.5)
+            count += 0.1
+            await asyncio.sleep(0.1)
 
     @Lavalink.listener(QueueEndEvent)
     async def onQueueEnd(self, event: QueueEndEvent):
@@ -531,7 +536,7 @@ class MusicCog(commands.Cog):
                 "現在曲を再生していません。", ephemeral=True
             )
             return
-        await self.queuePagenation(interaction, 1, edit=True)
+        await self.queuePagenation(interaction, 1, edit=False)
 
     @app_commands.command(
         name="loop", description="ループ・ループ解除状態を切り替えます。"
