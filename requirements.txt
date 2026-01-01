@@ -7,5 +7,5 @@ alembic
 asyncpg
 pydantic
 orjson
-psycopg2
+psycopg2-binary
 aiofiles
