@@ -3,3 +3,9 @@ python-dotenv
 tzdata
 psutil
 lavalink
+alembic
+asyncpg
+pydantic
+orjson
+psycopg2
+aiofiles

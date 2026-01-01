@@ -3,11 +3,14 @@ import psutil
 from discord import app_commands
 from discord.ext import commands
 
+from objects.bot import MusicBot
+from objects.player import MusicPlayer
+
 
 class PingCog(commands.Cog):
     __slots__ = ("bot",)
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: MusicBot):
         self.bot = bot
 
     @app_commands.command(
@@ -18,28 +21,27 @@ class PingCog(commands.Cog):
 
         _count = 0
         _totalPing = 0
-        """
+
         voicePing = 0
         for voiceClient in self.bot.voice_clients:
-            voiceClient: LavalinkVoiceClient = voiceClient
-            _totalPing += voiceClient.lavalink
+            voiceClient: MusicPlayer = voiceClient.player
+            _totalPing += voiceClient.ping
             _count += 1
         if _count != 0:
             voicePing = _totalPing / _count
         else:
             voicePing = 0
-        """
 
         cpu_percent = psutil.cpu_percent()
         mem = psutil.virtual_memory()
         embed = discord.Embed(
             title="Ping",
-            description=f"(Client)Ping : `{int(ping * 1000)}ms`\n(VoiceClient, Average)Ping: `現在機能していません`\nCPU : `{cpu_percent}%`\nMemory : `{mem.percent}%`",
+            description=f"(Client)Ping : `{int(ping * 1000)}ms`\n(VoiceClient, Average)Ping: `{voicePing}ms`\nCPU : `{cpu_percent}%`\nMemory : `{mem.percent}%`",
             color=discord.Colour.purple(),
         )
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
         await interaction.response.send_message(embed=embed)
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: MusicBot):
     await bot.add_cog(PingCog(bot))

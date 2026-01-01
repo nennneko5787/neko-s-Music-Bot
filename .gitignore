@@ -163,3 +163,4 @@ cython_debug/
 
 # 危ないファイルたち
 /cookies.txt
+/key.txt

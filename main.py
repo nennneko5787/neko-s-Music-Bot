@@ -2,13 +2,15 @@ import asyncio
 import logging
 import os
 import sys
+import traceback
 
 import discord
 import dotenv
 from discord import app_commands
-from discord.ext import commands
 
+from objects.bot import MusicBot
 from objects.exceptions import NoPrivateMessage
+from services.db import DBService
 
 dotenv.load_dotenv()
 
@@ -21,7 +23,7 @@ intents.voice_states = True
 intents.emojis = True
 
 
-bot = commands.Bot(
+bot = MusicBot(
     "music#",
     intents=intents,
     member_cache_flags=discord.MemberCacheFlags.none(),
@@ -72,6 +74,8 @@ async def onTreeError(
             "このコマンドはこのチャンネルでは実行できません。", ephemeral=True
         )
     else:
+        traceback.print_exception(error)
+
         await send(
             embed=discord.Embed(
                 title="エラーが発生しました！",
@@ -87,6 +91,8 @@ bot.tree.on_error = onTreeError
 
 @bot.event
 async def setup_hook():
+    await DBService.start()
+
     await bot.load_extension("cogs.music")
     await bot.load_extension("cogs.ping")
     await bot.load_extension("cogs.help")

@@ -3,23 +3,38 @@ import logging
 import os
 import re
 import traceback
-from typing import List, Literal
+from collections import Counter
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Literal
 
+import aiofiles
 import discord
 import dotenv
 import lavalink as Lavalink
 from discord import app_commands
 from discord.ext import commands, tasks
-from lavalink.events import QueueEndEvent, TrackStartEvent
+from lavalink.events import (
+    PlayerUpdateEvent,
+    QueueEndEvent,
+    TrackEndEvent,
+    TrackStartEvent,
+)
 from lavalink.filters import Timescale
 from lavalink.server import LoadType
 
+from objects.bot import MusicBot
 from objects.client import LavalinkVoiceClient
 from objects.exceptions import CommandInvokeError, NoPrivateMessage
+from objects.guilds import MusicData
 from objects.panel import MusicPanel
+from objects.player import MusicPlayer
 from objects.utils import clamp
+from services.guilds import getGuild, updateGuild
+from services.members import getMember, updateMember
 
 dotenv.load_dotenv()
+
+tokyo = timezone(timedelta(hours=9), "Asia/Tokyo")
 
 
 class MusicCog(commands.Cog):
@@ -37,7 +52,7 @@ class MusicCog(commands.Cog):
         "editQueueTask",
     )
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: MusicBot):
         self.bot = bot
         self.log = logging.getLogger("music")
         self.bar = ""
@@ -83,15 +98,14 @@ class MusicCog(commands.Cog):
         if not self.initialized:
             self.presenceLoop.start()
 
-            if not hasattr(self.bot, "lavalink"):
-                self.bot.lavalink = Lavalink.Client(self.bot.user.id)
-                self.bot.lavalink.add_node(
-                    host=os.getenv("lavalink_host"),
-                    port=int(os.getenv("lavalink_port")),
-                    password=os.getenv("lavalink_password"),
-                    region="jp-1",
-                    name="jp-1",
-                )
+            self.bot.lavalink = Lavalink.Client(self.bot.user.id, player=MusicPlayer)
+            self.bot.lavalink.add_node(
+                host=os.getenv("lavalink_host"),
+                port=int(os.getenv("lavalink_port")),
+                password=os.getenv("lavalink_password"),
+                region="jp-1",
+                name="jp-1",
+            )
 
             self.lavalink: Lavalink.Client = self.bot.lavalink
             self.lavalink.add_event_hooks(self)
@@ -128,6 +142,45 @@ class MusicCog(commands.Cog):
                 traceback.print_exc()
             await asyncio.sleep(1)
 
+    def getTimescale(self, player: MusicPlayer):
+        return player.get_filter(Timescale)
+
+    async def changeSpeed(self, player: MusicPlayer, up: bool):
+        timescale = self.getTimescale(player)
+
+        if not timescale:
+            speed = 1.0
+            pitch = 1.0
+        else:
+            speed = timescale.values["speed"]
+            pitch = timescale.values["pitch"]
+
+        speed += 0.1 if up else -0.1
+
+        await player.set_filter(
+            Timescale(clamp(speed, 0.1, 2.0), clamp(pitch, 0.1, 2.0), 1)
+        )
+
+    async def changePitch(self, player: MusicPlayer, up: bool):
+        timescale = self.getTimescale(player)
+
+        if not timescale:
+            speed = 1.0
+            pitch = 1.0
+        else:
+            speed = timescale.values["speed"]
+            pitch = timescale.values["pitch"]
+
+        pitch += 0.1 if up else -0.1
+
+        await player.set_filter(
+            Timescale(clamp(speed, 0.1, 2.0), clamp(pitch, 0.1, 2.0), 1)
+        )
+
+    async def putPrevQueue(self, player: MusicPlayer, track: Lavalink.AudioTrack):
+        track.position = 0
+        await player.prevQueue.put(track)
+
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
         try:
@@ -146,22 +199,37 @@ class MusicCog(commands.Cog):
                 "現在曲を再生していません。", ephemeral=True
             )
             return
-        player = voiceClient.player
+        player: MusicPlayer = voiceClient.player
         await interaction.response.defer(ephemeral=True)
 
         track: Lavalink.AudioTrack = interaction.guild.voice_client.track
         requestAuthor = await interaction.guild.fetch_member(track.extra["requester"])
+        queue = player.prevQueue
 
         finished = False
         match customField[0]:
             case "prev":
-                player.queue.insert(0, player.current)
+                _track = player.current
+                _track.position = 0
+                player.queue.insert(0, _track)
+
+                _track = await queue.get()
+                player.queue.insert(0, _track)
                 await player.play()
+                return
             case "next":
+                _track = player.current
+                _track.position = 0
+
+                await self.putPrevQueue(player, _track)
                 await player.skip()
+                return
             case "stop":
+                while not queue.empty():
+                    queue.get_nowait()
                 await voiceClient.disconnect()
                 finished = True
+                return
             case "resume":
                 await player.set_pause(False)
             case "pause":
@@ -178,6 +246,14 @@ class MusicCog(commands.Cog):
                 await player.set_volume(clamp(player.volume + 5, 0, 100))
             case "volumeDown":
                 await player.set_volume(clamp(player.volume - 5, 0, 100))
+            case "speedUp":
+                await self.changeSpeed(player, True)
+            case "speedDown":
+                await self.changeSpeed(player, False)
+            case "pitchUp":
+                await self.changePitch(player, True)
+            case "pitchDown":
+                await self.changePitch(player, False)
             case "loop":
                 loop = player.loop + 1
                 if loop > 2:
@@ -205,7 +281,10 @@ class MusicCog(commands.Cog):
                         self.circle,
                         self.graybar,
                         finished=finished,
-                    )
+                    ),
+                    "allowed_mentions": discord.AllowedMentions(
+                        everyone=False, users=False, roles=False, replied_user=False
+                    ),
                 },
             )
         )
@@ -281,6 +360,9 @@ class MusicCog(commands.Cog):
                     {
                         "embed": embed,
                         "view": view,
+                        "allowed_mentions": discord.AllowedMentions(
+                            everyone=False, users=False, roles=False, replied_user=False
+                        ),
                     },
                 )
             )
@@ -363,41 +445,19 @@ class MusicCog(commands.Cog):
                 player, track, requestAuthor, self.bar, self.circle, self.graybar
             )
         )
+        track.extra["channelId"] = channel.id
+        track.extra["messageId"] = message.id
+        guild = self.bot.get_guild(player.guild_id)
 
         await asyncio.sleep(3)
-        count = 0
+        count = 0.0
         while True:
-            guild = self.bot.get_guild(player.guild_id)
             vc = guild.voice_client if guild else None
 
             if not guild or not vc:
                 break
 
             if player.current != track:
-                break
-
-            if (not player.is_playing) or (player.position >= track.duration):
-                if player.loop == player.LOOP_SINGLE:
-                    await player.seek(0)
-                    await asyncio.sleep(1)
-                    continue
-
-                await self.editQueue.put(
-                    (
-                        message,
-                        {
-                            "view": MusicPanel(
-                                player,
-                                track,
-                                requestAuthor,
-                                self.bar,
-                                self.circle,
-                                self.graybar,
-                                finished=True,
-                            )
-                        },
-                    )
-                )
                 break
 
             if count >= 5:
@@ -413,7 +473,13 @@ class MusicCog(commands.Cog):
                                 self.circle,
                                 self.graybar,
                                 finished=False,
-                            )
+                            ),
+                            "allowed_mentions": discord.AllowedMentions(
+                                everyone=False,
+                                users=False,
+                                roles=False,
+                                replied_user=False,
+                            ),
                         },
                     )
                 )
@@ -421,6 +487,47 @@ class MusicCog(commands.Cog):
 
             count += 0.1
             await asyncio.sleep(0.1)
+
+    @Lavalink.listener(TrackEndEvent)
+    async def onTrackEnd(self, event: TrackEndEvent):
+        player: MusicPlayer = event.player
+        track: Lavalink.AudioTrack = event.track
+
+        if player.loop == player.LOOP_SINGLE:
+            return
+
+        channel = self.bot.get_channel(track.extra["channelId"])
+        message = await channel.fetch_message(track.extra["messageId"])
+        requestAuthor = await channel.guild.fetch_member(track.extra["requester"])
+
+        await self.editQueue.put(
+            (
+                message,
+                {
+                    "view": MusicPanel(
+                        player,
+                        track,
+                        requestAuthor,
+                        self.bar,
+                        self.circle,
+                        self.graybar,
+                        finished=True,
+                    ),
+                    "allowed_mentions": discord.AllowedMentions(
+                        everyone=False,
+                        users=False,
+                        roles=False,
+                        replied_user=False,
+                    ),
+                },
+            )
+        )
+
+        if event.reason != Lavalink.EndReason.FINISHED:
+            return
+
+        track.position = 0
+        await self.putPrevQueue(player, track)
 
     @Lavalink.listener(QueueEndEvent)
     async def onQueueEnd(self, event: QueueEndEvent):
@@ -431,6 +538,10 @@ class MusicCog(commands.Cog):
             guild.voice_client.track = None
             await guild.voice_client.disconnect(force=True)
 
+    @Lavalink.listener(PlayerUpdateEvent)
+    async def onPlayerUpdate(self, event: PlayerUpdateEvent):
+        event.player.ping = event.ping
+
     @app_commands.command(name="play", description="曲を再生します。")
     @app_commands.rename(query="クエリ")
     @app_commands.describe(query="URLまたは検索ワード。")
@@ -439,13 +550,13 @@ class MusicCog(commands.Cog):
     @app_commands.check(createPlayer)
     async def playCommand(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
-        player: Lavalink.DefaultPlayer = self.lavalink.player_manager.get(
-            interaction.guild.id
-        )
+        player: MusicPlayer = self.lavalink.player_manager.get(interaction.guild.id)
         query = query.strip("<>")
         if not self.urlRegexp.match(query):
             query = f"ytsearch:{query}"
         results = await player.node.get_tracks(query)
+
+        guildData = await getGuild(interaction.guild.id)
 
         embed = discord.Embed(color=discord.Color.blurple())
 
@@ -460,6 +571,10 @@ class MusicCog(commands.Cog):
                 track.extra["channelId"] = interaction.channel.id
                 player.add(track=track)
 
+                guildData.playedMusics.append(
+                    MusicData(url=track.uri, title=track.title)
+                )
+
             embed.title = "プレイリストがキューに挿入されました。"
             embed.description = f"{results.playlist_info.name} - {len(tracks)} トラック"
         else:
@@ -470,14 +585,20 @@ class MusicCog(commands.Cog):
             track.extra["requester"] = interaction.user.id
             track.extra["channelId"] = interaction.channel.id
 
+            guildData.playedMusics.append(MusicData(url=track.uri, title=track.title))
+
             player.add(track=track)
+
+        await updateGuild(guildData)
 
         await interaction.followup.send(embed=embed)
 
         if not player.is_playing:
             await player.play()
 
-    @app_commands.command(name="pitch", description="曲のピッチを変更します。")
+    @app_commands.command(
+        name="timescale", description="曲の再生速度とピッチを変更します。"
+    )
     @app_commands.rename(pitch="ピッチ")
     @app_commands.describe(pitch="曲のピッチを指定してください。")
     @app_commands.allowed_installs(guilds=True, users=False)
@@ -485,6 +606,7 @@ class MusicCog(commands.Cog):
     async def pitchCommand(
         self,
         interaction: discord.Interaction,
+        speed: app_commands.Range[float, 0.1, 2.0],
         pitch: app_commands.Range[float, 0.1, 2.0],
     ):
         await interaction.response.defer()
@@ -496,11 +618,11 @@ class MusicCog(commands.Cog):
             return
         player = voiceClient.player
 
-        filter = Timescale(speed=pitch, pitch=pitch, rate=1)
+        filter = Timescale(speed=speed, pitch=pitch, rate=1)
         await player.set_filter(filter)
 
         await interaction.followup.send(
-            f"曲のピッチを **``{pitch}``** に変更しました。"
+            f"曲の再生速度を **`{speed}`** に、ピッチを **``{pitch}``** に変更しました。"
         )
 
     @app_commands.command(name="volume", description="曲の音量を変更します。")
@@ -604,6 +726,80 @@ class MusicCog(commands.Cog):
         await voiceClient.disconnect(force=True)
         await interaction.followup.send("切断しました。")
 
+    @app_commands.command(name="code", description="支援者コードを使用します。")
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
+    async def codeCommand(self, interaction: discord.Interaction, code: str):
+        await interaction.response.defer(ephemeral=True)
 
-async def setup(bot: commands.Bot):
+        member = await getMember(interaction.user.id)
+
+        async with aiofiles.open("key.txt", "r", encoding="utf-8") as f:
+            key = (await f.read()).strip()
+
+        if key.strip() != code:
+            return await interaction.followup.send(
+                embed=discord.Embed(
+                    title="コードが違います",
+                    description="支援はここから行えます\nhttps://nennneko5787.fanbox.cc/",
+                    color=discord.Color.red(),
+                ),
+                ephemeral=True,
+            )
+
+        now = datetime.now(tokyo)
+        member.expiresAt = now.replace(
+            month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        await updateMember(member)
+
+        await interaction.followup.send(
+            embed=discord.Embed(
+                title="サーバー内再生ランキング",
+                description="ご支援ありがとうございます！来月までのサポーター限定機能の開放を行います！",
+                color=discord.Color.green(),
+            ),
+            ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="ranking", description="サーバー内再生ランキングを取得します。"
+    )
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
+    async def rankingCommand(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        member = await getMember(interaction.user.id)
+        if not member.expiresAt or member.expiresAt < datetime.now(tokyo):
+            return await interaction.followup.send(
+                "サーバー内再生ランキングはサポーター限定機能です。\nfanboxでサポーターになりましょう。\nhttps://nennneko5787.fanbox.cc/",
+                ephemeral=True,
+            )
+
+        guildData = await getGuild(interaction.guild.id)
+
+        counter = Counter(m.url for m in guildData.playedMusics)
+        musicMap: Dict[str, MusicData] = {}
+        for m in guildData.playedMusics:
+            musicMap.setdefault(m.url, m)
+
+        result = [(musicMap[url], count) for url, count in counter.most_common()][0:5]
+
+        await interaction.followup.send(
+            embed=discord.Embed(
+                title="サーバー内再生ランキング",
+                description="\n".join(
+                    [
+                        f"{i}. {m.title} ({v}回)\n{m.url}"
+                        for i, (m, v) in enumerate(result, 1)
+                    ]
+                ),
+                color=discord.Color.purple(),
+            ),
+            ephemeral=True,
+        )
+
+
+async def setup(bot: MusicBot):
     await bot.add_cog(MusicCog(bot))

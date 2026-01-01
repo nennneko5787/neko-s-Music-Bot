@@ -2,11 +2,13 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from objects.bot import MusicBot
+
 
 class HelpCog(commands.Cog):
     __slots__ = ("bot",)
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: MusicBot):
         self.bot = bot
 
     @app_commands.command(
@@ -25,8 +27,18 @@ class HelpCog(commands.Cog):
                 inline=False,
             )
             .add_field(
-                name="/pitch",
-                value="再生中の曲のピッチを変更します。",
+                name="/queue",
+                value="キューに溜まっている動画・曲を確認します。",
+                inline=False,
+            )
+            .add_field(
+                name="/code",
+                value="コードを入力し、サポーター限定特典を受け取ることができます。",
+                inline=False,
+            )
+            .add_field(
+                name="/ranking",
+                value="サーバーで再生された動画・曲のランキングを確認します。(サポーター限定)",
                 inline=False,
             )
             .add_field(
@@ -39,5 +51,5 @@ class HelpCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: MusicBot):
     await bot.add_cog(HelpCog(bot))
