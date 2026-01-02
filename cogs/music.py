@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import re
+import time
 import traceback
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -17,7 +18,6 @@ from lavalink.events import (
     PlayerUpdateEvent,
     QueueEndEvent,
     TrackEndEvent,
-    TrackStartEvent,
 )
 from lavalink.filters import Timescale
 from lavalink.server import LoadType
@@ -26,7 +26,7 @@ from objects.bot import MusicBot
 from objects.client import LavalinkVoiceClient
 from objects.exceptions import CommandInvokeError, NoPrivateMessage
 from objects.guilds import MusicData
-from objects.panel import MusicPanel
+from objects.panel import MusicPanel, WaitingView
 from objects.player import MusicPlayer
 from objects.utils import clamp
 from services.guilds import getGuild, updateGuild
@@ -202,7 +202,7 @@ class MusicCog(commands.Cog):
         player: MusicPlayer = voiceClient.player
         await interaction.response.defer(ephemeral=True)
 
-        track: Lavalink.AudioTrack = interaction.guild.voice_client.track
+        track: Lavalink.AudioTrack = interaction.guild.voice_client.player.current
         requestAuthor = await interaction.guild.fetch_member(track.extra["requester"])
         queue = player.prevQueue
 
@@ -225,8 +225,35 @@ class MusicCog(commands.Cog):
                 await player.skip()
                 return
             case "stop":
-                while not queue.empty():
-                    queue.get_nowait()
+                channelId = player.fetch("channelId")
+                messageId = player.fetch("messageId")
+
+                channel = self.bot.get_channel(channelId)
+                message = await channel.fetch_message(messageId)
+
+                await self.editQueue.put(
+                    (
+                        message,
+                        {
+                            "view": MusicPanel(
+                                player,
+                                track,
+                                requestAuthor,
+                                self.bar,
+                                self.circle,
+                                self.graybar,
+                                finished=True,
+                            ),
+                            "allowed_mentions": discord.AllowedMentions(
+                                everyone=False,
+                                users=False,
+                                roles=False,
+                                replied_user=False,
+                            ),
+                        },
+                    )
+                )
+
                 await voiceClient.disconnect()
                 finished = True
                 return
@@ -265,7 +292,7 @@ class MusicCog(commands.Cog):
                 await self.queuePagenation(interaction, int(customField[1]), edit=True)
 
         if not finished:
-            track: Lavalink.AudioTrack = interaction.guild.voice_client.track
+            track: Lavalink.AudioTrack = interaction.guild.voice_client.player.track
             requestAuthor = await interaction.guild.fetch_member(
                 track.extra["requester"]
             )
@@ -421,73 +448,6 @@ class MusicCog(commands.Cog):
 
         return True
 
-    @Lavalink.listener(TrackStartEvent)
-    async def onTrackStart(self, event: TrackStartEvent):
-        player: Lavalink.DefaultPlayer = event.player
-        if not player:
-            return
-
-        guild = self.bot.get_guild(player.guild_id)
-        # voiceChannel = self.bot.get_channel(player.fetch("channel"))
-        track: Lavalink.AudioTrack = event.track
-        channel = self.bot.get_channel(track.extra["channelId"])
-
-        voiceClient: LavalinkVoiceClient = guild.voice_client
-        voiceClient.track = track
-
-        if not guild:
-            return await self.lavalink.player_manager.destroy(player.guild_id)
-
-        requestAuthor = await guild.fetch_member(track.extra["requester"])
-
-        message = await channel.send(
-            view=MusicPanel(
-                player, track, requestAuthor, self.bar, self.circle, self.graybar
-            )
-        )
-        track.extra["channelId"] = channel.id
-        track.extra["messageId"] = message.id
-        guild = self.bot.get_guild(player.guild_id)
-
-        await asyncio.sleep(3)
-        count = 0.0
-        while True:
-            vc = guild.voice_client if guild else None
-
-            if not guild or not vc:
-                break
-
-            if player.current != track:
-                break
-
-            if count >= 5:
-                await self.editQueue.put(
-                    (
-                        message,
-                        {
-                            "view": MusicPanel(
-                                player,
-                                track,
-                                requestAuthor,
-                                self.bar,
-                                self.circle,
-                                self.graybar,
-                                finished=False,
-                            ),
-                            "allowed_mentions": discord.AllowedMentions(
-                                everyone=False,
-                                users=False,
-                                roles=False,
-                                replied_user=False,
-                            ),
-                        },
-                    )
-                )
-                count = 0
-
-            count += 0.1
-            await asyncio.sleep(0.1)
-
     @Lavalink.listener(TrackEndEvent)
     async def onTrackEnd(self, event: TrackEndEvent):
         player: MusicPlayer = event.player
@@ -496,41 +456,81 @@ class MusicCog(commands.Cog):
         if player.loop == player.LOOP_SINGLE:
             return
 
-        channel = self.bot.get_channel(track.extra["channelId"])
-        message = await channel.fetch_message(track.extra["messageId"])
-        requestAuthor = await channel.guild.fetch_member(track.extra["requester"])
-
-        await self.editQueue.put(
-            (
-                message,
-                {
-                    "view": MusicPanel(
-                        player,
-                        track,
-                        requestAuthor,
-                        self.bar,
-                        self.circle,
-                        self.graybar,
-                        finished=True,
-                    ),
-                    "allowed_mentions": discord.AllowedMentions(
-                        everyone=False,
-                        users=False,
-                        roles=False,
-                        replied_user=False,
-                    ),
-                },
-            )
-        )
-
         if event.reason != Lavalink.EndReason.FINISHED:
             return
 
         track.position = 0
         await self.putPrevQueue(player, track)
 
+        if len(player.queue) <= 0:
+            channelId = player.fetch("channelId")
+            messageId = player.fetch("messageId")
+
+            channel = self.bot.get_channel(channelId)
+            message = await channel.fetch_message(messageId)
+
+            requestAuthor = await channel.guild.fetch_member(track.extra["requester"])
+
+            await self.editQueue.put(
+                (
+                    message,
+                    {
+                        "view": MusicPanel(
+                            player,
+                            track,
+                            requestAuthor,
+                            self.bar,
+                            self.circle,
+                            self.graybar,
+                            finished=True,
+                        ),
+                        "allowed_mentions": discord.AllowedMentions(
+                            everyone=False,
+                            users=False,
+                            roles=False,
+                            replied_user=False,
+                        ),
+                    },
+                )
+            )
+
     @Lavalink.listener(QueueEndEvent)
     async def onQueueEnd(self, event: QueueEndEvent):
+        player: MusicPlayer = event.player
+        track: Lavalink.AudioTrack = event.player.current
+
+        if track:
+            channelId = player.fetch("channelId")
+            messageId = player.fetch("messageId")
+
+            channel = self.bot.get_channel(channelId)
+            message = await channel.fetch_message(messageId)
+
+            requestAuthor = await channel.guild.fetch_member(track.extra["requester"])
+
+            await self.editQueue.put(
+                (
+                    message,
+                    {
+                        "view": MusicPanel(
+                            player,
+                            track,
+                            requestAuthor,
+                            self.bar,
+                            self.circle,
+                            self.graybar,
+                            finished=True,
+                        ),
+                        "allowed_mentions": discord.AllowedMentions(
+                            everyone=False,
+                            users=False,
+                            roles=False,
+                            replied_user=False,
+                        ),
+                    },
+                )
+            )
+
         guildId = event.player.guild_id
         guild = self.bot.get_guild(guildId)
 
@@ -540,7 +540,44 @@ class MusicCog(commands.Cog):
 
     @Lavalink.listener(PlayerUpdateEvent)
     async def onPlayerUpdate(self, event: PlayerUpdateEvent):
-        event.player.ping = event.ping
+        player: MusicPlayer = event.player
+        track: Lavalink.AudioTrack = event.player.current
+
+        player.ping = event.ping
+
+        if track and time.time() - player.lastUpdated >= 5.0:
+            player.update()
+
+            channelId = player.fetch("channelId")
+            messageId = player.fetch("messageId")
+
+            channel = self.bot.get_channel(channelId)
+            message = await channel.fetch_message(messageId)
+
+            requestAuthor = await channel.guild.fetch_member(track.extra["requester"])
+
+            await self.editQueue.put(
+                (
+                    message,
+                    {
+                        "view": MusicPanel(
+                            player,
+                            track,
+                            requestAuthor,
+                            self.bar,
+                            self.circle,
+                            self.graybar,
+                            finished=False,
+                        ),
+                        "allowed_mentions": discord.AllowedMentions(
+                            everyone=False,
+                            users=False,
+                            roles=False,
+                            replied_user=False,
+                        ),
+                    },
+                )
+            )
 
     @app_commands.command(name="play", description="曲を再生します。")
     @app_commands.rename(query="クエリ")
@@ -568,7 +605,6 @@ class MusicCog(commands.Cog):
             tracks = results.tracks
             for track in tracks:
                 track.extra["requester"] = interaction.user.id
-                track.extra["channelId"] = interaction.channel.id
                 player.add(track=track)
 
                 guildData.playedMusics.append(
@@ -583,7 +619,6 @@ class MusicCog(commands.Cog):
             embed.description = f"[{track.title}]({track.uri})"
 
             track.extra["requester"] = interaction.user.id
-            track.extra["channelId"] = interaction.channel.id
 
             guildData.playedMusics.append(MusicData(url=track.uri, title=track.title))
 
@@ -594,6 +629,14 @@ class MusicCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
         if not player.is_playing:
+            message = await interaction.channel.send(
+                view=WaitingView(),
+                allowed_mentions=discord.AllowedMentions(
+                    everyone=False, users=False, roles=False, replied_user=False
+                ),
+            )
+            player.store("channelId", message.channel.id)
+            player.store("messageId", message.id)
             await player.play()
 
     @app_commands.command(
@@ -722,6 +765,40 @@ class MusicCog(commands.Cog):
                 "コマンドを実行する前に、曲を再生してください。"
             )
             return
+
+        player: MusicPlayer = voiceClient.player
+        track: Lavalink.AudioTrack = player.current
+
+        channelId = player.fetch("channelId")
+        messageId = player.fetch("messageId")
+
+        channel = self.bot.get_channel(channelId)
+        message = await channel.fetch_message(messageId)
+
+        requestAuthor = await channel.guild.fetch_member(track.extra["requester"])
+
+        await self.editQueue.put(
+            (
+                message,
+                {
+                    "view": MusicPanel(
+                        player,
+                        track,
+                        requestAuthor,
+                        self.bar,
+                        self.circle,
+                        self.graybar,
+                        finished=True,
+                    ),
+                    "allowed_mentions": discord.AllowedMentions(
+                        everyone=False,
+                        users=False,
+                        roles=False,
+                        replied_user=False,
+                    ),
+                },
+            )
+        )
 
         await voiceClient.disconnect(force=True)
         await interaction.followup.send("切断しました。")

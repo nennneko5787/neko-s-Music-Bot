@@ -34,8 +34,8 @@ class MusicBot(commands.Bot):
 
             player: MusicPlayer = voiceClient.player
             track = player.current
-            channelId = track.extra["channelId"]
-            messageId = track.extra["messageId"]
+            channelId = player.fetch("channelId")
+            messageId = player.fetch("messageId")
 
             channel = self.get_channel(channelId)
             message = await channel.fetch_message(messageId)

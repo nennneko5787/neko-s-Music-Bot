@@ -8,6 +8,18 @@ from objects.utils import formatTime
 from .player import MusicPlayer
 
 
+class WaitingView(discord.ui.LayoutView):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+        self.trackInfoSection = discord.ui.TextDisplay("準備中")
+        container = discord.ui.Container(
+            self.trackInfoSection,
+            accent_color=discord.Color.red(),
+        )
+        self.add_item(container)
+
+
 class MusicPanel(discord.ui.LayoutView):
     def __init__(
         self,
@@ -144,14 +156,14 @@ class MusicPanel(discord.ui.LayoutView):
         self.volumeActions = discord.ui.ActionRow(
             discord.ui.Button(
                 style=discord.ButtonStyle.blurple,
-                label="+",
-                custom_id="volumeUp",
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
                 label="-",
                 custom_id="volumeDown",
                 row=1,
+            ),
+            discord.ui.Button(
+                style=discord.ButtonStyle.blurple,
+                label="+",
+                custom_id="volumeUp",
             ),
         )
 
@@ -176,14 +188,14 @@ class MusicPanel(discord.ui.LayoutView):
         self.speedActions = discord.ui.ActionRow(
             discord.ui.Button(
                 style=discord.ButtonStyle.blurple,
-                label="+",
-                custom_id="speedUp",
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
                 label="-",
                 custom_id="speedDown",
                 row=1,
+            ),
+            discord.ui.Button(
+                style=discord.ButtonStyle.blurple,
+                label="+",
+                custom_id="speedUp",
             ),
         )
 
@@ -200,14 +212,14 @@ class MusicPanel(discord.ui.LayoutView):
         self.pitchActions = discord.ui.ActionRow(
             discord.ui.Button(
                 style=discord.ButtonStyle.blurple,
-                label="+",
-                custom_id="pitchUp",
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
                 label="-",
                 custom_id="pitchDown",
                 row=1,
+            ),
+            discord.ui.Button(
+                style=discord.ButtonStyle.blurple,
+                label="+",
+                custom_id="pitchUp",
             ),
         )
 

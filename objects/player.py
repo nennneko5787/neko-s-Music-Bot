@@ -1,3 +1,5 @@
+import time
+
 from lavalink import DefaultPlayer
 
 from .queue import MusicQueue
@@ -9,3 +11,7 @@ class MusicPlayer(DefaultPlayer):
 
         self.ping = 0
         self.prevQueue = MusicQueue()
+        self.lastUpdated = 0.0
+
+    def update(self):
+        self.lastUpdated = time.time()
