@@ -292,7 +292,7 @@ class MusicCog(commands.Cog):
                 await self.queuePagenation(interaction, int(customField[1]), edit=True)
 
         if not finished:
-            track: Lavalink.AudioTrack = interaction.guild.voice_client.player.track
+            track: Lavalink.AudioTrack = interaction.guild.voice_client.player.current
             requestAuthor = await interaction.guild.fetch_member(
                 track.extra["requester"]
             )
