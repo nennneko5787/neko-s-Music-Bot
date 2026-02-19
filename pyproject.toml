@@ -1,0 +1,19 @@
+[project]
+name = "neko-s-music-bot"
+version = "0.1.0"
+description = "Music Bot"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "discord-py[voice]>=2.6.4",
+    "lavalink>=5.9.0",
+    "orjson>=3.11.7",
+    "psutil>=7.2.2",
+    "psycopg2-binary>=2.9.11",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.1",
+    "tzdata>=2025.3",
+]
