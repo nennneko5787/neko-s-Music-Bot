@@ -14,7 +14,7 @@ class HelpCog(commands.Cog):
     @app_commands.command(
         name="help", description="neko's Music Botの使い方を確認します。"
     )
-    async def pingCommand(self, interaction: discord.Interaction):
+    async def helpCommand(self, interaction: discord.Interaction):
         embed = (
             discord.Embed(
                 title="neko's Music Botの使い方",
@@ -32,13 +32,28 @@ class HelpCog(commands.Cog):
                 inline=False,
             )
             .add_field(
-                name="/code",
-                value="コードを入力し、サポーター限定特典を受け取ることができます。",
+                name="/toggle",
+                value="曲の一時停止・再開を切り替えます。",
                 inline=False,
             )
             .add_field(
-                name="/ranking",
-                value="サーバーで再生された動画・曲のランキングを確認します。(サポーター限定)",
+                name="/stop",
+                value="曲の再生を停止し、ボイスチャンネルから切断します。",
+                inline=False,
+            )
+            .add_field(
+                name="/loop",
+                value="ループしない・1曲ループ・キュー内ループを切り替えます。",
+                inline=False,
+            )
+            .add_field(
+                name="/volume",
+                value="曲の音量を 0〜100 の範囲で変更します。",
+                inline=False,
+            )
+            .add_field(
+                name="/timescale",
+                value="曲の再生速度とピッチを 0.1〜2.0 の範囲で変更します。",
                 inline=False,
             )
             .add_field(
@@ -47,6 +62,7 @@ class HelpCog(commands.Cog):
                 inline=False,
             )
         )
+        assert self.bot.user is not None  # ログイン完了後にしか到達しない
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 

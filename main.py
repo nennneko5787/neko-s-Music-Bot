@@ -1,85 +1,84 @@
-import asyncio
 import logging
 import os
-import sys
 import traceback
 
 import discord
-import dotenv
 from discord import app_commands
 
 from objects.bot import MusicBot
-from objects.exceptions import NoPrivateMessage
-from services.db import DBService
+from objects.exceptions import MusicCommandError, NoGuildError
+from services.env import getEnv
 
-dotenv.load_dotenv()
-
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
+# SPEC #32: emojis intent は使っていない(guild emoji イベント未購読)。prefix は
+# app_commands 中心のため decorative。当たり障りの無い値だけ残しておく。
 intents = discord.Intents.none()
 intents.guilds = True
 intents.voice_states = True
-intents.emojis = True
 
 
 bot = MusicBot(
-    "music#",
+    command_prefix="music!",  # app_commands 中心。プレフィックス系コマンドは未使用。
     intents=intents,
     member_cache_flags=discord.MemberCacheFlags.none(),
-    max_message=None,
+    max_messages=None,
 )
 
-level = logging.INFO
-handler = logging.StreamHandler()
-if isinstance(handler, logging.StreamHandler) and discord.utils.stream_supports_colour(
-    handler.stream
-):
-    formatter = discord.utils._ColourFormatter()
-else:
-    dt_fmt = "%Y-%m-%d %H:%M:%S"
-    formatter = logging.Formatter(
-        "[{asctime}] [{levelname:<8}] {name}: {message}", dt_fmt, style="{"
-    )
+# SPEC #11: discord.utils.setup_logging は _ColourFormatter を内部で使うパブリック API。
+# root=True で "music" ロガーにも色付きハンドラが伝播する。lavalink のログもここに乗る。
+discord.utils.setup_logging(level=logging.INFO, root=True)
 _log = logging.getLogger("music")
-handler.setFormatter(formatter)
-_log.setLevel(level)
-_log.addHandler(handler)
 
 
 @bot.event
 async def on_ready():
+    if not bot.user:
+        return
+
     _log.info(f"Logined as {bot.user.name}")
 
 
 async def onTreeError(
     interaction: discord.Interaction, error: app_commands.AppCommandError
 ):
-    if interaction.response.is_done():
-        send = interaction.followup.send
-    else:
-        send = interaction.response.send_message
+    send = (
+        interaction.followup.send
+        if interaction.response.is_done()
+        else interaction.response.send_message
+    )
 
     if isinstance(error, app_commands.CommandOnCooldown):
-        return await send(
+        await send(
             f"コマンドはクールダウン中です。 **{error.retry_after:.2f}** 秒後にお試しください。",
             ephemeral=True,
         )
+        return
     elif isinstance(error, app_commands.MissingPermissions):
-        return await send(
+        await send(
             "あなたにはこのコマンドを実行する権限がありません。", ephemeral=True
         )
-    elif isinstance(error, NoPrivateMessage):
-        return await send(
+        return
+    # SPEC #9: 独自 NoGuildError と discord.py 標準 app_commands.NoPrivateMessage を両方拾う。
+    elif isinstance(error, (NoGuildError, app_commands.NoPrivateMessage)):
+        await send(
             "このコマンドはこのチャンネルでは実行できません。", ephemeral=True
         )
+        return
+    elif isinstance(error, MusicCommandError):
+        # createPlayer から投げられるユーザー向けメッセージ。exc 文字列がそのままメッセージ。
+        await send(str(error), ephemeral=True)
+        return
     else:
+        # SPEC #27: 例外の生テキストをユーザーへ返すと内部情報の漏えい面がある。
+        # 詳細はログのみに残し、ユーザーには汎用メッセージを返す。
         traceback.print_exception(error)
 
         await send(
             embed=discord.Embed(
                 title="エラーが発生しました！",
-                description=str(error),
+                description=(
+                    "予期せぬエラーが発生しました。しばらくしてもう一度お試しください。\n"
+                    "問題が続く場合は [サポートサーバー](https://discord.gg/PN3KWEnYzX) までご連絡ください。"
+                ),
                 color=discord.Color.red(),
             ),
             ephemeral=True,
@@ -91,13 +90,16 @@ bot.tree.on_error = onTreeError
 
 @bot.event
 async def setup_hook():
-    await DBService.start()
-
     await bot.load_extension("cogs.music")
     await bot.load_extension("cogs.ping")
     await bot.load_extension("cogs.help")
-    await bot.tree.sync()
+
+    # SPEC #20: tree.sync を毎起動実行すると、クラッシュ再起動ループで global sync 連打 → 429。
+    # コマンド定義変更時のみ手動で行うため、環境変数 SYNC_COMMANDS=1 のときだけ実行。
+    if os.getenv("SYNC_COMMANDS") == "1":
+        _log.info("Syncing application commands (SYNC_COMMANDS=1)")
+        await bot.tree.sync()
 
 
 if __name__ == "__main__":
-    bot.run(os.getenv("discord"))
+    bot.run(getEnv("discord"))

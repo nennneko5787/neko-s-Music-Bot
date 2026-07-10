@@ -1,11 +1,19 @@
-import math
-
 import discord
-import lavalink as Lavalink
+import lavalink
 
 from objects.utils import formatTime
 
 from .player import MusicPlayer
+
+
+def _progressBar(percentage: float, bar: str, circle: str, graybar: str, length: int = 14) -> str:
+    # SPEC #28: percentage>=1.0 では graybar 数が負になり circle も付けると length+1 文字にはみ出す。
+    if percentage >= 1.0:
+        return bar * length
+    if percentage <= 0.0:
+        return circle + graybar * (length - 1)
+    filled = int(length * percentage)
+    return bar * filled + circle + graybar * (length - filled - 1)
 
 
 class WaitingView(discord.ui.LayoutView):
@@ -24,8 +32,8 @@ class MusicPanel(discord.ui.LayoutView):
     def __init__(
         self,
         player: MusicPlayer,
-        track: Lavalink.AudioTrack,
-        requestAuthor: discord.Member,
+        track: lavalink.AudioTrack,
+        requestAuthorMention: str,
         bar: str,
         circle: str,
         graybar: str,
@@ -38,19 +46,19 @@ class MusicPanel(discord.ui.LayoutView):
             if player.is_playing:
                 if player.paused:
                     self.title = discord.ui.TextDisplay(
-                        f"⏸️一時停止中 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
+                        f"⏸️一時停止中 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
                     )
                 else:
                     self.title = discord.ui.TextDisplay(
-                        f"🎶再生中 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
+                        f"🎶再生中 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
                     )
             else:
                 self.title = discord.ui.TextDisplay(
-                    f"再生準備中 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
+                    f"再生準備中 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
                 )
         else:
             self.trackInfoSection = discord.ui.TextDisplay(
-                f"再生終了 - **[{track.title}]({track.uri})**\n-# {requestAuthor.mention} によるリクエスト"
+                f"再生終了 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
             )
             container = discord.ui.Container(
                 self.trackInfoSection,
@@ -67,16 +75,24 @@ class MusicPanel(discord.ui.LayoutView):
                 self.title, accessory=self.thumbnail
             )
         else:
-            self.trackInfoSection = discord.ui.TextDisplay(track.title)
+            # SPEC #4: 元の実装は self.title(状態+リクエスト者情報)を捨てて track.title のみ表示する
+            # バグだった。アートワーク無しでも同じ情報行を出す。
+            self.trackInfoSection = self.title
 
-        percentage = player.position / track.duration
-        barLength = 14
-        filledLength = int(barLength * percentage)
-        progressBar = (
-            bar * filledLength + circle + graybar * (barLength - filledLength - 1)
+        # SPEC #7: ライブ配信は duration=0 (もしくは 2^63-1) を返しうる。ZeroDivision を回避。
+        if track.duration and track.duration > 0:
+            playProgressPercentage = player.position / track.duration
+            playDurationText = formatTime(track.duration / 1000)
+        else:
+            playProgressPercentage = 0
+            playDurationText = "LIVE"
+        playProgressBar = _progressBar(
+            playProgressPercentage, bar, circle, graybar
         )
         self.playProgress = discord.ui.TextDisplay(
-            f"-# 再生時間 `{formatTime(player.position / 1000)} / {formatTime(track.duration / 1000)}`\n{progressBar}"
+            f"-# 再生時間 `{formatTime(player.position / 1000)}"
+            f" / {playDurationText}`\n"
+            f"{playProgressBar}"
         )
 
         self.playActions = discord.ui.ActionRow(
@@ -143,14 +159,9 @@ class MusicPanel(discord.ui.LayoutView):
             ),
         )
 
-        percentage = player.volume / 100
-        barLength = 14
-        filledLength = int(barLength * percentage)
-        progressBar = (
-            bar * filledLength + circle + graybar * (barLength - filledLength - 1)
-        )
+        volumeBar = _progressBar(player.volume / 100, bar, circle, graybar)
         self.volumeView = discord.ui.TextDisplay(
-            f"-# ボリューム `{player.volume}%`\n{progressBar}"
+            f"-# ボリューム `{player.volume}%`\n{volumeBar}"
         )
 
         self.volumeActions = discord.ui.ActionRow(
@@ -175,14 +186,9 @@ class MusicPanel(discord.ui.LayoutView):
             speed = timescale.values["speed"]
             pitch = timescale.values["pitch"]
 
-        percentage = speed / 2.0
-        barLength = 14
-        filledLength = int(barLength * percentage)
-        progressBar = (
-            bar * filledLength + circle + graybar * (barLength - filledLength - 1)
-        )
+        speedBar = _progressBar(speed / 2.0, bar, circle, graybar)
         self.speedView = discord.ui.TextDisplay(
-            f"-# 速度 `{math.ceil(speed * 100)}%`\n{progressBar}"
+            f"-# 速度 `{round(speed * 100)}%`\n{speedBar}"
         )
 
         self.speedActions = discord.ui.ActionRow(
@@ -199,14 +205,9 @@ class MusicPanel(discord.ui.LayoutView):
             ),
         )
 
-        percentage = pitch / 2.0
-        barLength = 14
-        filledLength = int(barLength * percentage)
-        progressBar = (
-            bar * filledLength + circle + graybar * (barLength - filledLength - 1)
-        )
+        pitchBar = _progressBar(pitch / 2.0, bar, circle, graybar)
         self.pitchView = discord.ui.TextDisplay(
-            f"-# ピッチ `{math.ceil(pitch * 100)}%`\n{progressBar}"
+            f"-# ピッチ `{round(pitch * 100)}%`\n{pitchBar}"
         )
 
         self.pitchActions = discord.ui.ActionRow(

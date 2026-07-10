@@ -5,15 +5,44 @@ description = "Music Bot"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "aiofiles>=25.1.0",
-    "alembic>=1.18.4",
-    "asyncpg>=0.31.0",
     "discord-py[voice]>=2.6.4",
     "lavalink>=5.9.0",
-    "orjson>=3.11.7",
     "psutil>=7.2.2",
-    "psycopg2-binary>=2.9.11",
-    "pydantic>=2.12.5",
     "python-dotenv>=1.2.1",
-    "tzdata>=2025.3",
 ]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.411",
+    "ruff>=0.15.21",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "N", "UP", "B", "SIM", "ARG", "RUF"]
+# RUF001-003: 日本語 UI の全角記号(！ など)は正しい表記。ASCII 化はユーザー可視の文言変更になるため抑制(SPEC §5.2)。
+# SIM112: 環境変数キーは小文字が本番 .env 契約(SPEC §5.3, D-1 案a)。
+# N802/N803/N806/N812/N815: 本プロジェクトの命名規約は camelCase(オーナー決定)。
+#   N805(第1引数 self)は本物のバグ検出に有用なため残す。
+ignore = [
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "SIM112",
+    "N802",
+    "N803",
+    "N806",
+    "N812",
+    "N815",
+]
+
+[tool.pyright]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+include = ["main.py", "cogs", "objects", "services"]
+exclude = [".venv"]
+typeCheckingMode = "standard"
