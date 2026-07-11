@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, cast
 
 import discord
 import lavalink
+from lavalink.common import VoiceServerUpdatePayload, VoiceStateUpdatePayload
 from lavalink.errors import ClientError
 
 if TYPE_CHECKING:
@@ -51,8 +52,8 @@ class LavalinkVoiceClient(discord.VoiceProtocol):
     async def on_voice_server_update(self, data):
         # the data needs to be transformed before being handed down to
         # voice_update_handler
-        lavalinkData = {"t": "VOICE_SERVER_UPDATE", "d": data}
-        await self.lavalink.voice_update_handler(lavalinkData)
+        payload: VoiceServerUpdatePayload = {"t": "VOICE_SERVER_UPDATE", "d": data}
+        await self.lavalink.voice_update_handler(payload)
 
     async def on_voice_state_update(self, data):
         # 注: data["channel_id"] は Discord ゲートウェイのペイロード形式(触らない)
@@ -69,9 +70,9 @@ class LavalinkVoiceClient(discord.VoiceProtocol):
 
         # the data needs to be transformed before being handed down to
         # voice_update_handler
-        lavalinkData = {"t": "VOICE_STATE_UPDATE", "d": data}
+        payload: VoiceStateUpdatePayload = {"t": "VOICE_STATE_UPDATE", "d": data}
 
-        await self.lavalink.voice_update_handler(lavalinkData)
+        await self.lavalink.voice_update_handler(payload)
 
     async def connect(
         self,
