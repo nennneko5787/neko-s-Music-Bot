@@ -5,10 +5,10 @@ description = "Music Bot"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "discord-py[voice]>=2.6.4",
+    "discord-py[voice]>=2.7.1,<3",
     "lavalink>=5.11.0",
     "psutil>=7.2.2",
-    "python-dotenv>=1.2.1",
+    "python-dotenv>=1.2.2",
 ]
 
 [dependency-groups]
