@@ -7,6 +7,7 @@ from discord import app_commands
 
 from objects.bot import MusicBot
 from objects.exceptions import MusicCommandError, NoGuildError
+from services import adService
 from services.env import getEnv
 
 # SPEC #32: emojis intent は使っていない(guild emoji イベント未購読)。prefix は
@@ -93,6 +94,9 @@ async def setup_hook():
     await bot.load_extension("cogs.music")
     await bot.load_extension("cogs.ping")
     await bot.load_extension("cogs.help")
+
+    # SPEC_FEATURE_ADS §5.1: config/ads/*.json を 1 度読み込む。ホットリロード非対応。
+    adService.loadAds()
 
     # SPEC #20: tree.sync を毎起動実行すると、クラッシュ再起動ループで global sync 連打 → 429。
     # コマンド定義変更時のみ手動で行うため、環境変数 SYNC_COMMANDS=1 のときだけ実行。
