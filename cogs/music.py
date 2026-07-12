@@ -11,6 +11,7 @@ from lavalink.events import (
     PlayerUpdateEvent,
     QueueEndEvent,
     TrackEndEvent,
+    TrackStartEvent,
 )
 from lavalink.filters import Timescale
 from lavalink.server import LoadType
@@ -21,7 +22,6 @@ from objects.panel import WaitingView
 from objects.player import MusicPlayer
 from objects.utils import resolveMemberMention
 from services import (
-    adService,
     buttonHandler,
     lavalinkHooks,
     panelUpdater,
@@ -137,6 +137,10 @@ class MusicCog(commands.Cog):
     async def onButtonClick(self, interaction: discord.Interaction):
         await buttonHandler.handleButtonClick(self, interaction)
 
+    @lavalink.listener(TrackStartEvent)
+    async def onTrackStart(self, event: TrackStartEvent):
+        await lavalinkHooks.handleTrackStart(self, event)
+
     @lavalink.listener(TrackEndEvent)
     async def onTrackEnd(self, event: TrackEndEvent):
         await lavalinkHooks.handleTrackEnd(self, event)
@@ -189,9 +193,8 @@ class MusicCog(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
-        # SPEC_FEATURE_ADS §5.2: キュー挿入 embed の直後、WaitingView 投稿より前に広告フックを呼ぶ。
-        # 5〜10 回に 1 回だけ広告 embed が followup で追加送信される(閾値未到達時は no-op)。
-        await adService.maybeShowAd(interaction, interaction.guild.id)
+        # SPEC_FEATURE_ADS §5.2: 広告表示は TrackStartEvent hook 側に一元化された。
+        # ここでは呼ばない(playCommand 経由の /play も、hook 側の onTrackStart 経由でカウントされる)。
 
         # SPEC #24: is_playing は TrackStart 到着まで False のため、アイドルに2人が同時に /play すると
         # 二重パネルが投稿される。channelId store の有無でアトミックに判定する。

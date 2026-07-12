@@ -2,12 +2,13 @@
 
 ## 1. 概要
 
-`config/ads/*.json` から広告データを読み込み、`/play` 実行時に画像付き
+`config/ads/*.json` から広告データを読み込み、**トラック開始時**に画像付き
 **Discord Components V2 (LayoutView / Container)** メッセージとしてユーザーに
 表示する機能を追加する。
 
-トリガーはコマンド単位(1 曲/1 プレイリスト単位)。ギルドごとに 3〜5 回
-のランダム間隔で表示され、確実にスポンサー露出を確保する。
+トリガーはトラック単位(TrackStartEvent)。ギルドごとに 3〜5 回のランダム
+間隔で表示される。LOOP_SINGLE / LOOP_QUEUE の各サイクルも 1 回とカウント
+されるため、長時間ループ中のユーザーにも定期的に露出する。
 
 Components V2 化の理由:
 - MusicPanel / WaitingView が既に LayoutView 化されており、UI 体系が統一される。
@@ -91,10 +92,13 @@ Container(accent_color=gold)
   個別 JSON の parse 失敗は WARNING ログを出して skip(その 1 件だけ落ちる)。
 - `buildAdView(ad: Ad) -> AdView`
   `AdView(ad)` を返す薄いファクトリ(単体テストからの呼び出し用)。
-- `maybeShowAd(interaction, guildId) -> None`
-  ギルド別カウンタを進め、閾値到達なら重み付き抽選で 1 件を LayoutView で送信。
-  送信後はカウンタ 0、閾値を 3〜5 で再抽選。
+- `maybeShowAd(channel: discord.abc.Messageable, guildId: int) -> None`
+  ギルド別カウンタを進め、閾値到達なら重み付き抽選で 1 件を LayoutView で
+  `channel.send(...)` する。送信後はカウンタ 0、閾値を 3〜5 で再抽選。
   広告 0 件のときは何もしない。
+  `interaction.followup` ではなく `channel.send` を使う理由:
+  TrackStartEvent hook は Interaction コンテキストを持たない。
+  音楽パネルの channel(`player.fetch("channelId")`)を hook 側で解決して渡す。
 
 **内部状態:**
 
@@ -112,16 +116,32 @@ Container(accent_color=gold)
 Cog 読み込み後に 1 度だけ `adService.loadAds()` を呼ぶ。ホットリロードは
 対応しない(必要になったら別途)。
 
-### 5.2 `cogs/music.py::playCommand`
+### 5.2 `services/lavalinkHooks.py::handleTrackStart`(新規)
 
-キュー挿入 embed(followup.send)送信の**直後**に
-`await adService.maybeShowAd(interaction, interaction.guild.id)` を呼ぶ。
+`@lavalink.listener(TrackStartEvent)` で登録される handler。
+既存の handleTrackEnd / handleQueueEnd / handlePlayerUpdate と同じ API 契約
+(`cog` 引数受け、event 引数受け)で実装する。
 
-配置理由:
-- 既に defer + followup 済みなので channel context が確定している
-- WaitingView の投稿(別 channel メッセージ)より前に置くことで、
-  ユーザーの視線がまだ /play の結果に向いている間に露出できる
-- `if player.fetch("channelId") is None:` ブロックの前(常に通る位置)
+処理:
+1. `player.fetch("channelId")` で音楽パネル channel を解決
+2. `cog.bot.get_channel(channelId)` で `discord.abc.Messageable` を取得
+3. 取れなければ silent return(bot 蹴られ / チャンネル削除耐性)
+4. `await adService.maybeShowAd(channel, player.guild_id)` を呼ぶ
+
+**カウント対象イベント:**
+- 通常再生の 1 曲目 (playCommand → player.play() → TrackStart)
+- キュー消化中の各トラック開始
+- LOOP_SINGLE の毎ループの TrackStart
+- LOOP_QUEUE の毎サイクルの各 TrackStart
+- ⏭(next)ボタン / ⏮(prev)ボタン経由の再生
+- /play で追加された曲が現行曲終了後に始まるとき
+
+これで長時間ループ中でも 3〜5 曲ごとに広告露出が保証される。
+
+**playCommand からは maybeShowAd を呼ばない。**
+理由: TrackStart 起点に一元化することで二重発火を避けるため。
+また、/play 直後に interaction.followup で広告を出すと、UI 上
+「キュー挿入 embed → 広告 → WaitingView」の 3 連投になり視覚的にうるさい。
 
 ## 6. 依存関係
 
@@ -142,9 +162,14 @@ dependencies = [
 
 - JSON parse エラー / pydantic ValidationError → WARN ログ + 該当ファイル skip
 - ディレクトリ不在 → INFO ログ + 0 件でリターン
-- `followup.send` の HTTPException → WARN ログのみ、`/play` の成功は保つ
-  (広告送信失敗が音楽再生を止めてはならない)
+- `channel.send` の失敗 (Exception 全般) → 音楽再生を止めない。
+  - 同一ギルドで初回失敗のみ WARN、以降 DEBUG に降格
+    (慢性的な権限不足でログが埋まらないように)
+  - 次回送信成功時に失敗フラグをリセット
 - `_ADS` が空でも `maybeShowAd` は無害(早期リターン)
+- ギルドのセッション終了時 (handleQueueEnd → disconnect) に
+  `adService.clearGuildState(guildId)` を呼び、カウンタ/閾値/失敗フラグを解放する
+  (数千ギルドを長期ホストしたときの dict 肥大化防止)
 
 ## 8. 非目標
 
@@ -158,13 +183,16 @@ dependencies = [
 ## 9. 契約(既存挙動を壊さないこと)
 
 - `/play` の応答フロー: defer → followup(insertion embed) → WaitingView post
-  → player.play() を**維持する**。広告 LayoutView は insertion embed の直後に
-  追加送信される(順序: insertion embed → ad view → WaitingView)。
+  → player.play() を**維持する**。playCommand 内では広告を送信しない
+  (TrackStart hook 側に移譲されている)。
 - 広告 0 件 / 閾値未到達時は「新しいメッセージが 1 通も増えない」ことを保つ。
 - MusicPanel(WaitingView / 再生パネル)は一切変更しない。
 - AdView は `custom_id` を持たない ⇒ `buttonHandler` の網羅性 assertion は不変。
 - `_GUILD_COUNTERS` / `_GUILD_THRESHOLDS` のキーは guild_id のみで、
   再起動でリセットされる想定。
+- `channelId` store が未設定(初回 /play より前)のときは maybeShowAd を呼ばない。
+  TrackStart は player.play() 後にのみ発火するため、通常フローでは常に
+  channelId が設定済みだが、hook 側で defensive に None チェックを行う。
 
 ## 10. 受け入れ基準
 
@@ -175,14 +203,19 @@ dependencies = [
       を含む。
 - [ ] `services/adService.py` の 3 個の Public API が実装済み。
 - [ ] `main.py::setup_hook` で `loadAds()` が呼ばれる。
-- [ ] `cogs/music.py::playCommand` で `maybeShowAd()` が呼ばれる。
+- [ ] `cogs/music.py` に `TrackStartEvent` の listener が追加されている。
+- [ ] `services/lavalinkHooks.py::handleTrackStart` が実装され、
+      `maybeShowAd` を呼ぶ。
+- [ ] `cogs/music.py::playCommand` は maybeShowAd を呼ばない
+      (TrackStart 側に一元化されている)。
 - [ ] `config/ads/example.json` にサンプル広告(enabled=false)がある。
 - [ ] `pyproject.toml` に pydantic が追加され、`uv sync` が通る。
 - [ ] `ruff check` / `pyright` が 0 error / 0 warning。
 - [ ] `buttonHandler._EXPECTED_CUSTOM_IDS` の assertion が生きたまま。
 - [ ] 手動: 空の config/ads/ で /play → 広告が送られない。
-- [ ] 手動: enabled=true のサンプルを置いて 5 回 /play → 少なくとも 1 回は
+- [ ] 手動: enabled=true のサンプルを置いて 5 曲キュー再生 → 少なくとも 1 回は
       広告 LayoutView が送信される。
+- [ ] 手動: LOOP_SINGLE で同曲を 10 回ループ → 少なくとも 2 回広告が出る。
 - [ ] 手動: linkUrl 有り → LinkButton が表示され、リンクは正しい URL。
 - [ ] 手動: linkUrl 無し → LinkButton も title のハイパーリンクも出ない。
 - [ ] 手動: malformed JSON を 1 件置いて起動 → WARN ログ + 起動継続。
@@ -199,6 +232,7 @@ dependencies = [
 編集:
 - `pyproject.toml`(pydantic 追加)
 - `main.py`(setup_hook で `loadAds()` を追加)
-- `cogs/music.py`(playCommand の末尾に `maybeShowAd()` 追加、import 追加)
+- `cogs/music.py`(TrackStartEvent listener 追加、playCommand の maybeShowAd 呼び出しは無し)
+- `services/lavalinkHooks.py`(handleTrackStart 追加)
 
 削除: なし

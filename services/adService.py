@@ -1,13 +1,14 @@
 """
 広告機能サービス。SPEC_FEATURE_ADS.md §4.2 実装。
 
-config/ads/*.json から Ad を読み込み、/play 実行時にギルド別 3〜5 回間隔で
-ランダム広告 LayoutView (Components V2) を送信する。
+config/ads/*.json から Ad を読み込み、TrackStart イベントごとにギルド別
+3〜5 回間隔でランダム広告 LayoutView (Components V2) を音楽 channel に送信する。
 
 Public API:
 - loadAds(directory) -> int: startup で 1 度呼ぶ。有効広告数を返す。
 - buildAdView(ad) -> AdView: AdView を返す薄いファクトリ(テスト用)。
-- maybeShowAd(interaction, guildId) -> None: /play 末尾で呼ぶ。
+- maybeShowAd(channel, guildId) -> None: TrackStart hook から呼ぶ。
+- clearGuildState(guildId) -> None: ギルド切断時に呼ぶ(カウンタ/閾値の GC)。
 """
 from __future__ import annotations
 
@@ -31,6 +32,15 @@ _MAX_INTERVAL = 5
 _ADS: list[Ad] = []
 _GUILD_COUNTERS: dict[int, int] = {}
 _GUILD_THRESHOLDS: dict[int, int] = {}
+# 送信失敗を検出したギルド。同一ギルドで連続失敗しても WARN は最初の 1 回のみ出す。
+# 成功したら pop してリセット。
+_GUILD_FAILED: set[int] = set()
+
+# 広告メッセージは対話性を持たないため、mention は全 False に固定。
+# panelUpdater.ALLOWED_MENTIONS と同じ意図(通知汚染防止)。
+_ALLOWED_MENTIONS = discord.AllowedMentions(
+    everyone=False, users=False, roles=False, replied_user=False
+)
 
 
 def _rerollThreshold() -> int:
@@ -92,14 +102,17 @@ def buildAdView(ad: Ad) -> AdView:
     return AdView(ad)
 
 
-async def maybeShowAd(interaction: discord.Interaction, guildId: int) -> None:
+async def maybeShowAd(channel: discord.abc.Messageable, guildId: int) -> None:
     """
-    ギルド別カウンタを進め、閾値到達なら重み付き抽選で 1 件を followup 送信する。
+    ギルド別カウンタを進め、閾値到達なら重み付き抽選で 1 件を
+    `channel.send(view=AdView)` する。TrackStart hook から呼ばれる想定。
 
-    - _ADS が空: 何もしない(counter も進めない → 空 → 追加後にリセット挙動が乱れないよう温存)。
+    - _ADS が空: 何もしない(counter も進めない)。
     - 閾値未到達: counter を +1 して終了。
     - 閾値到達: 広告送信、counter=0、閾値を 3〜5 で再抽選。
-    - HTTPException: WARN のみ、上位に伝播しない(音楽再生を止めない、SPEC §7)。
+    - Exception: WARN のみ、上位に伝播しない(音楽再生を止めない、SPEC §7)。
+      discord.HTTPException だけでは aiohttp.ClientError / asyncio.TimeoutError
+      などのトランスポート層例外を取り逃がすため広く捕える。
     """
     if not _ADS:
         return
@@ -124,11 +137,29 @@ async def maybeShowAd(interaction: discord.Interaction, guildId: int) -> None:
     view = buildAdView(ad)
     try:
         # Components V2 の LayoutView。embed 引数は使わない。
-        await interaction.followup.send(view=view)
+        await channel.send(view=view, allowed_mentions=_ALLOWED_MENTIONS)
     except Exception as e:
-        # 広告送信失敗は絶対に /play を止めない(SPEC §7)。
-        # discord.HTTPException だけでは aiohttp.ClientError / asyncio.TimeoutError /
-        # ConnectionError などのトランスポート層例外を取り逃がし、上位の playCommand が
-        # 続きの WaitingView 投稿・player.play() に到達できず SPEC #24 の
-        # channelId ガードも張られないまま「無音」で停止する。広く捕える。
-        _log.warning("Failed to send ad %s: %s", ad.id, e)
+        # 権限不足等でこのチャンネルへの送信が慢性的に失敗する場合、
+        # WARN が 3〜5 曲ごとに永久出続けるとログが埋まる。1 ギルド 1 回だけ WARN、
+        # 以降は DEBUG に降格。次に送信成功したら失敗フラグを解除する。
+        if guildId in _GUILD_FAILED:
+            _log.debug("Ad send still failing for guild %s (%s): %s", guildId, ad.id, e)
+        else:
+            _log.warning(
+                "Failed to send ad %s in guild %s (further failures logged at DEBUG): %s",
+                ad.id, guildId, e,
+            )
+            _GUILD_FAILED.add(guildId)
+    else:
+        _GUILD_FAILED.discard(guildId)
+
+
+def clearGuildState(guildId: int) -> None:
+    """
+    ギルドのカウンタ / 閾値 / 失敗フラグを削除する。
+    lavalinkHooks.handleQueueEnd から disconnect 直前に呼ばれる想定。
+    数千ギルドを長期間ホストしたときの dict 肥大化を抑える。
+    """
+    _GUILD_COUNTERS.pop(guildId, None)
+    _GUILD_THRESHOLDS.pop(guildId, None)
+    _GUILD_FAILED.discard(guildId)

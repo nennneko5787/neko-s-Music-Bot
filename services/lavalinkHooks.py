@@ -10,6 +10,7 @@ add_event_hooks(self) が Cog インスタンスをスキャンする形なの�
 Cog に残す必要がある。
 
 Public API:
+- handleTrackStart(cog, event): SPEC_FEATURE_ADS §5.2 — 広告カウンタ進行 + 送信
 - handleTrackEnd(cog, event): SPEC #17/#23 — lastFinishedTrack 保存 + prev history 追加
 - handleQueueEnd(cog, event): SPEC #18 — finished パネル化 + voice disconnect
 - handlePlayerUpdate(cog, event): 5秒スロットルでパネル(シークバー等)再構築
@@ -19,16 +20,38 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, cast
 
+import discord
 import lavalink
-from lavalink.events import PlayerUpdateEvent, QueueEndEvent, TrackEndEvent
+from lavalink.events import (
+    PlayerUpdateEvent,
+    QueueEndEvent,
+    TrackEndEvent,
+    TrackStartEvent,
+)
 
 from objects.client import LavalinkVoiceClient
 from objects.player import MusicPlayer
 from objects.utils import resolveMemberMention
-from services import panelUpdater
+from services import adService, panelUpdater
 
 if TYPE_CHECKING:
     from cogs.music import MusicCog
+
+
+async def handleTrackStart(cog: MusicCog, event: TrackStartEvent) -> None:
+    # SPEC_FEATURE_ADS §5.2: 曲頭ごとに広告カウンタを進め、閾値到達で送信する。
+    # LOOP_SINGLE/LOOP_QUEUE の各サイクルもここで拾えるため、長時間ループでも露出保証。
+    player = cast(MusicPlayer, event.player)
+    channelId = cast(int | None, player.fetch("channelId"))
+    if channelId is None:
+        # 通常フローでは playCommand が player.play() の前に channelId を store する。
+        # このガードは念のため(TrackStart が想定外タイミングで到達した場合の防御)。
+        return
+    channel = cog.bot.get_channel(channelId)
+    if not isinstance(channel, discord.abc.Messageable):
+        # チャンネル削除、bot 蹴られ、DM ではない、等
+        return
+    await adService.maybeShowAd(channel, player.guild_id)
 
 
 async def handleTrackEnd(
@@ -79,6 +102,10 @@ async def handleQueueEnd(cog: MusicCog, event: QueueEndEvent) -> None:
 
     guildId = player.guild_id
     guild = cog.bot.get_guild(guildId)
+
+    # SPEC_FEATURE_ADS §7: セッション終了と同時にギルド別カウンタを解放(dict 肥大化防止)。
+    # 次回 /play で 0 からの再カウントとなり、初回 3〜5 曲後に広告が出るのを保つ。
+    adService.clearGuildState(guildId)
 
     if guild is not None and guild.voice_client is not None:
         # SPEC Phase 5 §5 — キュー終了瞬間に管理者が bot を蹴ると None になる
