@@ -2,7 +2,8 @@
 広告機能サービス。SPEC_FEATURE_ADS.md §4.2 実装。
 
 config/ads/*.json から Ad を読み込み、TrackStart イベントごとにギルド別
-3〜5 回間隔でランダム広告 LayoutView (Components V2) を音楽 channel に送信する。
+8〜15 回間隔でランダム広告 LayoutView (Components V2) を音楽 channel に送信する。
+ループ再生の同一トラック連続再生はカウント対象外(handleTrackStart 側で dedup)。
 
 Public API:
 - loadAds(directory) -> int: startup で 1 度呼ぶ。有効広告数を返す。
@@ -25,9 +26,10 @@ from objects.adPanel import AdView
 
 _log = logging.getLogger("music")
 
-# SPEC §4.2: ギルド別 3〜5 回に 1 回。定数はここに集約。
-_MIN_INTERVAL = 3
-_MAX_INTERVAL = 5
+# SPEC §4.2: ギルド別 8〜15 回に 1 回。定数はここに集約。
+# 曲平均 3 分と仮定すると 24〜45 分に 1 回の露出。ループ dedup と合わせて非スパム化。
+_MIN_INTERVAL = 8
+_MAX_INTERVAL = 15
 
 _ADS: list[Ad] = []
 _GUILD_COUNTERS: dict[int, int] = {}
@@ -109,7 +111,7 @@ async def maybeShowAd(channel: discord.abc.Messageable, guildId: int) -> None:
 
     - _ADS が空: 何もしない(counter も進めない)。
     - 閾値未到達: counter を +1 して終了。
-    - 閾値到達: 広告送信、counter=0、閾値を 3〜5 で再抽選。
+    - 閾値到達: 広告送信、counter=0、閾値を 8〜15 で再抽選。
     - Exception: WARN のみ、上位に伝播しない(音楽再生を止めない、SPEC §7)。
       discord.HTTPException だけでは aiohttp.ClientError / asyncio.TimeoutError
       などのトランスポート層例外を取り逃がすため広く捕える。

@@ -40,8 +40,17 @@ if TYPE_CHECKING:
 
 async def handleTrackStart(cog: MusicCog, event: TrackStartEvent) -> None:
     # SPEC_FEATURE_ADS §5.2: 曲頭ごとに広告カウンタを進め、閾値到達で送信する。
-    # LOOP_SINGLE/LOOP_QUEUE の各サイクルもここで拾えるため、長時間ループでも露出保証。
     player = cast(MusicPlayer, event.player)
+
+    # ループ再生の連続同一トラック TrackStart はカウント対象外。
+    # LOOP_SINGLE では毎サイクル同じ track.identifier で TrackStart が来るのでスパム源になる。
+    # LOOP_QUEUE でも 1 曲キューだと同じ挙動。直前 counted トラックと同一なら skip。
+    currentId = event.track.identifier
+    lastCountedId = cast(str | None, player.fetch("lastCountedAdTrackId"))
+    if lastCountedId == currentId:
+        return
+    player.store("lastCountedAdTrackId", currentId)
+
     channelId = cast(int | None, player.fetch("channelId"))
     if channelId is None:
         # 通常フローでは playCommand が player.play() の前に channelId を store する。

@@ -6,7 +6,7 @@
 **Discord Components V2 (LayoutView / Container)** メッセージとしてユーザーに
 表示する機能を追加する。
 
-トリガーはトラック単位(TrackStartEvent)。ギルドごとに 3〜5 回のランダム
+トリガーはトラック単位(TrackStartEvent)。ギルドごとに 8〜15 回のランダム
 間隔で表示される。LOOP_SINGLE / LOOP_QUEUE の各サイクルも 1 回とカウント
 されるため、長時間ループ中のユーザーにも定期的に露出する。
 
@@ -94,7 +94,7 @@ Container(accent_color=gold)
   `AdView(ad)` を返す薄いファクトリ(単体テストからの呼び出し用)。
 - `maybeShowAd(channel: discord.abc.Messageable, guildId: int) -> None`
   ギルド別カウンタを進め、閾値到達なら重み付き抽選で 1 件を LayoutView で
-  `channel.send(...)` する。送信後はカウンタ 0、閾値を 3〜5 で再抽選。
+  `channel.send(...)` する。送信後はカウンタ 0、閾値を 8〜15 で再抽選。
   広告 0 件のときは何もしない。
   `interaction.followup` ではなく `channel.send` を使う理由:
   TrackStartEvent hook は Interaction コンテキストを持たない。
@@ -107,7 +107,7 @@ Container(accent_color=gold)
 - `_GUILD_THRESHOLDS: dict[int, int]` — 次に広告を出す閾値
 
 **閾値: `random.randint(3, 5)`**
-    初回はカウンタ 0/閾値 未設定 → 閾値をまず抽選し、以後 3〜5 回に 1 回。
+    初回はカウンタ 0/閾値 未設定 → 閾値をまず抽選し、以後 8〜15 回に 1 回。
 
 ## 5. 呼び出しポイント
 
@@ -123,20 +123,29 @@ Cog 読み込み後に 1 度だけ `adService.loadAds()` を呼ぶ。ホット�
 (`cog` 引数受け、event 引数受け)で実装する。
 
 処理:
-1. `player.fetch("channelId")` で音楽パネル channel を解決
-2. `cog.bot.get_channel(channelId)` で `discord.abc.Messageable` を取得
-3. 取れなければ silent return(bot 蹴られ / チャンネル削除耐性)
-4. `await adService.maybeShowAd(channel, player.guild_id)` を呼ぶ
+1. **同一トラック dedup**: `player.fetch("lastCountedAdTrackId")` と
+   `event.track.identifier` を比較し、一致なら即 return
+   (カウンタ進行も送信もしない)
+2. `player.store("lastCountedAdTrackId", event.track.identifier)`
+3. `player.fetch("channelId")` で音楽パネル channel を解決
+4. `cog.bot.get_channel(channelId)` で `discord.abc.Messageable` を取得
+5. 取れなければ silent return(bot 蹴られ / チャンネル削除耐性)
+6. `await adService.maybeShowAd(channel, player.guild_id)` を呼ぶ
 
 **カウント対象イベント:**
 - 通常再生の 1 曲目 (playCommand → player.play() → TrackStart)
-- キュー消化中の各トラック開始
-- LOOP_SINGLE の毎ループの TrackStart
-- LOOP_QUEUE の毎サイクルの各 TrackStart
-- ⏭(next)ボタン / ⏮(prev)ボタン経由の再生
-- /play で追加された曲が現行曲終了後に始まるとき
+- キュー消化中の**異なる**トラック開始
+- LOOP_QUEUE のサイクルで異なる曲に切り替わったとき
+- ⏭(next)ボタン / ⏮(prev)ボタン経由の**異なる**曲への遷移
 
-これで長時間ループ中でも 3〜5 曲ごとに広告露出が保証される。
+**カウント対象外:**
+- LOOP_SINGLE の毎ループの TrackStart(同じ track.identifier)
+- 1 曲キューの LOOP_QUEUE(同じ曲の循環になる)
+- prev/next で結果的に同じ曲になった場合
+
+これによりループ再生中の広告スパムを完全に抑止する。長時間 LOOP_SINGLE で
+音楽を聴きっぱなしのユーザーには一切広告が出ないが、これは意図的なトレードオフ
+(ユーザーがそのモードを選んでいる)。
 
 **playCommand からは maybeShowAd を呼ばない。**
 理由: TrackStart 起点に一元化することで二重発火を避けるため。
