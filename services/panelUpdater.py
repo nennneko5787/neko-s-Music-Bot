@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, cast
 import discord
 import lavalink
 
+from objects.ad import Ad
 from objects.panel import MusicPanel
 from objects.player import MusicPlayer
 
@@ -68,7 +69,9 @@ def buildPanel(
 ) -> MusicPanel:
     """
     MusicPanel を共通コンストラクタで生成。cog.bar/circle/graybar の emoji 注入を集約。
+    SPEC_FEATURE_ADS §5.3: player.store("currentAd") から現在の広告を取り出して渡す。
     """
+    ad = cast(Ad | None, player.fetch("currentAd"))
     return MusicPanel(
         player,
         track,
@@ -77,6 +80,7 @@ def buildPanel(
         cog.circle,
         cog.graybar,
         finished=finished,
+        ad=ad,
     )
 
 

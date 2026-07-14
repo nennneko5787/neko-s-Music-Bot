@@ -3,6 +3,7 @@ import lavalink
 
 from objects.utils import formatTime
 
+from .ad import Ad
 from .player import MusicPlayer
 
 
@@ -28,6 +29,27 @@ class WaitingView(discord.ui.LayoutView):
         self.add_item(container)
 
 
+def _buildAdItems(ad: Ad) -> list[discord.ui.Item]:
+    """
+    MusicPanel 末尾に埋め込む広告セクション。SPEC_FEATURE_ADS §4.1 のレイアウト。
+    Separator + Section(短文 + Thumbnail accessory)。
+    """
+    titleLine = (
+        f"**[{ad.title}]({ad.linkUrl})**" if ad.linkUrl else f"**{ad.title}**"
+    )
+    return [
+        discord.ui.Separator(spacing=discord.SeparatorSpacing.large),
+        discord.ui.Section(
+            discord.ui.TextDisplay("-# 広告 / Ad"),
+            discord.ui.TextDisplay(titleLine),
+            discord.ui.TextDisplay(f"-# {ad.description}"),
+            accessory=discord.ui.Thumbnail(
+                media=ad.imageUrl, description=ad.title
+            ),
+        ),
+    ]
+
+
 class MusicPanel(discord.ui.LayoutView):
     def __init__(
         self,
@@ -39,6 +61,7 @@ class MusicPanel(discord.ui.LayoutView):
         graybar: str,
         *,
         finished: bool = False,
+        ad: Ad | None = None,
     ) -> None:
         super().__init__(timeout=None)
 
@@ -224,7 +247,7 @@ class MusicPanel(discord.ui.LayoutView):
             ),
         )
 
-        container = discord.ui.Container(
+        containerItems: list[discord.ui.Item] = [
             self.trackInfoSection,
             self.playProgress,
             self.playActions,
@@ -235,6 +258,13 @@ class MusicPanel(discord.ui.LayoutView):
             self.speedActions,
             self.pitchView,
             self.pitchActions,
+        ]
+        # SPEC_FEATURE_ADS §4.1: ad があれば末尾に埋め込む(finished=False の再生パスのみ)。
+        if ad is not None:
+            containerItems.extend(_buildAdItems(ad))
+
+        container = discord.ui.Container(
+            *containerItems,
             accent_color=discord.Color.purple(),
         )
         self.add_item(container)
