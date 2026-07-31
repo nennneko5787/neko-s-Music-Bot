@@ -16,6 +16,7 @@ handler の戻り値契約:
            (prev/next/stop/queuePagenation の 4 種)
 - None   → 末尾の panel refresh を実行(残り 12 種)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -28,6 +29,7 @@ import discord
 import lavalink
 
 from objects.client import LavalinkVoiceClient
+from objects.mixPanel import MixPanel
 from objects.player import MusicPlayer
 from objects.utils import clamp, resolveMemberMention
 from services import audioFilters, panelUpdater, playerCheck, queuePagination
@@ -68,9 +70,7 @@ async def handlePrev(ctx: ButtonContext) -> bool:
         _prev = ctx.player.prevQueue.get_nowait()
     except asyncio.QueueEmpty:
         # SPEC #5: stale パネル経由で空 prevQueue に到達したときの hang 回避。
-        await ctx.interaction.followup.send(
-            "前の曲がありません。", ephemeral=True
-        )
+        await ctx.interaction.followup.send("前の曲がありません。", ephemeral=True)
         return True
     _track.position = 0
     # 現在曲を queue 先頭に戻す(prev 再生後に自然に元の曲が続く)
@@ -88,9 +88,7 @@ async def handleNext(ctx: ButtonContext) -> bool:
     await ctx.player.putPrevQueue(_track)
 
     if len(ctx.player.queue) == 0:
-        await ctx.interaction.followup.send(
-            "次の曲がありません。", ephemeral=True
-        )
+        await ctx.interaction.followup.send("次の曲がありません。", ephemeral=True)
         return True
     popAt = random.randrange(len(ctx.player.queue)) if ctx.player.shuffle else 0
     _next = ctx.player.queue.pop(popAt)
@@ -101,9 +99,7 @@ async def handleNext(ctx: ButtonContext) -> bool:
 async def handleStop(ctx: ButtonContext) -> bool:
     # SPEC.md §5.2: onButtonClick.stop は disconnect(force=False)。
     # stopCommand の disconnect(force=True) とは意図的に区別されている。
-    await panelUpdater.finalizePanel(
-        ctx.cog, ctx.player, ctx.track, ctx.requestAuthorMention
-    )
+    await panelUpdater.finalizePanel(ctx.cog, ctx.player, ctx.track, ctx.requestAuthorMention)
     await ctx.voiceClient.disconnect()
     return True
 
@@ -117,15 +113,11 @@ async def handlePause(ctx: ButtonContext) -> None:
 
 
 async def handleReverse(ctx: ButtonContext) -> None:
-    await ctx.player.seek(
-        int(clamp(ctx.player.position - 10_000, 0, ctx.track.duration))
-    )
+    await ctx.player.seek(int(clamp(ctx.player.position - 10_000, 0, ctx.track.duration)))
 
 
 async def handleForward(ctx: ButtonContext) -> None:
-    await ctx.player.seek(
-        int(clamp(ctx.player.position + 10_000, 0, ctx.track.duration))
-    )
+    await ctx.player.seek(int(clamp(ctx.player.position + 10_000, 0, ctx.track.duration)))
 
 
 async def handleVolumeUp(ctx: ButtonContext) -> None:
@@ -165,10 +157,14 @@ async def handleShuffle(ctx: ButtonContext) -> None:
 
 async def handleQueuePagenation(ctx: ButtonContext) -> bool:
     # SPEC #3: return が無いと後段のパネル書き換えで queue 表示が上書きされる。
-    await queuePagination.queuePagenation(
-        ctx.cog, ctx.interaction, int(ctx.customField[1]), edit=True
-    )
+    await queuePagination.queuePagenation(ctx.cog, ctx.interaction, int(ctx.customField[1]), edit=True)
     return True
+
+
+async def handleOpenMix(ctx: ButtonContext) -> None:
+    await ctx.interaction.response.send(
+        view=MixPanel(ctx.player, ctx.cog.bar, ctx.cog.circle, ctx.cog.graybar), ephemeral=True
+    )
 
 
 # ------------------------------ dispatch table -------------------------------
@@ -191,6 +187,7 @@ _HANDLERS: dict[str, Handler] = {
     "loop": handleLoop,
     "shuffle": handleShuffle,
     "queuePagenation": handleQueuePagenation,
+    "mix": handleOpenMix,
 }
 
 # 網羅性契約: この集合と _HANDLERS のキー集合は一致しなければならない。
@@ -213,6 +210,7 @@ _EXPECTED_CUSTOM_IDS: frozenset[str] = frozenset(
         "loop",
         "shuffle",
         "queuePagenation",
+        "mix",
     }
 )
 
@@ -237,23 +235,15 @@ async def handleButtonClick(cog: MusicCog, interaction: discord.Interaction) -> 
         return
     voiceClient = cast(LavalinkVoiceClient | None, interaction.guild.voice_client)
     if not voiceClient:
-        await interaction.response.send_message(
-            "現在曲を再生していません。", ephemeral=True
-        )
+        await interaction.response.send_message("現在曲を再生していません。", ephemeral=True)
         return
     player = cast(MusicPlayer | None, voiceClient.player)
     if player is None:
-        await interaction.response.send_message(
-            "現在曲を再生していません。", ephemeral=True
-        )
+        await interaction.response.send_message("現在曲を再生していません。", ephemeral=True)
         return
     # SPEC #14: VC 参加チェック — /queue の pagination だけは view-only なので許可。
-    if customField[0] != "queuePagenation" and not playerCheck.isInBotVoiceChannel(
-        interaction, voiceClient
-    ):
-        await interaction.response.send_message(
-            "ボットと同じボイスチャンネルに参加してください。", ephemeral=True
-        )
+    if customField[0] != "queuePagenation" and not playerCheck.isInBotVoiceChannel(interaction, voiceClient):
+        await interaction.response.send_message("ボットと同じボイスチャンネルに参加してください。", ephemeral=True)
         return
     await interaction.response.defer(ephemeral=True)
 
@@ -262,9 +252,7 @@ async def handleButtonClick(cog: MusicCog, interaction: discord.Interaction) -> 
         # 曲終了直後にボタンが押されるレース窓(SPEC Phase 5 §5)
         return
     track: lavalink.AudioTrack = current
-    requestAuthorMention = await resolveMemberMention(
-        interaction.guild, track.extra["requester"]
-    )
+    requestAuthorMention = await resolveMemberMention(interaction.guild, track.extra["requester"])
 
     ctx = ButtonContext(
         cog=cog,
@@ -290,10 +278,6 @@ async def handleButtonClick(cog: MusicCog, interaction: discord.Interaction) -> 
     if refreshed is None:
         return
     track = refreshed
-    requestAuthorMention = await resolveMemberMention(
-        interaction.guild, track.extra["requester"]
-    )
-    panel = panelUpdater.buildPanel(
-        cog, player, track, requestAuthorMention, finished=False
-    )
+    requestAuthorMention = await resolveMemberMention(interaction.guild, track.extra["requester"])
+    panel = panelUpdater.buildPanel(cog, player, track, requestAuthorMention, finished=False)
     await panelUpdater.schedulePanelEdit(cog, interaction, panel)

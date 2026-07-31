@@ -34,18 +34,14 @@ def _buildAdItems(ad: Ad) -> list[discord.ui.Item]:
     MusicPanel 末尾に埋め込む広告セクション。SPEC_FEATURE_ADS §4.1 のレイアウト。
     Separator + Section(短文 + Thumbnail accessory)。
     """
-    titleLine = (
-        f"**[{ad.title}]({ad.linkUrl})**" if ad.linkUrl else f"**{ad.title}**"
-    )
+    titleLine = f"**[{ad.title}]({ad.linkUrl})**" if ad.linkUrl else f"**{ad.title}**"
     return [
         discord.ui.Separator(spacing=discord.SeparatorSpacing.large),
         discord.ui.Section(
             discord.ui.TextDisplay("-# 広告 / Ad"),
             discord.ui.TextDisplay(titleLine),
             discord.ui.TextDisplay(f"-# {ad.description}"),
-            accessory=discord.ui.Thumbnail(
-                media=ad.imageUrl, description=ad.title
-            ),
+            accessory=discord.ui.Thumbnail(media=ad.imageUrl, description=ad.title),
         ),
     ]
 
@@ -91,12 +87,8 @@ class MusicPanel(discord.ui.LayoutView):
             return
 
         if track.artwork_url:
-            self.thumbnail = discord.ui.Thumbnail(
-                media=track.artwork_url, description=track.title
-            )
-            self.trackInfoSection = discord.ui.Section(
-                self.title, accessory=self.thumbnail
-            )
+            self.thumbnail = discord.ui.Thumbnail(media=track.artwork_url, description=track.title)
+            self.trackInfoSection = discord.ui.Section(self.title, accessory=self.thumbnail)
         else:
             # SPEC #4: 元の実装は self.title(状態+リクエスト者情報)を捨てて track.title のみ表示する
             # バグだった。アートワーク無しでも同じ情報行を出す。
@@ -109,13 +101,9 @@ class MusicPanel(discord.ui.LayoutView):
         else:
             playProgressPercentage = 0
             playDurationText = "LIVE"
-        playProgressBar = _progressBar(
-            playProgressPercentage, bar, circle, graybar
-        )
+        playProgressBar = _progressBar(playProgressPercentage, bar, circle, graybar)
         self.playProgress = discord.ui.TextDisplay(
-            f"-# 再生時間 `{formatTime(player.position / 1000)}"
-            f" / {playDurationText}`\n"
-            f"{playProgressBar}"
+            f"-# 再生時間 `{formatTime(player.position / 1000)} / {playDurationText}`\n{playProgressBar}"
         )
 
         self.playActions = discord.ui.ActionRow(
@@ -173,77 +161,19 @@ class MusicPanel(discord.ui.LayoutView):
                 disabled=(len(player.queue) <= 0),
             ),
             discord.ui.Button(
-                style=discord.ButtonStyle.blurple
-                if player.shuffle
-                else discord.ButtonStyle.gray,
+                style=discord.ButtonStyle.blurple if player.shuffle else discord.ButtonStyle.gray,
                 emoji="🔀",
                 custom_id="shuffle",
                 row=1,
             ),
         )
 
-        volumeBar = _progressBar(player.volume / 100, bar, circle, graybar)
-        self.volumeView = discord.ui.TextDisplay(
-            f"-# ボリューム `{player.volume}%`\n{volumeBar}"
-        )
-
-        self.volumeActions = discord.ui.ActionRow(
+        self.playActions3 = discord.ui.ActionRow(
             discord.ui.Button(
                 style=discord.ButtonStyle.blurple,
-                label="-",
-                custom_id="volumeDown",
+                emoji="🎶",
+                custom_id="mix",
                 row=1,
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                label="+",
-                custom_id="volumeUp",
-            ),
-        )
-
-        timescale = player.get_filter("timescale")
-        if not timescale:
-            speed = 1.0
-            pitch = 1.0
-        else:
-            speed = timescale.values["speed"]
-            pitch = timescale.values["pitch"]
-
-        speedBar = _progressBar(speed / 2.0, bar, circle, graybar)
-        self.speedView = discord.ui.TextDisplay(
-            f"-# 速度 `{round(speed * 100)}%`\n{speedBar}"
-        )
-
-        self.speedActions = discord.ui.ActionRow(
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                label="-",
-                custom_id="speedDown",
-                row=1,
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                label="+",
-                custom_id="speedUp",
-            ),
-        )
-
-        pitchBar = _progressBar(pitch / 2.0, bar, circle, graybar)
-        self.pitchView = discord.ui.TextDisplay(
-            f"-# ピッチ `{round(pitch * 100)}%`\n{pitchBar}"
-        )
-
-        self.pitchActions = discord.ui.ActionRow(
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                label="-",
-                custom_id="pitchDown",
-                row=1,
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                label="+",
-                custom_id="pitchUp",
             ),
         )
 
@@ -252,12 +182,7 @@ class MusicPanel(discord.ui.LayoutView):
             self.playProgress,
             self.playActions,
             self.playActions2,
-            self.volumeView,
-            self.volumeActions,
-            self.speedView,
-            self.speedActions,
-            self.pitchView,
-            self.pitchActions,
+            self.playActions3,
         ]
         # SPEC_FEATURE_ADS §4.1: ad があれば末尾に埋め込む(finished=False の再生パスのみ)。
         if ad is not None:
