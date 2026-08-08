@@ -24,7 +24,8 @@
 
 ```python
 await interaction.response.defer()
-if interaction.guild is None: return
+if interaction.guild is None:
+    return
 voiceClient = cast(...)
 if not voiceClient:
     await interaction.followup.send("コマンドを実行する前に、曲を再生してください。")
@@ -34,9 +35,7 @@ if player is None:
     await interaction.followup.send("コマンドを実行する前に、曲を再生してください。")
     return
 if not playerCheck.isInBotVoiceChannel(interaction, voiceClient):
-    await interaction.followup.send(
-        "ボットと同じボイスチャンネルに参加してください。", ephemeral=True
-    )
+    await interaction.followup.send("ボットと同じボイスチャンネルに参加してください。", ephemeral=True)
     return
 ```
 

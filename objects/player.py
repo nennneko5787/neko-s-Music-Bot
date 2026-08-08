@@ -18,9 +18,6 @@ class MusicPlayer(DefaultPlayer):
         self.lastUpdated = time.time()
 
     async def putPrevQueue(self, track: lavalink.AudioTrack) -> None:
-        """
-        ⏮ ボタン用の履歴 LIFO キューにトラックを積む(SPEC_REFACTOR_PR7 で method 化)。
-        再挿入時に position=0 に戻すのはこの API の一部(呼び出し側で二重設定不要)。
-        """
+        """⏮ 用の履歴キューに積む。position=0 へのリセットもこの API の一部。"""
         track.position = 0
         await self.prevQueue.put(track)

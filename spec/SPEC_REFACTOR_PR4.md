@@ -41,13 +41,13 @@ handler に渡す実行時コンテキスト。frozen で immutable。
 ```python
 @dataclasses.dataclass(frozen=True)
 class ButtonContext:
-    cog: "MusicCog"                       # queuePagenation の委譲用
-    interaction: discord.Interaction      # 既に defer(ephemeral=True) 済み
-    voiceClient: LavalinkVoiceClient      # stop の disconnect() 用
+    cog: "MusicCog"  # queuePagenation の委譲用
+    interaction: discord.Interaction  # 既に defer(ephemeral=True) 済み
+    voiceClient: LavalinkVoiceClient  # stop の disconnect() 用
     player: MusicPlayer
-    track: lavalink.AudioTrack            # ボタン押下時の current(handler 内で stale になりうる)
-    requestAuthorMention: str             # 事前解決済み
-    customField: list[str]                # split(",") 結果。customField[1] は queuePagenation で使用
+    track: lavalink.AudioTrack  # ボタン押下時の current(handler 内で stale になりうる)
+    requestAuthorMention: str  # 事前解決済み
+    customField: list[str]  # split(",") 結果。customField[1] は queuePagenation で使用
 ```
 
 #### 2.1.2 Handler 型と戻り値契約

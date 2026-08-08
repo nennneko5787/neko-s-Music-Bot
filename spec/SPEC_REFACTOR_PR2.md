@@ -45,9 +45,7 @@ B/C/D も `_getPanelMessage` 経由に統一することで **SPEC #22 のキャ
 
 モジュール定数として:
 ```python
-_ALLOWED_MENTIONS = discord.AllowedMentions(
-    everyone=False, users=False, roles=False, replied_user=False
-)
+_ALLOWED_MENTIONS = discord.AllowedMentions(everyone=False, users=False, roles=False, replied_user=False)
 ```
 
 ### 2.2 `cogs/music.py` の変更

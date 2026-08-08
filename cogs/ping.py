@@ -16,9 +16,7 @@ class PingCog(commands.Cog):
     def __init__(self, bot: MusicBot):
         self.bot = bot
 
-    @app_commands.command(
-        name="ping", description="ボットのレイテンシーやCPU・メモリ状況を確認します。"
-    )
+    @app_commands.command(name="ping", description="ボットのレイテンシーやCPU・メモリ状況を確認します。")
     async def pingCommand(self, interaction: discord.Interaction):
         ping = self.bot.latency
 
@@ -26,13 +24,10 @@ class PingCog(commands.Cog):
         _totalPing = 0
 
         for voiceClient in self.bot.voice_clients:
-            # プロジェクト内では voiceClient は必ず LavalinkVoiceClient(SPEC §5.4)。
             player = cast(MusicPlayer | None, cast(LavalinkVoiceClient, voiceClient).player)
             if player is None:
-                # LavalinkVoiceClient.__init__ 直後(connect() 完了前)は player=None。
-                # /ping はその窓に当たったら黙って集計から除外する(SPEC Phase 5 §4)。
-                continue
-            # SPEC #31: lavalink は未接続時に ping = -1 センチネルを返すため除外。
+                continue  # connect() 完了前(SPEC Phase 5 §4)
+            # SPEC #31: 未接続時の ping = -1 センチネルを除外する。
             if player.ping < 0:
                 continue
             _totalPing += player.ping
@@ -51,7 +46,7 @@ class PingCog(commands.Cog):
             ),
             color=discord.Colour.purple(),
         )
-        assert self.bot.user is not None  # ログイン完了後にしか到達しない
+        assert self.bot.user is not None
         embed.set_thumbnail(url=self.bot.user.display_avatar.url)
         await interaction.response.send_message(embed=embed)
 

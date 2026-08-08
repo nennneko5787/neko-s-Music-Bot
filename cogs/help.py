@@ -11,9 +11,11 @@ class HelpCog(commands.Cog):
     def __init__(self, bot: MusicBot):
         self.bot = bot
 
-    @app_commands.command(
-        name="help", description="neko's Music Botの使い方を確認します。"
-    )
+    @app_commands.command(name="support", description="サポートサーバーへのリンクを表示します。")
+    async def supportCommand(self, interaction: discord.Interaction):
+        await interaction.response.send_message("https://discord.gg/PN3KWEnYzX")
+
+    @app_commands.command(name="help", description="neko's Music Botの使い方を確認します。")
     async def helpCommand(self, interaction: discord.Interaction):
         embed = (
             discord.Embed(

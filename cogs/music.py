@@ -16,6 +16,7 @@ from lavalink.events import (
 from lavalink.filters import Timescale
 from lavalink.server import LoadType
 
+from objects import progressBar
 from objects.bot import MusicBot
 from objects.client import LavalinkVoiceClient
 from objects.panel import WaitingView
@@ -35,14 +36,10 @@ dotenv.load_dotenv()
 
 
 class MusicCog(commands.Cog):
-    # NOTE: commands.Cog は __slots__ を持たないため、下記 __slots__ は事実上無効。
-    # 属性は __dict__ に載る(SPEC 分析で検証済み)。ここでは lint 対象を減らす目的で列挙のみ残す。
+    # commands.Cog に __slots__ が無いためこの宣言は実質無効。lint 用に列挙だけ残す。
     __slots__ = (
-        "bar",
         "bot",
-        "circle",
         "editQueue",
-        "graybar",
         "initialized",
         "log",
         "presenceCount",
@@ -52,10 +49,6 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: MusicBot):
         self.bot = bot
         self.log = logging.getLogger("music")
-        self.bar = ""
-        self.circle = ""
-        self.graybar = ""
-        self.presenceCount = 0
         self.initialized = False
         self.urlRegexp: re.Pattern = re.compile(r"https?://(?:www\.)?.+")
         self.lavalink: lavalink.Client | None = None
@@ -63,35 +56,24 @@ class MusicCog(commands.Cog):
 
     @tasks.loop(seconds=20)
     async def presenceLoop(self):
-        if self.presenceCount == 0:
-            await self.bot.change_presence(
-                activity=discord.Activity(
-                    name=f"{len(self.bot.voice_clients)} / {len(self.bot.guilds)} サーバー",
-                    type=discord.ActivityType.competing,
-                )
+        await self.bot.change_presence(
+            activity=discord.Activity(
+                name=f"/help | {len(self.bot.voice_clients)} / {len(self.bot.guilds)} サーバー",
+                type=discord.ActivityType.competing,
             )
-            self.presenceCount = 1
-        elif self.presenceCount == 1:
-            await self.bot.change_presence(activity=discord.Game("/help"))
-            self.presenceCount = 2
-        elif self.presenceCount == 2:
-            await self.bot.change_presence(activity=discord.Game("Powered by nennneko5787"))
-            self.presenceCount = 0
+        )
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # SPEC #13: 元コードは再接続のたびに emoji fetch が走った(initialized ガード外だった)。
-        # 一度だけ実行するように initialized ガード内へ移動。lavalink Client の構築もここ。
+        # SPEC #13: 再接続のたびに走らせない。
         if self.initialized:
             return
 
-        self.bar = str(discord.utils.get(await self.bot.fetch_application_emojis(), name="bar"))
-        self.circle = str(discord.utils.get(await self.bot.fetch_application_emojis(), name="circle"))
-        self.graybar = str(discord.utils.get(await self.bot.fetch_application_emojis(), name="graybar"))
+        await progressBar.loadEmojis(self.bot)
 
         self.presenceLoop.start()
 
-        assert self.bot.user is not None  # on_ready 発火時点で保証される
+        assert self.bot.user is not None
         self.bot.lavalink = lavalink.Client(self.bot.user.id, player=MusicPlayer)
         self.bot.lavalink.add_node(
             host=getEnv("lavalink_host"),
@@ -110,20 +92,13 @@ class MusicCog(commands.Cog):
         self.editQueue.start()
 
     async def cog_unload(self):
-        """
-        Cog reload 時のクリーンアップ。
-        - SPEC #21: 元コードは presenceLoop.cancel() を忘れており、reload 後の再接続で二重稼働した。
-        - 元コードは lavalink 未初期化のまま unload されると AttributeError を投げた
-          (self.lavalink が None のときのガード欠如)。
-        """
-        # SPEC #21: presenceLoop を止めないと reload 後に二重ループになる。
+        """Cog reload 時のクリーンアップ。SPEC #21。"""
         if self.presenceLoop.is_running():
             self.presenceLoop.cancel()
 
         if self.lavalink is not None:
             self.lavalink._event_hooks.clear()
 
-        # SPEC #21: editQueue.stop() は冪等なので二度呼びも安全。
         self.editQueue.stop()
 
     @commands.Cog.listener()
@@ -161,7 +136,7 @@ class MusicCog(commands.Cog):
     @app_commands.check(playerCheck.createPlayer)
     async def playCommand(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
-        # create_player check により interaction.guild と self.lavalink は非 None が保証される
+        # createPlayer check により両者とも非 None が保証される
         assert interaction.guild is not None
         assert self.lavalink is not None
         player = cast(MusicPlayer, self.lavalink.player_manager.get(interaction.guild.id))
@@ -193,11 +168,7 @@ class MusicCog(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
-        # SPEC_FEATURE_ADS §5.2: 広告表示は TrackStartEvent hook 側に一元化された。
-        # ここでは呼ばない(playCommand 経由の /play も、hook 側の onTrackStart 経由でカウントされる)。
-
-        # SPEC #24: is_playing は TrackStart 到着まで False のため、アイドルに2人が同時に /play すると
-        # 二重パネルが投稿される。channelId store の有無でアトミックに判定する。
+        # SPEC #24: 同時 /play の二重パネルを避けるため is_playing ではなく channelId で判定する。
         if player.fetch("channelId") is None:
             channel = interaction.channel
             if not isinstance(channel, discord.abc.Messageable):
@@ -300,9 +271,7 @@ class MusicCog(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
     @app_commands.check(playerCheck.requireSameVC)
     async def stopCommand(self, interaction: discord.Interaction):
-        # SPEC_REFACTOR_PR5.md: requireSameVC で guild と voice_client の存在は保証される。
-        # ただし player は None でも disconnect したい仕様(voice client の掃除)なので
-        # requirePlaying は付けず、player の None チェックは inline に残す。
+        # player が None でも voice client を掃除したいため requirePlaying は付けない。
         await interaction.response.defer()
         assert interaction.guild is not None
         voiceClient = cast(LavalinkVoiceClient, interaction.guild.voice_client)

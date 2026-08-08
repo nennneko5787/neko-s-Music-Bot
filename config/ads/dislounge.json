@@ -1,0 +1,9 @@
+{
+  "id": "dislounge",
+  "title": "Discordサーバー掲示板「Dislounge」",
+  "description": "Discordサーバーのメンバーを増やしたい？それならやっぱりDislounge！",
+  "imageUrl": "https://i.imgur.com/DEPJlmj.png",
+  "linkUrl": "https://dislounge.net/",
+  "weight": 1,
+  "enabled": true
+}

@@ -1,20 +1,11 @@
 import discord
 import lavalink
 
+from objects.progressBar import progressBar
 from objects.utils import formatTime
 
 from .ad import Ad
 from .player import MusicPlayer
-
-
-def _progressBar(percentage: float, bar: str, circle: str, graybar: str, length: int = 14) -> str:
-    # SPEC #28: percentage>=1.0 では graybar 数が負になり circle も付けると length+1 文字にはみ出す。
-    if percentage >= 1.0:
-        return bar * length
-    if percentage <= 0.0:
-        return circle + graybar * (length - 1)
-    filled = int(length * percentage)
-    return bar * filled + circle + graybar * (length - filled - 1)
 
 
 class WaitingView(discord.ui.LayoutView):
@@ -30,12 +21,9 @@ class WaitingView(discord.ui.LayoutView):
 
 
 def _buildAdItems(ad: Ad) -> list[discord.ui.Item]:
-    """
-    MusicPanel 末尾に埋め込む広告セクション。SPEC_FEATURE_ADS §4.1 のレイアウト。
-    Separator + Section(短文 + Thumbnail accessory)。
-    """
+    """パネル末尾に埋め込む広告セクション。SPEC_FEATURE_ADS §4.1。"""
     titleLine = f"**[{ad.title}]({ad.linkUrl})**" if ad.linkUrl else f"**{ad.title}**"
-    return [
+    items: list[discord.ui.Item] = [
         discord.ui.Separator(spacing=discord.SeparatorSpacing.large),
         discord.ui.Section(
             discord.ui.TextDisplay("-# 広告 / Ad"),
@@ -44,6 +32,14 @@ def _buildAdItems(ad: Ad) -> list[discord.ui.Item]:
             accessory=discord.ui.Thumbnail(media=ad.imageUrl, description=ad.title),
         ),
     ]
+    # Section の子は TextDisplay 3 個までなので、ボタンは兄弟の ActionRow として置く。
+    if ad.linkUrl:
+        items.append(
+            discord.ui.ActionRow(
+                discord.ui.Button(style=discord.ButtonStyle.link, label="リンク先を開く", url=ad.linkUrl),
+            )
+        )
+    return items
 
 
 class MusicPanel(discord.ui.LayoutView):
@@ -52,9 +48,6 @@ class MusicPanel(discord.ui.LayoutView):
         player: MusicPlayer,
         track: lavalink.AudioTrack,
         requestAuthorMention: str,
-        bar: str,
-        circle: str,
-        graybar: str,
         *,
         finished: bool = False,
         ad: Ad | None = None,
@@ -64,17 +57,15 @@ class MusicPanel(discord.ui.LayoutView):
         if not finished:
             if player.is_playing:
                 if player.paused:
-                    self.title = discord.ui.TextDisplay(
+                    titleText = (
                         f"⏸️一時停止中 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
                     )
                 else:
-                    self.title = discord.ui.TextDisplay(
+                    titleText = (
                         f"🎶再生中 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
                     )
             else:
-                self.title = discord.ui.TextDisplay(
-                    f"再生準備中 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
-                )
+                titleText = f"再生準備中 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
         else:
             self.trackInfoSection = discord.ui.TextDisplay(
                 f"再生終了 - **[{track.title}]({track.uri})**\n-# {requestAuthorMention} によるリクエスト"
@@ -86,25 +77,24 @@ class MusicPanel(discord.ui.LayoutView):
             self.add_item(container)
             return
 
-        if track.artwork_url:
-            self.thumbnail = discord.ui.Thumbnail(media=track.artwork_url, description=track.title)
-            self.trackInfoSection = discord.ui.Section(self.title, accessory=self.thumbnail)
-        else:
-            # SPEC #4: 元の実装は self.title(状態+リクエスト者情報)を捨てて track.title のみ表示する
-            # バグだった。アートワーク無しでも同じ情報行を出す。
-            self.trackInfoSection = self.title
-
-        # SPEC #7: ライブ配信は duration=0 (もしくは 2^63-1) を返しうる。ZeroDivision を回避。
+        # SPEC #7: ライブ配信は duration=0 を返しうるので ZeroDivision を回避する。
         if track.duration and track.duration > 0:
             playProgressPercentage = player.position / track.duration
             playDurationText = formatTime(track.duration / 1000)
         else:
             playProgressPercentage = 0
             playDurationText = "LIVE"
-        playProgressBar = _progressBar(playProgressPercentage, bar, circle, graybar)
+        playProgressBar = progressBar(playProgressPercentage, length=11, showCircle=True)
         self.playProgress = discord.ui.TextDisplay(
-            f"-# 再生時間 `{formatTime(player.position / 1000)} / {playDurationText}`\n{playProgressBar}"
+            f"{titleText}\n-# 再生時間 `{formatTime(player.position / 1000)} / {playDurationText}`\n{playProgressBar}"
         )
+
+        if track.artwork_url:
+            self.thumbnail = discord.ui.Thumbnail(media=track.artwork_url, description=track.title)
+            self.trackInfoSection = discord.ui.Section(self.playProgress, accessory=self.thumbnail)
+        else:
+            # SPEC #4: アートワーク無しでも同じ情報行を出す。
+            self.trackInfoSection = self.playProgress
 
         self.playActions = discord.ui.ActionRow(
             discord.ui.Button(
@@ -135,6 +125,12 @@ class MusicPanel(discord.ui.LayoutView):
                 ),
                 emoji="🔄",
                 custom_id="loop",
+                row=0,
+            ),
+            discord.ui.Button(
+                style=discord.ButtonStyle.blurple,
+                emoji="🎶",
+                custom_id="mix",
                 row=0,
             ),
         )
@@ -168,23 +164,12 @@ class MusicPanel(discord.ui.LayoutView):
             ),
         )
 
-        self.playActions3 = discord.ui.ActionRow(
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="🎶",
-                custom_id="mix",
-                row=1,
-            ),
-        )
-
         containerItems: list[discord.ui.Item] = [
             self.trackInfoSection,
-            self.playProgress,
             self.playActions,
             self.playActions2,
-            self.playActions3,
         ]
-        # SPEC_FEATURE_ADS §4.1: ad があれば末尾に埋め込む(finished=False の再生パスのみ)。
+        # SPEC_FEATURE_ADS §4.1: ad があれば末尾に埋め込む。
         if ad is not None:
             containerItems.extend(_buildAdItems(ad))
 

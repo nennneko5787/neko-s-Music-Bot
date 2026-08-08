@@ -15,7 +15,7 @@ class BotStopPanel(discord.ui.LayoutView):
 
         self.trackInfoSection = discord.ui.TextDisplay(
             f"再生終了 - **[{track.title}]({track.uri})**\n"
-            f"-# {requestAuthorMention} によるリクエスト\n"
+            f"-# {requestAuthorMention} によるリクエスト\n\n"
             f"-# ボットの再起動により停止されました"
         )
         container = discord.ui.Container(
@@ -33,9 +33,8 @@ class MusicBot(commands.Bot):
         self.lavalink: lavalink.Client
 
     async def close(self):
-        # SPEC Phase 5 §1 — 破棄前に state を吸い上げてから disconnect する。
-        # 途中で None やチャンネル種別ミスマッチに当たったら黙ってスキップ
-        # (再生中でない・パネル未投稿・チャンネル削除済みなど)。
+        # SPEC Phase 5 §1: 破棄前に state を吸い上げてから disconnect する。
+        # 途中で None やチャンネル種別ミスマッチに当たったら黙ってスキップする。
         for voiceClient in self.voice_clients:
             if not isinstance(voiceClient, LavalinkVoiceClient):
                 await voiceClient.disconnect(force=True)
@@ -70,17 +69,18 @@ class MusicBot(commands.Bot):
                 await voiceClient.disconnect(force=True)
                 continue
 
-            # SPEC #15: fetch_member は NotFound で落ちうる — resolveMemberMention でフォールバック。
-            requestAuthorMention = await resolveMemberMention(
-                guild, track.extra["requester"]
-            )
+            requestAuthorMention = await resolveMemberMention(guild, track.extra["requester"])
 
             await message.edit(
                 view=BotStopPanel(track=track, requestAuthorMention=requestAuthorMention),
-                allowed_mentions=discord.AllowedMentions(
-                    everyone=False, users=False, roles=False, replied_user=False
-                ),
+                allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False, replied_user=False),
             )
             await voiceClient.disconnect(force=True)
+
+        # lavalink.Client は内部の aiohttp.ClientSession を自動では閉じない。
+        # on_ready 前に停止した場合は未代入なので getattr でガードする。
+        lavalinkClient = getattr(self, "lavalink", None)
+        if lavalinkClient is not None:
+            await lavalinkClient.close()
 
         return await super().close()

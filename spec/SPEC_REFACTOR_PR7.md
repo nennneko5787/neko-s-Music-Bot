@@ -33,6 +33,7 @@ PR4 で `on_interaction` → `buttonHandler.handleButtonClick` の 1 行委譲�
 ```python
 class MusicPlayer(DefaultPlayer):
     ...
+
     async def putPrevQueue(self, track: lavalink.AudioTrack) -> None:
         """
         ⏮ ボタン用の履歴 LIFO キューにトラックを積む。
@@ -67,11 +68,13 @@ async def handleTrackEnd(cog: MusicCog, event: TrackEndEvent) -> None:
     """
     ...
 
+
 async def handleQueueEnd(cog: MusicCog, event: QueueEndEvent) -> None:
     """
     SPEC #18: lastFinishedTrack を使って finished パネル化 + voice disconnect。
     """
     ...
+
 
 async def handlePlayerUpdate(cog: MusicCog, event: PlayerUpdateEvent) -> None:
     """
@@ -87,9 +90,11 @@ async def handlePlayerUpdate(cog: MusicCog, event: PlayerUpdateEvent) -> None:
 async def onTrackEnd(self, event: TrackEndEvent):
     await lavalinkHooks.handleTrackEnd(self, event)
 
+
 @lavalink.listener(QueueEndEvent)
 async def onQueueEnd(self, event: QueueEndEvent):
     await lavalinkHooks.handleQueueEnd(self, event)
+
 
 @lavalink.listener(PlayerUpdateEvent)
 async def onPlayerUpdate(self, event: PlayerUpdateEvent):
