@@ -149,10 +149,13 @@ async def handleForward(ctx: ButtonContext) -> None:
 
 @button("loop", refresh=Refresh.MUSIC)
 async def handleLoop(ctx: ButtonContext) -> None:
-    loop = ctx.player.loop + 1
-    if loop > 2:
-        loop = 0
-    ctx.player.loop = loop
+    match ctx.player.loop:
+        case ctx.player.LOOP_NONE:
+            ctx.player.loop = ctx.player.LOOP_QUEUE
+        case ctx.player.LOOP_QUEUE:
+            ctx.player.loop = ctx.player.LOOP_SINGLE
+        case ctx.player.LOOP_SINGLE | _:
+            ctx.player.loop = ctx.player.LOOP_NONE
 
 
 @button("shuffle", refresh=Refresh.MUSIC)

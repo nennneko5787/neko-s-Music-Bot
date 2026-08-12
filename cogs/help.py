@@ -13,7 +13,7 @@ class HelpCog(commands.Cog):
 
     @app_commands.command(name="support", description="サポートサーバーへのリンクを表示します。")
     async def supportCommand(self, interaction: discord.Interaction):
-        await interaction.response.send_message("https://discord.gg/PN3KWEnYzX")
+        await interaction.response.send_message("https://discord.gg/PN3KWEnYzX", ephemeral=True)
 
     @app_commands.command(name="help", description="neko's Music Botの使い方を確認します。")
     async def helpCommand(self, interaction: discord.Interaction):

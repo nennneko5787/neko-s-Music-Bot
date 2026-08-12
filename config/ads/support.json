@@ -1,0 +1,9 @@
+{
+  "id": "support",
+  "title": "サポートサーバー",
+  "description": "ボットのサポートはサポートサーバーまで！",
+  "imageUrl": "https://cdn.discordapp.com/icons/1130069057362731038/706f50ba34471f0a0fb3b87bf8227819.png?size=4096",
+  "linkUrl": "https://discord.gg/PN3KWEnYzX",
+  "weight": 1,
+  "enabled": true
+}

@@ -1,0 +1,9 @@
+{
+  "id": "shironekoserver",
+  "title": "Discordボット用サーバー「ShironekoServer」",
+  "description": "Discordボットのためのサーバーに高いお金を払うのはもうやめよう。ShironekoServerでね。",
+  "imageUrl": "https://www.shironekoserver.com/siteimage.jpg",
+  "linkUrl": "https://www.shironekoserver.com/",
+  "weight": 1,
+  "enabled": true
+}

@@ -86,7 +86,7 @@ class MusicPanel(discord.ui.LayoutView):
             playDurationText = "LIVE"
         playProgressBar = progressBar(playProgressPercentage, length=11, showCircle=True)
         self.playProgress = discord.ui.TextDisplay(
-            f"{titleText}\n-# 再生時間 `{formatTime(player.position / 1000)} / {playDurationText}`\n{playProgressBar}"
+            f"{titleText}\n`{formatTime(player.position / 1000)} / {playDurationText}`\n{playProgressBar}"
         )
 
         if track.artwork_url:
@@ -97,6 +97,13 @@ class MusicPanel(discord.ui.LayoutView):
             self.trackInfoSection = self.playProgress
 
         self.playActions = discord.ui.ActionRow(
+            discord.ui.Button(
+                style=discord.ButtonStyle.blurple,
+                emoji="⏮",
+                custom_id="prev",
+                row=1,
+                disabled=(player.prevQueue.qsize() <= 0),
+            ),
             discord.ui.Button(
                 style=discord.ButtonStyle.blurple,
                 emoji="⏪",
@@ -116,6 +123,22 @@ class MusicPanel(discord.ui.LayoutView):
                 row=0,
             ),
             discord.ui.Button(
+                style=discord.ButtonStyle.blurple,
+                emoji="⏭",
+                custom_id="next",
+                row=1,
+                disabled=(len(player.queue) <= 0),
+            ),
+        )
+
+        self.playActions2 = discord.ui.ActionRow(
+            discord.ui.Button(
+                style=discord.ButtonStyle.blurple if player.shuffle else discord.ButtonStyle.gray,
+                emoji="🔀",
+                custom_id="shuffle",
+                row=1,
+            ),
+            discord.ui.Button(
                 style=(
                     discord.ButtonStyle.gray
                     if player.loop == player.LOOP_NONE
@@ -123,43 +146,20 @@ class MusicPanel(discord.ui.LayoutView):
                     if player.loop == player.LOOP_SINGLE
                     else discord.ButtonStyle.blurple
                 ),
-                emoji="🔄",
+                emoji="🔄" if player.loop == player.LOOP_NONE else "🔂" if player.loop == player.LOOP_SINGLE else "🔄",
                 custom_id="loop",
                 row=0,
             ),
             discord.ui.Button(
                 style=discord.ButtonStyle.blurple,
-                emoji="🎶",
+                emoji="📶",
                 custom_id="mix",
                 row=0,
-            ),
-        )
-
-        self.playActions2 = discord.ui.ActionRow(
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="⏮",
-                custom_id="prev",
-                row=1,
-                disabled=(player.prevQueue.qsize() <= 0),
             ),
             discord.ui.Button(
                 style=discord.ButtonStyle.blurple,
                 emoji="⏹",
                 custom_id="stop",
-                row=1,
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple,
-                emoji="⏭",
-                custom_id="next",
-                row=1,
-                disabled=(len(player.queue) <= 0),
-            ),
-            discord.ui.Button(
-                style=discord.ButtonStyle.blurple if player.shuffle else discord.ButtonStyle.gray,
-                emoji="🔀",
-                custom_id="shuffle",
                 row=1,
             ),
         )
